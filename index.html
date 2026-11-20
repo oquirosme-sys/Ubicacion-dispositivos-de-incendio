@@ -302,8 +302,6 @@
    <b>Cobertura:</b>
    <label style="margin:0"><input type="checkbox" id="vCobDet" checked style="width:auto"> Detectores</label>
    <label style="margin:0"><input type="checkbox" id="vCobVis" style="width:auto"> Notificación visual</label>
-   <label style="margin:0" title="Mapa de las zonas cubiertas por estrobos (verde) y sin cobertura (rojo), según el modo elegido en el selector de cobertura sonora y visual"><input type="checkbox" id="vVisComb" style="width:auto"> Mapa de cobertura visual</label>
-   <label style="margin:0" title="Muros que puede atravesar la luz de un estrobo hacia el recinto vecino (puerta abierta, vidrio, vano)">muros que atraviesa la luz <select id="visMuros" style="width:auto"></select></label>
    <label style="margin:0"><input type="checkbox" id="vCobAud" style="width:auto"> Notificación auditiva</label>
    <label style="margin:0" title="Dibuja a la par de cada equipo los módulos que pide la matriz (uno por señal), para replicarlos en el modelo"><input type="checkbox" id="vModulos" style="width:auto" checked> Módulos junto a equipos</label>
    <label style="margin:0" title="Muestra, junto a cada equipo del plano, los dispositivos que pide la matriz de supervisión"><input type="checkbox" id="vNotas" style="width:auto" checked> Notas de equipos</label>
@@ -311,6 +309,8 @@
    <label style="margin:0" title="Rojo: por debajo del nivel requerido; verde: cumple; naranja: sobre 110 dBA"><input type="checkbox" id="vSPL" style="width:auto"> Nivel sonoro (dBA)</label>
    <select id="splModo" title="Con qué dispositivos se calcula la cobertura sonora (nivel dBA) y el mapa de cobertura visual" style="width:auto"><option value="rec">Cobertura sonora y visual: por recinto (solo sus dispositivos)</option><option value="comb">Cobertura sonora y visual: recintos combinados (con pérdida por muros)</option><option value="libre">Cobertura sonora y visual: sin recintos asignados (todos los dispositivos, sin muros)</option></select>
    <label style="margin:0" title="dB que se pierden por cada muro que atraviesa el sonido en el modo combinado">pérdida por muro <select id="splPerd" style="width:auto"></select></label>
+   <label style="margin:0" title="Mapa de las zonas cubiertas por estrobos (verde) y sin cobertura (rojo), según el modo elegido en el selector de cobertura sonora y visual"><input type="checkbox" id="vVisComb" style="width:auto"> Mapa de cobertura visual</label>
+   <label style="margin:0" title="Muros que puede atravesar la luz de un estrobo hacia el recinto vecino (puerta abierta, vidrio, vano)">muros que atraviesa la luz <select id="visMuros" style="width:auto"></select></label>
    <label style="margin:0"><input type="checkbox" id="vPlano" checked style="width:auto"> Plano</label>
    <label style="margin:0">Opacidad plano <input type="range" id="vOp" min="10" max="100" value="55" style="width:90px"></label>
    <label style="margin:0">Tamaño símbolos <input type="range" id="vSim" min="8" max="40" value="16" style="width:90px"></label>
