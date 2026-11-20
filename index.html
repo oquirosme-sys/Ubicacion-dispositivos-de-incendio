@@ -242,6 +242,7 @@
   <button id="btnCrear">Crear recinto</button>
 </section><section class="card"><h2>Dispositivo seleccionado</h2><div id="propDisp"></div></section>
 <section class="card"><h2>Prediseño</h2><small class="g">Los criterios se definen en el módulo 1. Cree o cargue los recintos y genere.</small><br>  <button class="gran" id="btnGenerar">▶ Generar prediseño</button>
+  <button class="sec" id="btnGenerarTodo" title="Recalcula todos los recintos y descarta los ajustes manuales de los dispositivos automáticos">↻ Regenerar todo</button>
   <button class="sec" id="btnLimpiar">Quitar dispositivos</button>
 </section><section class="card"><h2>Archivo</h2>
   <button class="sec" id="btnGuardar">Guardar borrador (.json)</button>
@@ -261,12 +262,14 @@
    <label style="margin:0"><input type="checkbox" id="vCobDet" checked style="width:auto"> Detectores</label>
    <label style="margin:0"><input type="checkbox" id="vCobVis" style="width:auto"> Notificación visual</label>
    <label style="margin:0"><input type="checkbox" id="vCobAud" style="width:auto"> Notificación auditiva</label>
+   <label style="margin:0" title="Al dibujar recintos, el cursor se engancha a las esquinas y muros del plano. Mantenga Alt para desactivarlo temporalmente"><input type="checkbox" id="vSnap" style="width:auto" checked> Imán a esquinas y muros</label>
    <label style="margin:0" title="Rojo: por debajo del nivel requerido; verde: cumple; naranja: sobre 110 dBA"><input type="checkbox" id="vSPL" style="width:auto"> Nivel sonoro (dBA)</label>
    <label style="margin:0"><input type="checkbox" id="vPlano" checked style="width:auto"> Plano</label>
    <label style="margin:0">Opacidad plano <input type="range" id="vOp" min="10" max="100" value="55" style="width:90px"></label>
    <label style="margin:0">Tamaño símbolos <input type="range" id="vSim" min="8" max="40" value="16" style="width:90px"></label>
    <label style="margin:0">Cierre de huecos de puerta (px) <input type="number" id="rellCierre" value="10" min="0" max="40" style="width:56px"></label>
-  </div>
+    <span style="margin-left:auto;display:flex;gap:4px"><button class="sec" id="btnCobOcultarTodas" title="Oculta la cobertura de todos los recintos (los dispositivos se quedan)" style="padding:3px 8px;font-size:.74rem">👁 Ocultar todas</button><button class="sec" id="btnCobMostrarTodas" title="Muestra la cobertura de todos los recintos" style="padding:3px 8px;font-size:.74rem">👁 Mostrar todas</button></span>
+</div>
   <canvas id="cv"></canvas>
   <div id="estado">Cargue un plano o cree un recinto con dimensiones. Rueda = zoom · arrastrar con botón central o Espacio = desplazar · Enter/doble clic = cerrar polígono · Esc = cancelar.</div>
  </div>
@@ -312,7 +315,7 @@
   <div id="dlgLista"></div>
   <div style="margin-top:10px;text-align:right"><button class="sec" id="dlgCancelar">Cancelar</button><button class="peligro" id="dlgBorrarSel">Borrar seleccionados</button></div>
 </dialog>
-<div id="menuCtx"><div class="titulo" id="menuTit"></div><button id="mDevMover">✥ Mover (clic en el nuevo lugar)</button><button id="mDevClon">⧉ Agregar similares</button><button id="mDevCambiar">✎ Cambiar tipo / propiedades</button><button id="mDevAud">🔊 Agregar bocina</button><button id="mDevBor" style="color:var(--ro)">🗑 Borrar dispositivo</button><button id="mAgregar">＋ Agregar punto aquí</button><button id="mQuitar">− Eliminar punto</button><button id="mUltimo">↶ Quitar último punto</button><button id="mCerrar">✔ Cerrar polígono</button><button id="mCancelar">✖ Cancelar dibujo</button><button id="mRenombrar">✎ Cambiar nombre…</button><button id="mAjustar">✎ Ajustar polígono</button><button id="mCopiar">⧉ Copiar</button><button id="mBorrar" style="color:var(--ro)">🗑 Borrar</button></div>
+<div id="menuCtx"><div class="titulo" id="menuTit"></div><button id="mDevMover">✥ Mover (clic en el nuevo lugar)</button><button id="mDevClon">⧉ Agregar similares</button><button id="mDevCambiar">✎ Cambiar tipo / propiedades</button><button id="mDevAud">🔊 Agregar bocina</button><button id="mDevBor" style="color:var(--ro)">🗑 Borrar dispositivo</button><button id="mAgregar">＋ Agregar punto aquí</button><button id="mQuitar">− Eliminar punto</button><button id="mUltimo">↶ Quitar último punto</button><button id="mCerrar">✔ Cerrar polígono</button><button id="mCancelar">✖ Cancelar dibujo</button><button id="mCob">👁 Ocultar cobertura de este recinto</button><button id="mRegen">↻ Regenerar este recinto</button><button id="mRenombrar">✎ Cambiar nombre…</button><button id="mAjustar">✎ Ajustar polígono</button><button id="mCopiar">⧉ Copiar</button><button id="mBorrar" style="color:var(--ro)">🗑 Borrar</button></div>
 
 <script>
 "use strict";
@@ -393,6 +396,13 @@ const AUDIBLE_DIST_MIN_M = 1;
 const AUDIBLE_DB_POR_DUPLICAR = 6;
 // Radio mínimo en pantalla (px) para dibujar un anillo de nivel sonoro (CRITERIO de legibilidad).
 const AUDIBLE_ANILLO_MIN_PX = 6;
+// Lados de los cuadrados anidados que se dibujan en la cobertura visual (m): 20, 30, 40, 50, 60 y 70 ft de las tablas
+// 18.5.5.7.1(a)/(b) de NFPA 72:2022 (V22). Ancho mínimo en pantalla (px) para escribir su rótulo (CRITERIO de legibilidad).
+const COBERTURA_VISUAL_LADOS_M = [6.1, 9.1, 12.2, 15.2, 18.3, 21.3];
+const COBERTURA_VISUAL_ETIQUETA_PX = 46;
+// Imán de dibujo (CRITERIOS de usabilidad/procesamiento): alcance en px de pantalla, lado máximo de la imagen de análisis (px),
+// largo mínimo de un tramo de muro para contar como línea (m) y tope de esquinas guardadas.
+const SNAP_PX = 14, SNAP_LADO_MAX_PX = 1800, SNAP_LARGO_M = 0.8, SNAP_MAX_ESQUINAS = 6000;
 // Mapa de nivel sonoro: tamaño mínimo de celda (m) y número máximo de celdas por recinto (CRITERIOS de rendimiento/legibilidad).
 const AUDIBLE_MAPA_PASO_MIN_M = 1, AUDIBLE_MAPA_CELDAS_MAX = 4000;
 // Ancho de celda (px de pantalla) a partir del cual se escribe el valor en dBA dentro de la celda (CRITERIO de legibilidad).
@@ -836,19 +846,23 @@ function planificarRecinto(r,o){
 }
 
 // Pulsadores y marcadores globales.
-function planificarGlobales(o,resRec){
+// Distancia (m) a la que un detector de ducto ya colocado se toma como el de esa manejadora (CRITERIO).
+const DIST_AHU_EXISTENTE_M = 1;
+function planificarGlobales(o,resRec,prev){
+  prev=prev||[];
   const disp=[],notas=[],P=par();
   const todas=[];E.recintos.forEach(r=>muestras(r.poly,PASO_GLOBAL_M,0.15).forEach(p=>todas.push(p)));
   const salidas=E.marcas.filter(m=>m.t==='salida');
-  const pulsadores=[];
+  const pulsadores=prev.filter(d=>d.tipo==='pulsador').map(d=>({x:d.x,y:d.y}));   // los ya ubicados cuentan y no se mueven
   salidas.forEach(m=>{
+    if(prev.some(d=>d.tipo==='pulsador'&&Math.hypot(d.x-m.x,d.y-m.y)<=PULSADOR_DIST_SALIDA_M*2))return;   // esa salida ya tiene su pulsador
     let pos=null;
     if(todas.length){const mc=masCercano(m,todas);if(mc.p&&mc.d<=PULSADOR_DIST_SALIDA_M*3){const dx=mc.p.x-m.x,dy=mc.p.y-m.y,l=Math.hypot(dx,dy)||1;
       pos={x:m.x+dx/l*Math.min(PULSADOR_OFFSET_M,l),y:m.y+dy/l*Math.min(PULSADOR_OFFSET_M,l)};}}
     if(!pos)pos={x:m.x+PULSADOR_OFFSET_M,y:m.y};
     pulsadores.push(pos);disp.push({tipo:'pulsador',x:pos.x,y:pos.y,sala:'Salida',nota:'≤ '+PULSADOR_DIST_SALIDA_M+' m de la salida'});
   });
-  if(P.pulsadorRecepcion)E.marcas.filter(m=>m.t==='facp').forEach(m=>{pulsadores.push({x:m.x+PULSADOR_OFFSET_M,y:m.y});disp.push({tipo:'pulsador',x:m.x+PULSADOR_OFFSET_M,y:m.y,sala:'FACP/recepción',nota:'pulsador general (estándar de cadena)'});});
+  if(P.pulsadorRecepcion)E.marcas.filter(m=>m.t==='facp').forEach(m=>{if(prev.some(d=>d.tipo==='pulsador'&&Math.hypot(d.x-m.x,d.y-m.y)<=PULSADOR_DIST_SALIDA_M*2))return;pulsadores.push({x:m.x+PULSADOR_OFFSET_M,y:m.y});disp.push({tipo:'pulsador',x:m.x+PULSADOR_OFFSET_M,y:m.y,sala:'FACP/recepción',nota:'pulsador general (estándar de cadena)'});});
   const lim=PULSADOR_RECORRIDO_MAX_M/o.facRec;
   if(!salidas.length)notas.push('No hay salidas marcadas: no se pueden ubicar pulsadores en puertas de salida. Use «+ Salida».');
   else if(todas.length){
@@ -857,10 +871,10 @@ function planificarGlobales(o,resRec){
   }
   // Ascensores: detector de humo en el vestíbulo si no hay otro a ≤ 3.05 m
   E.marcas.filter(m=>m.t==='asc').forEach(m=>{
-    const humo=resRec.flatMap(x=>x.disp).concat(disp).filter(d=>d.tipo==='det_humo');
+    const humo=resRec.flatMap(x=>x.disp).concat(disp,prev).filter(d=>d.tipo==='det_humo');
     if(dmin(m,humo)>DIST_HUMO_ASCENSOR_M)disp.push({tipo:'det_humo',x:m.x,y:m.y,sala:'Vestíbulo ascensor',radio:o.espH*FACTOR_RADIO_COBERTURA});
   });
-  E.marcas.filter(m=>m.t==='ahu').forEach(m=>disp.push({tipo:'det_ducto',x:m.x,y:m.y,sala:'AHU'}));
+  E.marcas.filter(m=>m.t==='ahu').forEach(m=>{if(!prev.some(d=>d.tipo==='det_ducto'&&Math.hypot(d.x-m.x,d.y-m.y)<=DIST_AHU_EXISTENTE_M))disp.push({tipo:'det_ducto',x:m.x,y:m.y,sala:'AHU'});});
   return {disp,notas,lim};
 }
 
@@ -875,8 +889,36 @@ function mapaSPL(){
   if(E._spl)return E._spl;
   const celdas=[];
   E.recintos.forEach(r=>{const A=E.audPorRec&&E.audPorRec[r.id];if(!A)return;const ds=audibles(r.id),b=bbox(r.poly),paso=Math.max(AUDIBLE_MAPA_PASO_MIN_M,Math.sqrt(b.w*b.h/AUDIBLE_MAPA_CELDAS_MAX));
-    for(let x=b.x0+paso/2;x<b.x1;x+=paso)for(let y=b.y0+paso/2;y<b.y1;y+=paso){const p={x,y};if(!enRecinto(p,r.poly))continue;celdas.push({x,y,paso,v:splSuma(p,ds),req:A.req});}});
+    for(let x=b.x0+paso/2;x<b.x1;x+=paso)for(let y=b.y0+paso/2;y<b.y1;y+=paso){const p={x,y};if(!enRecinto(p,r.poly))continue;celdas.push({x,y,paso,v:splSuma(p,ds),req:A.req,rid:r.id});}});
   return (E._spl=celdas);
+}
+// Cobertura visual como en NFPA 72:2022: estrobo de PARED = cuadrados anidados que parten del muro donde está montado
+// (Figura 18.5.5.7.1, Tabla 18.5.5.7.1(a)); estrobo de CIELO = cuadrados anidados centrados en el aparato (Exhibit 18.27,
+// Tabla 18.5.5.7.1(b)). El cuadro exterior es el lado que cubre las candelas del aparato; los rótulos son tenues a propósito.
+function dibujarCobVis(d,p,recorta){
+  const k=E.vista.k,cielo=/cielo/.test(d.tipo),rc=E.recintos.find(x=>x.id===d.rid);
+  let centrado=cielo,base=p,u={x:1,y:0},v={x:0,y:1};
+  if(!cielo){
+    const pb=rc?puntoBorde(d,rc.poly):null,dx=pb?d.x-pb.x:0,dy=pb?d.y-pb.y:0,m=Math.hypot(dx,dy);
+    if(pb&&m>1e-6){v={x:dx/m,y:dy/m};u={x:-v.y,y:v.x};base=aPant({x:pb.x,y:pb.y});}else centrado=true;   // v: hacia el interior del recinto
+  }
+  const insuf=!d.lado,Lx=d.lado||d.ladoInsuf;
+  const lados=insuf?[Lx]:COBERTURA_VISUAL_LADOS_M.filter(s=>s<Lx-0.05).concat([Lx]);
+  const cuadro=s=>{const L=s*k,h=L/2;cx.beginPath();
+    if(centrado){cx.rect(p.x-h,p.y-h,L,L);}
+    else{const A={x:base.x-u.x*h,y:base.y-u.y*h},B={x:base.x+u.x*h,y:base.y+u.y*h};
+      cx.moveTo(A.x,A.y);cx.lineTo(B.x,B.y);cx.lineTo(B.x+v.x*L,B.y+v.y*L);cx.lineTo(A.x+v.x*L,A.y+v.y*L);cx.closePath();}};
+  recorta(d,()=>{
+    lados.forEach((s,i)=>{const ext=i===lados.length-1;cuadro(s);
+      if(ext&&!insuf){cx.fillStyle=COLOR.cobE;cx.fill();}
+      cx.strokeStyle=ext?'rgba(200,30,30,.85)':'rgba(200,30,30,.45)';cx.lineWidth=ext?(insuf?2.2:1.5):1;cx.setLineDash(ext?[6,4]:[3,3]);cx.stroke();cx.setLineDash([]);
+      if(s*k>=COBERTURA_VISUAL_ETIQUETA_PX){
+        cx.fillStyle='rgba(150,30,30,.55)';cx.font='9px Arial';cx.textAlign='center';cx.textBaseline='middle';
+        const t=insuf?'cd insuficientes: mín. '+d.cdMin+' cd':s.toFixed(1)+' × '+s.toFixed(1)+' m'+(ext&&d.cd?' · '+d.cd+' cd':'');
+        if(centrado)cx.fillText(t,p.x,p.y-s*k/2+7);
+        else cx.fillText(t,base.x+v.x*s*k-v.x*8,base.y+v.y*s*k-v.y*8);}
+    });
+  });
 }
 // Cobertura auditiva por criterio de audio: anillos de igual nivel (dBA) cada vez que se duplica la distancia (−6 dB, campo libre),
 // desde la salida a 3 m del equipo hasta el anillo del nivel requerido, que es el borde de la cobertura.
@@ -886,15 +928,23 @@ function dibujarAudible(d,p,recorta){
   anillos.push({r:rMax,t:(req?Math.round(req):'')+' dBA',borde:true});
   recorta(d,()=>{anillos.forEach(a=>{if(a.r*k<AUDIBLE_ANILLO_MIN_PX)return;cx.beginPath();cx.arc(p.x,p.y,a.r*k,0,7);
     if(a.borde){cx.fillStyle=COLOR.cobA;cx.fill();}cx.strokeStyle=a.borde?'rgba(20,70,190,.95)':'rgba(20,70,190,.55)';cx.lineWidth=a.borde?1.8:1.1;cx.stroke();});});
-  cx.fillStyle='rgba(20,70,190,.95)';cx.font='10px Arial';cx.textAlign='center';cx.textBaseline='bottom';
+  cx.fillStyle='rgba(20,70,190,.6)';cx.font='10px Arial';cx.textAlign='center';cx.textBaseline='bottom';
   anillos.forEach(a=>{if(a.r*k>=AUDIBLE_ANILLO_MIN_PX*2)cx.fillText(a.t,p.x,p.y-a.r*k-2);});
 }
 function dibujarSPL(){
   const k=E.vista.k;
-  mapaSPL().forEach(c=>{const a=aPant({x:c.x-c.paso/2,y:c.y-c.paso/2}),w=c.paso*k+0.6;
+  const ocultos=new Set(E.recintos.filter(r=>r.ocultaCob).map(r=>r.id));
+  mapaSPL().forEach(c=>{if(ocultos.has(c.rid))return;const a=aPant({x:c.x-c.paso/2,y:c.y-c.paso/2}),w=c.paso*k+0.6;
     cx.fillStyle=c.v<c.req-1e-6?'rgba(220,30,30,.50)':(c.v>AUDIBLE_MAX_DBA?'rgba(240,140,0,.55)':'rgba(30,150,70,'+(0.16+0.30*Math.min(1,(c.v-c.req)/20)).toFixed(2)+')');
     cx.fillRect(a.x,a.y,w,w);
-    if(w>=AUDIBLE_MAPA_ETIQUETA_PX){cx.fillStyle='#12314f';cx.font='10px Arial';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(isFinite(c.v)?Math.round(c.v):'—',a.x+w/2,a.y+w/2);}});
+    if(w>=AUDIBLE_MAPA_ETIQUETA_PX){cx.fillStyle='rgba(18,49,79,.6)';cx.font='10px Arial';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(isFinite(c.v)?Math.round(c.v):'—',a.x+w/2,a.y+w/2);}});
+}
+// Fija en el dispositivo su cobertura visual según montaje, altura y candelas. Si no alcanza para la habitación mínima de la tabla,
+// conserva el cuadro mínimo marcado como insuficiente (ladoInsuf, cdMin) en vez de borrar la cobertura.
+function fijarCoberturaVisual(d,cielo){
+  const rc=E.recintos.find(r=>r.id===d.rid),alt=rc?rc.h:2.7,k=alt<=3.05?3.05:(alt<=6.1?6.10:9.14),tabla=cielo?TABLA_ESTROBO_CIELO[k]:TABLA_ESTROBO_PARED;
+  const l=d.radioVis?0:ladoParaCd(tabla,d.cd);
+  d.lado=l||undefined;d.ladoInsuf=(!l&&!d.radioVis)?tabla[0][0]:undefined;d.cdMin=(!l&&!d.radioVis)?tabla[0][1]:undefined;
 }
 // Lado máximo de habitación (m) que cubre un estrobo de cierta intensidad según la tabla [lado, cd]: el mayor lado cuya candela exigida ≤ cd.
 function ladoParaCd(tabla,cd){let l=0;tabla.forEach(([lado,c])=>{if(c<=cd&&lado>l)l=lado;});return l;}
@@ -917,7 +967,7 @@ function propiedadesDisp(){
     h+='<label>Salida sonora a 3 m (dBA)</label><select id="pdDba"'+(/bocina|parl/.test(d.tipo)?'':' disabled')+'>'+opt(dbs.map(v=>[v,v+' dBA']),d.dba3)+'</select>';
     if(esEstr&&d.cd){const rc=E.recintos.find(r=>r.id===d.rid),alt=rc?rc.h:2.7,k=alt<=3.05?3.05:(alt<=6.1?6.10:9.14);
       const lw=ladoParaCd(TABLA_ESTROBO_PARED,d.cd),lc=ladoParaCd(TABLA_ESTROBO_CIELO[k],d.cd);
-      h+='<small class="g">Con '+d.cd+' cd: pared, habitación de hasta '+(lw?lw.toFixed(1)+' × '+lw.toFixed(1)+' m':'— (menor que la tabla)')+'; cielo (cielo ≤ '+k+' m), hasta '+(lc?lc.toFixed(1)+' × '+lc.toFixed(1)+' m':'—')+'. NFPA 72:2022 Tabla 18.5.5.7.1(a)/(b); el cambio no se vuelve a validar contra el recinto.</small>';}
+      h+='<small class="g">Con '+d.cd+' cd: pared, habitación de hasta '+(lw?lw.toFixed(1)+' × '+lw.toFixed(1)+' m':'— (menor que la tabla)')+'; cielo (cielo ≤ '+k+' m), hasta '+(lc?lc.toFixed(1)+' × '+lc.toFixed(1)+' m':'—')+'. NFPA 72:2022 Tabla 18.5.5.7.1(a)/(b); el cambio no se vuelve a validar contra el recinto.</small>'+(d.ladoInsuf?'<div class="mal">⚠ Con '+d.cd+' cd no se cubre ni la habitación mínima de la tabla: el cuadro rojo punteado es la mínima (necesita '+d.cdMin+' cd).</div>':'');}
   }else h+='<small class="g">Este dispositivo no tiene opciones editables (se puede mover y borrar).</small>';
   h+='<br><button class="sec" id="pdMover">✥ Mover</button><button class="sec" id="pdClon">⧉ Agregar similares</button><button class="peligro" id="pdBorrar">Borrar dispositivo</button>';
   c.innerHTML=h;
@@ -935,11 +985,8 @@ function aplicarDisp(){
     d.tipo=f==='vis'?'estrobo'+sfx:(f==='bocina_vis'?'bocina_estrobo'+sfx:(f==='parl_vis'?'parl_estrobo'+sfx:f));
     if(/estrobo/.test(d.tipo)){
       d.cd=+$('pdCd').value||d.cd||CATALOGO_CD[0];d.pared=!cielo;
-      const rc=E.recintos.find(r=>r.id===d.rid),alt=rc?rc.h:2.7,k=alt<=3.05?3.05:(alt<=6.1?6.10:9.14);
-      // La cobertura visual sigue a las candelas: lado de la habitación que cubre ese cd (tabla de cielo o de pared). Un estrobo de corredor conserva su círculo.
-      const l=d.radioVis?0:ladoParaCd(cielo?TABLA_ESTROBO_CIELO[k]:TABLA_ESTROBO_PARED,d.cd);
-      d.lado=l||undefined;
-    }else{delete d.cd;d.lado=undefined;d.radioVis=undefined;}
+      fijarCoberturaVisual(d,cielo);   // la cobertura sigue a las candelas y al montaje; un estrobo de corredor conserva su círculo
+    }else{delete d.cd;d.lado=undefined;d.ladoInsuf=undefined;d.cdMin=undefined;d.radioVis=undefined;}
     if(/bocina|parl/.test(d.tipo)){d.dba3=+($('pdDba')&&$('pdDba').value)||d.dba3||BOCINA_DBA_3M;const A=(E.audPorRec||{})[d.rid]||{req:AUDIBLE_DORMIR_MIN_DBA};d.req=A.req;d.radio=radioAudible(d.dba3,d.req);}
     else{delete d.dba3;d.radio=undefined;}
   }
@@ -976,22 +1023,30 @@ function verificar(res,o){
 /* ==========================================================================
    GENERACIÓN
    ========================================================================== */
-function generar(){
+// Generación incremental: los recintos ya generados conservan sus dispositivos (incluidos los movidos o editados a mano);
+// solo se prediseñan los recintos nuevos o modificados. «todo» recalcula todo y descarta los ajustes manuales de los automáticos.
+function generar(todo){
   asignarHuecos();
   if(!E.recintos.length){alert('No hay recintos. Cargue un PDF/plano y pulse «Detectar recintos automáticamente», o cree uno con dimensiones.');return;}
-  const o=opciones();
-  const man=E.disp.filter(d=>d.agregado);   // dispositivos agregados a mano: se conservan y se suman a los automáticos
-  const res=E.recintos.map(r=>planificarRecinto(r,o));
-  res.forEach(x=>x.disp.forEach(d=>{d.rid=x.r.id;}));
-  man.forEach(d=>{const x=res.find(z=>z.r.id===d.rid);if(x)x.disp.push(d);});
-  const g=planificarGlobales(o,res);
+  const o=opciones(),prevRes=todo?[]:E.resultados;
+  const man=E.disp.filter(d=>d.agregado);                                   // agregados a mano: siempre se conservan
+  const prevGlob=todo?[]:E.disp.filter(d=>d.rid===undefined&&!d.agregado);  // pulsadores y marcadores globales ya ubicados
+  let nuevos=0;
+  const res=E.recintos.map(r=>{
+    const pr=(!todo&&r.generado)?prevRes.find(x=>x.r.id===r.id):null;if(pr)return pr;
+    nuevos++;const x=planificarRecinto(r,o);x.disp.forEach(d=>{d.rid=r.id;});return x;});
+  man.forEach(d=>{const x=res.find(z=>z.r.id===d.rid);if(x&&!x.disp.includes(d))x.disp.push(d);});
+  const g=planificarGlobales(o,res,prevGlob);
   verificar(res,o);
-  E.disp=[];res.forEach(x=>x.disp.forEach(d=>{d.id=E.seq++;E.disp.push(d);}));
-  g.disp.forEach(d=>{d.id=E.seq++;E.disp.push(d);});
-  man.filter(d=>!res.some(z=>z.r.id===d.rid)).forEach(d=>{d.id=E.seq++;E.disp.push(d);});
-  E.audPorRec={};res.forEach(x=>{if(x.aud&&x.aud.req)E.audPorRec[x.r.id]={req:x.aud.req,dba3:x.aud.dba3,parl:x.aud.parl};});E._spl=null;E.selDev=null;
+  const todos=[];res.forEach(x=>x.disp.forEach(d=>todos.push(d)));prevGlob.forEach(d=>todos.push(d));g.disp.forEach(d=>todos.push(d));
+  man.filter(d=>!res.some(z=>z.r.id===d.rid)).forEach(d=>todos.push(d));
+  const vistos=new Set();E.disp=[];todos.forEach(d=>{if(vistos.has(d))return;vistos.add(d);if(d.id==null)d.id=E.seq++;E.disp.push(d);});
+  E.audPorRec={};res.forEach(x=>{if(x.aud&&x.aud.req)E.audPorRec[x.r.id]={req:x.aud.req,dba3:x.aud.dba3,parl:x.aud.parl};});E._spl=null;
+  if(E.selDev&&!E.disp.some(d=>d.id===E.selDev))E.selDev=null;
+  E.recintos.forEach(r=>{r.generado=true;});
   E.resultados=res;E.globales=g;
   mostrarResultados();propiedadesDisp();dibujar();
+  estado(todo?'Prediseño regenerado para todos los recintos ('+res.length+').':(nuevos?'Prediseño generado solo para '+nuevos+' recinto(s) nuevo(s) o modificado(s); los otros '+(res.length-nuevos)+' no se movieron. «Regenerar todo» recalcula todo.':'No hay recintos nuevos: lo ya acomodado no se movió (solo se revisaron pulsadores y marcadores). Use «Regenerar todo» o clic derecho → «Regenerar este recinto» para recalcular.'));
 }
 
 /* ==========================================================================
@@ -1147,8 +1202,9 @@ function dibujar(){
   const recorta=(d,fn)=>{const rc=E.recintos.find(x=>x.id===d.rid);cx.save();if(rc){cx.beginPath();[rc.poly].concat(rc.poly.huecos||[]).forEach(pl=>{pl.forEach((q,i)=>{const a=aPant(q);cx[i?'lineTo':'moveTo'](a.x,a.y);});cx.closePath();});cx.clip('evenodd');}fn();cx.restore();};
   E.disp.forEach(d=>{
     const p=aPant(d);
-    if(verDet&&(d.tipo==='det_humo'||d.tipo==='det_calor')){cx.beginPath();cx.arc(p.x,p.y,d.radio*E.vista.k,0,7);cx.fillStyle=d.tipo==='det_humo'?COLOR.cob:'rgba(192,90,0,0.08)';cx.fill();cx.strokeStyle=d.tipo==='det_humo'?'rgba(30,125,60,.8)':'rgba(192,90,0,.8)';cx.lineWidth=1.5;cx.stroke();}
-    if(verVis&&d.lado&&/estrobo/.test(d.tipo)){const l=d.lado*E.vista.k;recorta(d,()=>{cx.fillStyle=COLOR.cobE;cx.fillRect(p.x-l/2,p.y-l/2,l,l);cx.strokeStyle='rgba(200,30,30,.9)';cx.setLineDash([6,4]);cx.lineWidth=1.5;cx.strokeRect(p.x-l/2,p.y-l/2,l,l);cx.setLineDash([]);});}
+    const rcO=E.recintos.find(x=>x.id===d.rid);if(rcO&&rcO.ocultaCob)return;   // cobertura oculta en ese recinto (clic derecho)
+    if(verDet&&(d.tipo==='det_humo'||d.tipo==='det_calor')){recorta(d,()=>{cx.beginPath();cx.arc(p.x,p.y,d.radio*E.vista.k,0,7);cx.fillStyle=d.tipo==='det_humo'?COLOR.cob:'rgba(192,90,0,0.08)';cx.fill();cx.strokeStyle=d.tipo==='det_humo'?'rgba(30,125,60,.8)':'rgba(192,90,0,.8)';cx.lineWidth=1.5;cx.stroke();});}
+    if(verVis&&(d.lado||d.ladoInsuf)&&/estrobo/.test(d.tipo))dibujarCobVis(d,p,recorta);
     if(verVis&&d.radioVis){recorta(d,()=>{cx.beginPath();cx.arc(p.x,p.y,d.radioVis*E.vista.k,0,7);cx.fillStyle=COLOR.cobE;cx.fill();cx.strokeStyle='rgba(200,30,30,.9)';cx.setLineDash([6,4]);cx.lineWidth=1.5;cx.stroke();cx.setLineDash([]);});}
     if(verAud&&/bocina|parl/.test(d.tipo)&&d.radio)dibujarAudible(d,p,recorta);
   });
@@ -1159,6 +1215,8 @@ function dibujar(){
   // borrador
   if(E.herr==='rect'&&E.borrador.length===1&&E.cursor){const a=aPant(E.borrador[0]),b=aPant(E.cursor);cx.strokeStyle='#e0a800';cx.lineWidth=2;cx.setLineDash([6,4]);cx.fillStyle='rgba(224,168,0,.15)';cx.fillRect(a.x,a.y,b.x-a.x,b.y-a.y);cx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);cx.setLineDash([]);}
   else if(E.borrador.length){cx.strokeStyle='#e0a800';cx.lineWidth=2;cx.beginPath();E.borrador.forEach((p,i)=>{const q=aPant(p);cx[i?'lineTo':'moveTo'](q.x,q.y);});if(E.cursor){const q=aPant(E.cursor);cx.lineTo(q.x,q.y);}cx.stroke();E.borrador.forEach(p=>{const q=aPant(p);cx.fillStyle='#e0a800';cx.fillRect(q.x-3,q.y-3,6,6);});}
+  if(E.snapPt&&(E.herr==='rec'||E.herr==='rect')){const q=aPant(E.snapPt);cx.strokeStyle=E.snapPt.t==='esq'?'#1e7d3c':'#0a5ad4';cx.lineWidth=2;cx.beginPath();
+    if(E.snapPt.t==='esq')cx.rect(q.x-6,q.y-6,12,12);else cx.arc(q.x,q.y,5,0,7);cx.stroke();}
   if(E.calib.length){cx.fillStyle='#d00';E.calib.forEach(p=>{const q=aPant(p);cx.fillRect(q.x-4,q.y-4,8,8);});if(E.calib.length===2){const a=aPant(E.calib[0]),b=aPant(E.calib[1]);cx.strokeStyle='#d00';cx.beginPath();cx.moveTo(a.x,a.y);cx.lineTo(b.x,b.y);cx.stroke();}}
   // barra de escala 5 m
   const k=E.vista.k;cx.fillStyle='#111';cx.fillRect(12,r.height-18,5*k,3);cx.font='11px Arial';cx.textAlign='left';cx.fillText('5 m',12,r.height-24);
@@ -1170,7 +1228,7 @@ function agregarDisp(p,pl){   // pl: dispositivo plantilla (para «agregar simil
   const d={id:E.seq++,tipo:t,x:p.x,y:p.y,sala:rc?rc.nombre:'Manual',rid:rc?rc.id:undefined,manual:true,agregado:true};
   if(/estrobo/.test(t)){
     const cielo=/cielo/.test(t),alt=rc?rc.h:2.7,k=alt<=3.05?3.05:(alt<=6.1?6.10:9.14);
-    d.cd=(pl&&pl.cd)||+$('pCdMax').value||CATALOGO_CD[0];d.pared=!cielo;d.lado=ladoParaCd(cielo?TABLA_ESTROBO_CIELO[k]:TABLA_ESTROBO_PARED,d.cd)||undefined;
+    d.cd=(pl&&pl.cd)||+$('pCdMax').value||CATALOGO_CD[0];d.pared=!cielo;fijarCoberturaVisual(d,cielo);
   }
   if(/bocina|parl/.test(t)){
     const parl=/parl/.test(t);d.dba3=(pl&&pl.dba3)||(o.dba>0?o.dba:(parl?PARLANTE_DBA_3M:BOCINA_DBA_3M));
@@ -1198,17 +1256,61 @@ function guessTipo(n){n=n.toLowerCase();if(/corredor|pasillo|hall|corridor/.test
 function mundoDeEvento(e){const r=cv.getBoundingClientRect();return aMundo(e.clientX-r.left,e.clientY-r.top);}
 function recintoEn(p){for(let i=E.recintos.length-1;i>=0;i--)if(dentro(p,E.recintos[i].poly))return E.recintos[i];return null;}
 let arr=null,espacio=false,arrV=null,arrD=null,arrR=null,movio=false,suprimir=false;
-function invalidar(){E.disp=[];E.resultados=[];E._spl=null;E.selDev=null;$('resultados').innerHTML='';if(typeof propiedadesDisp==='function')propiedadesDisp();}
+// Sin argumento descarta todo el prediseño; con ids de recinto solo descarta el de esos recintos (los demás no se mueven).
+function invalidar(ids){
+  if(ids==null){E.disp=[];E.resultados=[];E._spl=null;E.selDev=null;$('resultados').innerHTML='';E.recintos.forEach(r=>{r.generado=false;});if(typeof propiedadesDisp==='function')propiedadesDisp();return;}
+  const S=new Set([].concat(ids));
+  E.disp=E.disp.filter(d=>!S.has(d.rid));E.resultados=E.resultados.filter(x=>!S.has(x.r.id));
+  E.recintos.forEach(r=>{if(S.has(r.id))r.generado=false;});E._spl=null;
+  if(E.selDev&&!E.disp.some(d=>d.id===E.selDev))E.selDev=null;
+  if(E.resultados.length&&E.globales)mostrarResultados();else $('resultados').innerHTML='';
+  if(typeof propiedadesDisp==='function')propiedadesDisp();
+}
 // Dispositivo bajo el cursor (tolerancia en px de pantalla: el mayor entre HIT_PX y el tamaño del símbolo).
 function devEn(p,tolPx){const k=E.vista.k,t=Math.max(tolPx||HIT_PX,+$('vSim').value);let m=null,dm=1e18;
   E.disp.forEach(d=>{const dd=Math.hypot(d.x-p.x,d.y-p.y)*k;if(dd<=t&&dd<dm){dm=dd;m=d;}});return m;}
+// Imán: detecta esquinas (cruce de tramos horizontales y verticales de muro) y el borde de muro más cercano del plano.
+function prepararSnap(){
+  if(E._snap&&E._snap.key===E.img)return E._snap;
+  const fuente=E.imgMuros||E.img,W0=E.img.width,H0=E.img.height,f=Math.min(1,SNAP_LADO_MAX_PX/Math.max(W0,H0)),W=Math.round(W0*f),H=Math.round(H0*f);
+  const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d',{willReadFrequently:true});g.drawImage(fuente,0,0,W,H);
+  const d=g.getImageData(0,0,W,H).data,m=new Uint8Array(W*H);
+  for(let i=0;i<W*H;i++)m[i]=(d[i*4+3]>10&&(d[i*4]+d[i*4+1]+d[i*4+2])/3<RELLENO_UMBRAL_GRIS)?1:0;
+  const mpx=E.imgM/f,L=Math.max(4,Math.round(SNAP_LARGO_M/mpx)),Hm=new Uint8Array(W*H),Vm=new Uint8Array(W*H);
+  for(let y=0;y<H;y++){let x=0;while(x<W){if(!m[y*W+x]){x++;continue;}let x1=x;while(x1<W&&m[y*W+x1])x1++;if(x1-x>=L)for(let q=x;q<x1;q++)Hm[y*W+q]=1;x=x1;}}
+  for(let x=0;x<W;x++){let y=0;while(y<H){if(!m[y*W+x]){y++;continue;}let y1=y;while(y1<H&&m[y1*W+x])y1++;if(y1-y>=L)for(let q=y;q<y1;q++)Vm[q*W+x]=1;y=y1;}}
+  const lab=new Uint8Array(W*H),cola=new Int32Array(W*H),esq=[];
+  const aMund=(px,py)=>({x:E.imgX+px/f*E.imgM,y:E.imgY+py/f*E.imgM});
+  for(let s0=0;s0<W*H&&esq.length<SNAP_MAX_ESQUINAS;s0++){
+    if(!(Hm[s0]&&Vm[s0])||lab[s0])continue;let ini=0,fin=0;cola[fin++]=s0;lab[s0]=1;let x0=W,y0=H,x1=0,y1=0;
+    while(ini<fin){const i=cola[ini++],x=i%W,y=(i/W)|0;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;
+      if(x>0&&Hm[i-1]&&Vm[i-1]&&!lab[i-1]){lab[i-1]=1;cola[fin++]=i-1;}if(x<W-1&&Hm[i+1]&&Vm[i+1]&&!lab[i+1]){lab[i+1]=1;cola[fin++]=i+1;}
+      if(y>0&&Hm[i-W]&&Vm[i-W]&&!lab[i-W]){lab[i-W]=1;cola[fin++]=i-W;}if(y<H-1&&Hm[i+W]&&Vm[i+W]&&!lab[i+W]){lab[i+W]=1;cola[fin++]=i+W;}}
+    // las 4 esquinas del bloque de cruce: incluyen la esquina interior (cara del muro) y la exterior
+    esq.push(aMund(x0,y0),aMund(x1+1,y0),aMund(x0,y1+1),aMund(x1+1,y1+1));
+  }
+  return (E._snap={key:E.img,m,W,H,f,mpx,esq});
+}
+function puntoSnap(p,e){
+  if(!E.img||!$('vSnap').checked||(e&&e.altKey))return {p,t:null};
+  const S=prepararSnap(),k=E.vista.k,rm=SNAP_PX/k;
+  let mejor=null,dm=rm;
+  for(const q of S.esq){const dd=Math.hypot(q.x-p.x,q.y-p.y);if(dd<dm){dm=dd;mejor=q;}}
+  if(mejor)return {p:{x:mejor.x,y:mejor.y},t:'esq'};
+  const sx=Math.round((p.x-E.imgX)/E.imgM*S.f),sy=Math.round((p.y-E.imgY)/E.imgM*S.f),wr=Math.max(1,Math.min(60,Math.ceil(rm/S.mpx)));
+  if(sx<0||sy<0||sx>=S.W||sy>=S.H)return {p,t:null};
+  for(let rr=0;rr<=wr;rr++)for(let dy=-rr;dy<=rr;dy++)for(let dx=-rr;dx<=rr;dx++){
+    if(Math.max(Math.abs(dx),Math.abs(dy))!==rr)continue;const nx=sx+dx,ny=sy+dy;
+    if(nx>=0&&ny>=0&&nx<S.W&&ny<S.H&&S.m[ny*S.W+nx])return {p:{x:E.imgX+(nx+0.5)/S.f*E.imgM,y:E.imgY+(ny+0.5)/S.f*E.imgM},t:'muro'};}
+  return {p,t:null};
+}
 function recEdit(){return E.recintos.find(r=>r.id===E.edit);}
 function ocultarMenu(){$('menuCtx').style.display='none';}
 function distBordeIdx(pt,poly){let m=1e18,idx=-1,pr=null;for(let i=0;i<poly.length;i++){const sg=distSeg(pt,poly[i],poly[(i+1)%poly.length]);if(sg.d<m){m=sg.d;idx=i;pr=sg;}}return{d:m,i:idx,p:pr};}
 cv.addEventListener('mousedown',e=>{
   ocultarMenu();
   if(e.button===1||espacio||e.button===2){arr={x:e.clientX,y:e.clientY,vx:E.vista.x,vy:E.vista.y,mov:false,btn:e.button};e.preventDefault();return;}
-  if(e.button===0&&E.herr==='rect'){arrR={a:mundoDeEvento(e),x:e.clientX,y:e.clientY,mov:false};}
+  if(e.button===0&&E.herr==='rect'){arrR={a:puntoSnap(mundoDeEvento(e),e).p,x:e.clientX,y:e.clientY,mov:false};}
   if(e.button===0&&E.herr==='sel'&&!E.edit&&!E.pegando){const d=devEn(mundoDeEvento(e));if(d){arrD={d};movio=false;e.preventDefault();return;}}
   if(e.button===0&&E.edit){const r=recEdit();if(r){const p=mundoDeEvento(e),k=E.vista.k;
     const iv=r.poly.findIndex(q=>Math.hypot(q.x-p.x,q.y-p.y)*k<=HIT_PX);
@@ -1219,13 +1321,13 @@ cv.addEventListener('mousedown',e=>{
 window.addEventListener('mouseup',e=>{
   if(arr&&arr.btn===2&&!arr.mov&&e.target===cv)menuContextual(e);
   arr=null;
-  if(arrV){if(movio){invalidar();suprimir=true;}arrV=null;}
-  if(arrR){if(arrR.mov){crearRect(arrR.a,mundoDeEvento(e));suprimir=true;}arrR=null;}
+  if(arrV){if(movio){invalidar(E.edit!=null?E.edit:undefined);suprimir=true;}arrV=null;}
+  if(arrR){if(arrR.mov){crearRect(arrR.a,puntoSnap(mundoDeEvento(e),e).p);suprimir=true;}arrR=null;}
   if(arrD){if(movio){suprimir=true;E.selDev=arrD.d.id;propiedadesDisp();reverificar();}arrD=null;}
   if(suprimir)setTimeout(()=>{suprimir=false;},0);   // el clic de ese mismo gesto llega antes; si no llega, no se traga el siguiente
 });
 window.addEventListener('mousemove',e=>{
-  if(arrR){if(Math.hypot(e.clientX-arrR.x,e.clientY-arrR.y)>4)arrR.mov=true;if(arrR.mov){E.cursor=mundoDeEvento(e);E.borrador=[arrR.a];dibujar();return;}}
+  if(arrR){if(Math.hypot(e.clientX-arrR.x,e.clientY-arrR.y)>4)arrR.mov=true;if(arrR.mov){const sn=puntoSnap(mundoDeEvento(e),e);E.cursor=sn.p;E.snapPt=sn.t?{x:sn.p.x,y:sn.p.y,t:sn.t}:null;E.borrador=[arrR.a];dibujar();return;}}
   if(arrD){const p=mundoDeEvento(e);arrD.d.x=p.x;arrD.d.y=p.y;arrD.d.manual=true;movio=true;E._spl=null;dibujar();return;}
   if(arr){if(Math.hypot(e.clientX-arr.x,e.clientY-arr.y)>4)arr.mov=true;if(arr.mov){E.vista.x=arr.vx+e.clientX-arr.x;E.vista.y=arr.vy+e.clientY-arr.y;dibujar();}}
   if(arrV){const r=recEdit();if(r){const p=mundoDeEvento(e);movio=true;
@@ -1239,14 +1341,15 @@ cv.addEventListener('contextmenu',e=>e.preventDefault());
 const MENU_TOL_FACTOR = 2;
 function menuContextual(e){
   const p=mundoDeEvento(e),k=E.vista.k,tol=HIT_PX*MENU_TOL_FACTOR,m=$('menuCtx');
-  const mostrar=(ids,tit)=>{['mRenombrar','mDevMover','mDevClon','mDevCambiar','mDevAud','mDevBor','mAgregar','mQuitar','mUltimo','mCerrar','mCancelar','mAjustar','mCopiar','mBorrar'].forEach(id=>{$(id).style.display=ids.includes(id)?'block':'none';});
+  const mostrar=(ids,tit)=>{['mCob','mRegen','mRenombrar','mDevMover','mDevClon','mDevCambiar','mDevAud','mDevBor','mAgregar','mQuitar','mUltimo','mCerrar','mCancelar','mAjustar','mCopiar','mBorrar'].forEach(id=>{$(id).style.display=ids.includes(id)?'block':'none';});
     $('menuTit').textContent=tit;m.style.display='block';
     m.style.left=Math.min(e.clientX,window.innerWidth-200)+'px';m.style.top=Math.min(e.clientY,window.innerHeight-60-ids.length*34)+'px';};
   // Sobre un dispositivo: alternar bocina (visual+auditivo / solo visual) o borrarlo; se selecciona para editarlo en el panel
   const dv=devEn(p,tol);
   if(dv&&!(E.herr==='rec'&&E.borrador.length)){E.ctxDev=dv;E.selDev=dv.id;propiedadesDisp();dibujar();const esEstrobo=/estrobo/.test(dv.tipo),conBocina=/bocina|parl/.test(dv.tipo);
     $('mDevAud').textContent=conBocina?'🔇 Quitar bocina (solo visual)':'🔊 Agregar bocina (visual + auditivo)';
-    mostrar(['mDevMover','mDevClon','mDevCambiar'].concat(esEstrobo?['mDevAud']:[],['mDevBor']),ROT[dv.tipo]||dv.tipo);return;}
+    const rcD=E.recintos.find(x=>x.id===dv.rid);E.ctxRec=rcD||null;if(rcD)$('mCob').textContent=rcD.ocultaCob?'👁 Mostrar cobertura de «'+rcD.nombre+'»':'👁 Ocultar cobertura de «'+rcD.nombre+'»';
+    mostrar(['mDevMover','mDevClon','mDevCambiar'].concat(esEstrobo?['mDevAud']:[],rcD?['mCob']:[],['mDevBor']),ROT[dv.tipo]||dv.tipo);return;}
   // Dibujando un polígono: quitar el último punto, cerrarlo o cancelarlo
   if(E.herr==='rec'&&E.borrador.length){E.ctxP=p;mostrar(['mUltimo'].concat(E.borrador.length>=3?['mCerrar']:[],['mCancelar']),'Dibujando polígono ('+E.borrador.length+' puntos)');return;}
   // Recinto bajo el cursor, o el más cercano cuyo lado o vértice esté dentro de la tolerancia
@@ -1259,7 +1362,8 @@ function menuContextual(e){
   const ids=[];
   if(iv>=0&&r.poly.length>3)ids.push('mQuitar');
   else if(iv<0&&bd.d*k<=tol)ids.push('mAgregar');
-  ids.push('mRenombrar','mAjustar','mCopiar','mBorrar');
+  E.ctxRec=r;$('mCob').textContent=r.ocultaCob?'👁 Mostrar cobertura de este recinto':'👁 Ocultar cobertura de este recinto';
+  ids.push('mCob','mRegen','mRenombrar','mAjustar','mCopiar','mBorrar');
   mostrar(ids,r.nombre);
 }
 $('mDevAud').onclick=()=>{ocultarMenu();const d=E.ctxDev;if(!d)return;const A=(E.audPorRec||{})[d.rid];
@@ -1276,8 +1380,8 @@ function iniciarSimilares(d){
 $('mDevClon').onclick=()=>{ocultarMenu();if(E.ctxDev)iniciarSimilares(E.ctxDev);};
 $('mDevMover').onclick=()=>{ocultarMenu();if(!E.ctxDev)return;E.moverDisp=E.ctxDev;estado('Mover «'+(ROT[E.ctxDev.tipo]||E.ctxDev.tipo)+'»: haga clic en el nuevo lugar (Esc cancela). También puede arrastrarlo directamente.');};
 $('mDevCambiar').onclick=()=>{ocultarMenu();E.selDev=E.ctxDev?E.ctxDev.id:E.selDev;propiedadesDisp();dibujar();const c=$('propDisp');if(c){c.scrollIntoView({block:'center'});const f=c.querySelector('select');if(f)f.focus();}};
-$('mAgregar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel);if(!r||!E.ctxBd)return;r.poly.splice(E.ctxBd.i+1,0,{x:E.ctxBd.p.x,y:E.ctxBd.p.y});invalidar();dibujar();estado('Punto agregado en «'+r.nombre+'» ('+r.poly.length+' vértices). Use «Ajustar polígono» para arrastrarlo.');};
-$('mQuitar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel);if(!r||E.ctxIv==null||E.ctxIv<0||r.poly.length<=3)return;r.poly.splice(E.ctxIv,1);invalidar();dibujar();estado('Punto eliminado de «'+r.nombre+'» ('+r.poly.length+' vértices).');};
+$('mAgregar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel);if(!r||!E.ctxBd)return;r.poly.splice(E.ctxBd.i+1,0,{x:E.ctxBd.p.x,y:E.ctxBd.p.y});invalidar(r.id);dibujar();estado('Punto agregado en «'+r.nombre+'» ('+r.poly.length+' vértices). Use «Ajustar polígono» para arrastrarlo.');};
+$('mQuitar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel);if(!r||E.ctxIv==null||E.ctxIv<0||r.poly.length<=3)return;r.poly.splice(E.ctxIv,1);invalidar(r.id);dibujar();estado('Punto eliminado de «'+r.nombre+'» ('+r.poly.length+' vértices).');};
 $('mUltimo').onclick=()=>{ocultarMenu();E.borrador.pop();dibujar();estado('Último punto quitado ('+E.borrador.length+' puntos).');};
 $('mCerrar').onclick=()=>{ocultarMenu();cerrarBorrador();};
 $('mCancelar').onclick=()=>{ocultarMenu();E.borrador=[];dibujar();estado('Dibujo cancelado.');};
@@ -1295,26 +1399,35 @@ $('dlgCancelar').onclick=()=>$('dlgBorrar').close();
 $('dlgBorrarSel').onclick=()=>{
   const ids=new Set([...$('dlgLista').querySelectorAll('input:checked')].map(i=>+i.dataset.rid));if(!ids.size)return;
   const n=ids.size;E.recintos=E.recintos.filter(r=>!ids.has(r.id));if(ids.has(E.sel))E.sel=null;E.edit=null;E.pegando=null;
-  invalidar();propiedades();dibujar();$('dlgBorrar').close();estado(n+' recinto(s) borrado(s). Quedan '+E.recintos.length+'.');
+  invalidar([...ids]);propiedades();dibujar();$('dlgBorrar').close();estado(n+' recinto(s) borrado(s). Quedan '+E.recintos.length+'.');
 };
 function renombrarRecinto(r){
   const n=prompt('Nombre del recinto:',r.nombre);if(n===null||!n.trim())return;
   r.nombre=n.trim();E.disp.forEach(d=>{if(d.rid===r.id)d.sala=r.nombre;});E.sel=r.id;propiedades();dibujar();if(E.resultados.length)mostrarResultados();
   estado('Recinto renombrado: «'+r.nombre+'».');
 }
+function alternarCobertura(r){
+  if(!r)return;r.ocultaCob=!r.ocultaCob;dibujar();
+  estado('Cobertura de «'+r.nombre+'» '+(r.ocultaCob?'oculta: los dispositivos siguen ahí; clic derecho → «Mostrar cobertura» para verla.':'visible.'));
+}
+$('mCob').onclick=()=>{ocultarMenu();alternarCobertura(E.ctxRec);};
+$('mRegen').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel);if(!r)return;invalidar(r.id);generar(false);};
 $('mRenombrar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel);if(r)renombrarRecinto(r);};
 function terminarAjuste(){E.edit=null;E.pegando=null;dibujar();}
 $('mAjustar').onclick=()=>{ocultarMenu();E.edit=E.sel;E.pegando=null;E.borrador=[];dibujar();estado('Ajuste de polígono: arrastre un vértice para moverlo, haga clic en un lado (o clic derecho → Agregar punto) para agregar un vértice, Mayús+clic (o clic derecho → Eliminar punto) en un vértice para quitarlo, arrastre dentro para mover el recinto. Enter o Esc termina.');};
 $('mCopiar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel);if(!r)return;const b=bbox(r.poly),cx0=b.x0+b.w/2,cy0=b.y0+b.h/2;
   E.edit=null;E.pegando={rel:r.poly.map(q=>({x:q.x-cx0,y:q.y-cy0})),nombre:r.nombre+' (copia)',tipo:r.tipo,h:r.h,det:r.det,not:r.not,co:r.co};
   estado('Copiado «'+r.nombre+'»: mueva el cursor y haga clic para pegar (puede pegar varias veces). Esc termina.');dibujar();};
-$('mBorrar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel);if(!r)return;E.recintos=E.recintos.filter(x=>x!==r);E.sel=null;E.edit=null;invalidar();propiedades();dibujar();estado('Recinto «'+r.nombre+'» borrado.');};
+$('mBorrar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel);if(!r)return;E.recintos=E.recintos.filter(x=>x!==r);E.sel=null;E.edit=null;invalidar(r.id);propiedades();dibujar();estado('Recinto «'+r.nombre+'» borrado.');};
 cv.addEventListener('wheel',e=>{e.preventDefault();const r=cv.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top,w=aMundo(px,py),f=e.deltaY<0?1.15:1/1.15;E.vista.k*=f;E.vista.x=px-w.x*E.vista.k;E.vista.y=py-w.y*E.vista.k;dibujar();},{passive:false});
 window.addEventListener('keydown',e=>{if(e.code==='Space'&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){espacio=true;e.preventDefault();}if(e.key==='Escape'){E.borrador=[];E.calib=[];ocultarMenu();terminarAjuste();if(E.herr==='dev'||E.herr==='clon')herramienta('sel');E.moverDisp=null;}if(e.key==='Enter'){if(E.edit)terminarAjuste();else if(E.herr==='rec')cerrarBorrador();}});
 window.addEventListener('keyup',e=>{if(e.code==='Space')espacio=false;});
 // Si la ventana pierde el foco (Alt+Tab, clic fuera) se pierde el «soltar»: se reinician teclas y arrastres para que los clics de dibujo no queden bloqueados.
 window.addEventListener('blur',()=>{espacio=false;arr=null;arrV=null;arrD=null;suprimir=false;});
-cv.addEventListener('mousemove',e=>{E.cursor=mundoDeEvento(e);if(E.borrador.length||E.pegando)dibujar();
+cv.addEventListener('mousemove',e=>{E.cursor=mundoDeEvento(e);
+  if(E.herr==='rec'||E.herr==='rect'){const sn=puntoSnap(E.cursor,e);E.cursor=sn.p;E.snapPt=sn.t?{x:sn.p.x,y:sn.p.y,t:sn.t}:null;
+    if(!E._raf)E._raf=requestAnimationFrame(()=>{E._raf=0;dibujar();});}else E.snapPt=null;
+  if((E.borrador.length||E.pegando)&&!(E.herr==='rec'||E.herr==='rect'))dibujar();
   if(!arrD){cv.style.cursor=(E.herr==='sel'&&!E.edit&&!E.pegando&&devEn(E.cursor))?'move':'crosshair';}
   if($('vSPL').checked&&E.audPorRec&&!E.borrador.length&&!arrD){const rr=recintoMin(E.cursor),A=rr&&E.audPorRec[rr.id];
     if(A){const v=splSuma(E.cursor,audibles(rr.id));estado('Nivel sonoro aquí: '+(isFinite(v)?v.toFixed(0):'—')+' dBA · requerido '+A.req.toFixed(0)+' dBA en «'+rr.nombre+'» · máx. permitido '+AUDIBLE_MAX_DBA+' dBA (NFPA 72 §18.4)');}}});
@@ -1329,13 +1442,13 @@ cv.addEventListener('dblclick',e=>{if(E.herr==='rec'){E.borrador.pop();cerrarBor
 cv.addEventListener('click',e=>{
   if(arr||espacio)return;
   if(suprimir){suprimir=false;return;}
-  const p=mundoDeEvento(e);
+  let p=mundoDeEvento(e);if(E.herr==='rec'||E.herr==='rect')p=puntoSnap(p,e).p;
   if(E.moverDisp){const d=E.moverDisp;d.x=p.x;d.y=p.y;d.manual=true;E.moverDisp=null;E._spl=null;E.selDev=d.id;propiedadesDisp();dibujar();reverificar();estado('Dispositivo movido.');return;}
   if(E.herr==='clon'&&E.plantilla){agregarDisp(p,E.plantilla);return;}
   if(E.pegando){const g=E.pegando,id=E.seq++;E.recintos.push({id,nombre:g.nombre,tipo:g.tipo,poly:g.rel.map(q=>({x:q.x+p.x,y:q.y+p.y})),h:g.h,det:g.det,not:g.not,co:g.co});E.sel=id;propiedades();dibujar();return;}
   if(E.edit){const r=recEdit();if(r){const k=E.vista.k,iv=r.poly.findIndex(q=>Math.hypot(q.x-p.x,q.y-p.y)*k<=HIT_PX);
-    if(iv>=0){if(e.shiftKey&&r.poly.length>3){r.poly.splice(iv,1);invalidar();dibujar();}}
-    else{const bd=distBordeIdx(p,r.poly);if(bd.d*k<=HIT_PX){r.poly.splice(bd.i+1,0,{x:bd.p.x,y:bd.p.y});invalidar();dibujar();}}}
+    if(iv>=0){if(e.shiftKey&&r.poly.length>3){r.poly.splice(iv,1);invalidar(r.id);dibujar();}}
+    else{const bd=distBordeIdx(p,r.poly);if(bd.d*k<=HIT_PX){r.poly.splice(bd.i+1,0,{x:bd.p.x,y:bd.p.y});invalidar(r.id);dibujar();}}}
     return;}
   if(E.herr==='sel'){const dv=devEn(p);if(dv){E.selDev=dv.id;E.sel=null;propiedades();propiedadesDisp();dibujar();return;}E.selDev=null;propiedadesDisp();const r=recintoEn(p);E.sel=r?r.id:null;propiedades();dibujar();}
   else if(E.herr==='rec'){E.borrador.push(p);dibujar();}
@@ -1346,8 +1459,8 @@ cv.addEventListener('click',e=>{
   else if(E.herr==='bor'){
     const mi=E.marcas.findIndex(m=>Math.hypot(m.x-p.x,m.y-p.y)*E.vista.k<14);
     if(mi>=0){E.marcas.splice(mi,1);tablaEquipos();}
-    else{const r=recintoEn(p);if(r){E.recintos=E.recintos.filter(x=>x!==r);if(E.sel===r.id)E.sel=null;propiedades();}}
-    E.disp=[];E.resultados=[];$('resultados').innerHTML='';dibujar();
+    else{const r=recintoEn(p);if(r){E.recintos=E.recintos.filter(x=>x!==r);if(E.sel===r.id)E.sel=null;propiedades();invalidar(r.id);}}
+    dibujar();
   }
   else if(E.herr==='cal'){E.calib.push(p);if(E.calib.length===2){const d=Math.hypot(E.calib[1].x-E.calib[0].x,E.calib[1].y-E.calib[0].y);const v=prompt('Distancia real entre los 2 puntos (m):','10');const real=parseFloat(v);if(real>0&&E.img){const f=real/d;E.imgM*=f;E.imgX=E.calib[0].x-(E.calib[0].x-E.imgX)*f;E.imgY=E.calib[0].y-(E.calib[0].y-E.imgY)*f;
       E.recintos.forEach(r=>r.poly.forEach(q=>{q.x=E.calib[0].x+(q.x-E.calib[0].x)*f;q.y=E.calib[0].y+(q.y-E.calib[0].y)*f;}));ajustarVista();estado('Escala calibrada: '+E.imgM.toFixed(5)+' m/px.');}
@@ -1916,7 +2029,8 @@ function propiedades(){
    '<div><label>CO</label><select id="rCo"><option value="0">Según tipo</option><option value="1">Forzar</option></select></div></div>'+
    '<small class="g">'+area(r.poly).toFixed(1)+' m² · caja '+b.w.toFixed(1)+'×'+b.h.toFixed(1)+' m</small>';
   $('rDet').value=r.det;$('rNot').value=r.not;$('rCo').value=r.co?'1':'0';
-  const g=()=>{r.nombre=$('rNom').value;r.tipo=$('rTipo').value;r.h=+$('rAlt').value||2.7;r.det=$('rDet').value;r.not=$('rNot').value;r.co=$('rCo').value==='1';dibujar();};
+  const g=()=>{const antes=[r.tipo,r.h,r.det,r.not,r.co].join();r.nombre=$('rNom').value;r.tipo=$('rTipo').value;r.h=+$('rAlt').value||2.7;r.det=$('rDet').value;r.not=$('rNot').value;r.co=$('rCo').value==='1';
+    if([r.tipo,r.h,r.det,r.not,r.co].join()!==antes&&r.generado){r.generado=false;estado('«'+r.nombre+'» cambió de criterios: pulse «Generar prediseño» para recalcular solo ese recinto.');}dibujar();};
   ['rNom','rTipo','rAlt','rDet','rNot','rCo'].forEach(i=>$(i).onchange=g);
   $('rNom').oninput=()=>{r.nombre=$('rNom').value;E.disp.forEach(d=>{if(d.rid===r.id)d.sala=r.nombre;});dibujar();};
 }
@@ -2014,8 +2128,11 @@ function iniciar(){
   $('pCdMax').innerHTML=CATALOGO_CD.map(c=>'<option'+(c===75?' selected':'')+'>'+c+'</option>').join('');
   $('pEspH').value=ESP_HUMO_M;$('pEspC').value=ESP_CALOR_M;$('pDba').value=BOCINA_DBA_3M;$('pFacRec').value=FACTOR_RECORRIDO_REAL;$('pIso').value=AISLADOR_CADA_N;
   $('pAud').onchange=()=>{$('pDba').value=$('pAud').value==='parlante'?PARLANTE_DBA_3M:BOCINA_DBA_3M;};
-  $('btnGenerar').onclick=generar;
-  $('btnLimpiar').onclick=()=>{E.disp=[];E.resultados=[];$('resultados').innerHTML='';dibujar();};
+  $('btnCobOcultarTodas').onclick=()=>{E.recintos.forEach(r=>{r.ocultaCob=true;});dibujar();};
+  $('btnCobMostrarTodas').onclick=()=>{E.recintos.forEach(r=>{r.ocultaCob=false;});dibujar();};
+  $('btnGenerar').onclick=()=>generar(false);
+  $('btnGenerarTodo').onclick=()=>{if(!E.disp.some(d=>d.manual)||confirm('«Regenerar todo» recalcula todos los recintos y descarta los dispositivos automáticos que movió o editó a mano (los agregados a mano se conservan). ¿Continuar?'))generar(true);};
+  $('btnLimpiar').onclick=()=>{invalidar();dibujar();};
   [['tSel','sel'],['tRec','rec'],['tRect','rect'],['tRell','rell'],['tSal','salida'],['tFacp','facp'],['tAhu','ahu'],['tAsc','asc'],['tBor','bor'],['tDev','dev']].forEach(([i,h])=>$(i).onclick=()=>herramienta(h));
   $('tAjustar').onclick=ajustarVista;
   ['vCobDet','vCobVis','vCobAud','vSPL','vPlano','vOp','vSim'].forEach(i=>$(i).oninput=dibujar);
@@ -2058,7 +2175,7 @@ function glosario(){
   GLOSARIO.forEach(([tipo,tit,txt])=>G.appendChild(celda(g=>sim(g,tipo,36,40,13,tipo.indexOf('estrobo')>=0?{cd:'75'}:{}),tit,txt)));
   const C=$('glosCob');C.innerHTML='';
   [['rgba(30,125,60,.30)','rgba(30,125,60,.9)','Cobertura de detectores','Círculo verde: radio de 0.7 × espaciamiento alrededor de cada detector de humo o calor.',0],
-   ['rgba(214,40,40,.28)','rgba(200,30,30,.9)','Cobertura de notificación visual','Cuadro o círculo rojo: área que cubre cada estrobo, recortada al recinto que lo contiene.',1],
+   ['rgba(214,40,40,.28)','rgba(200,30,30,.9)','Cobertura de notificación visual','Cuadrados rojos anidados como en NFPA 72: los de pared parten del muro donde está el estrobo (Fig. 18.5.5.7.1) y los de cielo se centran en el aparato (Exhibit 18.27). El exterior es el lado que cubren sus candelas; se recorta al recinto.',1],
    ['rgba(30,90,200,.26)','rgba(20,70,190,.9)','Cobertura de notificación auditiva','Anillos azules de igual nivel (dBA), uno por cada vez que se duplica la distancia (−6 dB). El anillo exterior es el nivel requerido: el borde de la cobertura.',0],
    ['rgba(30,150,70,.4)','rgba(30,150,70,.9)','Nivel sonoro (dBA)','Mapa por celdas con el valor combinado de todos los dispositivos: rojo = bajo el nivel requerido, verde = cumple, naranja = sobre 110 dBA.',1]
   ].forEach(([fi,tr,tit,txt,cuad])=>C.appendChild(celda(g=>{g.fillStyle=fi;g.strokeStyle=tr;g.lineWidth=2;g.beginPath();

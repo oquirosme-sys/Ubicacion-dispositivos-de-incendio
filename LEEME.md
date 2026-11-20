@@ -56,3 +56,12 @@ Un recinto cuyo contorno cae por completo dentro de otro se trata como subrecint
 - Cada tarjeta de los módulos 1 y 2 se pliega con clic en su título; «Plegar todo / Desplegar todo» arriba del panel. Al seleccionar un dispositivo se abre su panel.
 - Clic derecho sobre un dispositivo: Mover (clic en el nuevo lugar), Agregar similares (clona tipo, candelas y dBA con un clic por cada uno; Esc termina), Cambiar tipo/propiedades, bocina sí/no y Borrar. Los mismos botones están en el panel «Dispositivo seleccionado».
 - Recinto rectangular: clic en dos esquinas o arrastrar. Los recintos nuevos toman el nombre del texto del plano que cae dentro.
+
+## Imán de dibujo y generación incremental
+- Al dibujar recintos («Dibujar recinto» y «Recinto rectangular») el cursor se engancha a las esquinas de muro (cuadro verde) y, si no hay esquina cerca, al borde de muro más cercano (círculo azul). Se desactiva con la casilla «Imán a esquinas y muros» o manteniendo Alt.
+- «Generar prediseño» solo calcula los recintos nuevos o modificados: lo ya acomodado (incluso lo que movió o editó a mano) no se mueve. «↻ Regenerar todo» recalcula todo; clic derecho sobre un recinto → «Regenerar este recinto» recalcula solo ese. Si dibuja un subrecinto dentro de uno ya generado, regenere el contenedor para que descuente el subrecinto.
+- Cobertura visual: cuadrados anidados desde el muro (pared) o centrados (cielo), con las medidas de las tablas 18.5.5.7.1(a)/(b).
+
+## Cobertura limpia
+- La cobertura de detectores y la de notificación se recortan al recinto que las contiene.
+- Clic derecho sobre un recinto o uno de sus dispositivos → «Ocultar / Mostrar cobertura» de ese recinto (oculta detectores, visual, auditiva y nivel sonoro de ese recinto; los dispositivos se quedan). En la barra superior: «Ocultar todas / Mostrar todas».
