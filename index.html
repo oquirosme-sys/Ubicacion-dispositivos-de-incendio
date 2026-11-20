@@ -1242,8 +1242,9 @@ function geomPared(d,rc){
   const pb=puntoBorde(d,rc.poly);let dx=d.x-pb.x,dy=d.y-pb.y,m=Math.hypot(dx,dy);
   if(m<1e-6){const b=bbox(rc.poly);dx=b.x0+b.w/2-pb.x;dy=b.y0+b.h/2-pb.y;m=Math.hypot(dx,dy)||1;}
   else if(!enRecinto(d,rc.poly)){dx=-dx;dy=-dy;}   // arrastrado fuera del recinto: el interior queda del otro lado
-  const v={x:dx/m,y:dy/m},lejos=m>GEOM_PARED_LEJOS_M;   // «lejos»: movido a mano, el cuadrado parte del propio dispositivo (no salta al muro)
-  return {pb:{x:pb.x,y:pb.y},base:lejos?{x:d.x,y:d.y}:{x:pb.x,y:pb.y},v,u:{x:-v.y,y:v.x}};
+  const lejos=m>GEOM_PARED_LEJOS_M,v=(lejos&&d.dirV)?d.dirV:{x:dx/m,y:dy/m};   // lejos del muro y con dirección propia (girado): cubre hacia ella
+     // «lejos»: movido a mano, el cuadrado parte del propio dispositivo (no salta al muro)
+  return {pb:{x:pb.x,y:pb.y},base:lejos?{x:d.x,y:d.y}:{x:pb.x,y:pb.y},v,u:{x:-v.y,y:v.x},lejos};
 }
 // Pega el estrobo de pared al muro más cercano (a la distancia mínima de pared) para que el cuadrado de cobertura parta del muro.
 function pegarAPared(d){
@@ -1264,7 +1265,7 @@ function girarSimbolo(d,delta,absoluto){
 // Gira 90° un estrobo de pared: lo pasa al punto medio del siguiente muro del recinto (sentido+1: agujas del reloj; −1: contrario),
 // de modo que la cobertura (cuadrados que parten del muro) se oriente hacia el otro lado del recinto.
 function rotarPared(d,sentido){
-  const rc=E.recintos.find(r=>r.id===d.rid)||recintoMin(d);if(!rc)return false;
+  const rc=recGeom(d);if(!rc)return false;
   const th=anguloOptimo(rc.poly),b=bbox(rc.poly.map(p=>giro(p,th)));
   // muros en el sentido de las agujas del reloj en pantalla: arriba, derecha, abajo, izquierda
   const L=[{x:b.x0+b.w/2,y:b.y0,vx:0,vy:1},{x:b.x1,y:b.y0+b.h/2,vx:-1,vy:0},{x:b.x0+b.w/2,y:b.y1,vx:0,vy:-1},{x:b.x0,y:b.y0+b.h/2,vx:1,vy:0}]
@@ -1276,7 +1277,8 @@ function rotarPared(d,sentido){
 }
 function girarEstroboPared(d,sentido){
   if(!d||!esEstroboPared(d))return;
-  if(!recGeom(d)){const v=d.dirV||{x:0,y:1};d.dirV=sentido<0?{x:v.y,y:-v.x}:{x:-v.y,y:v.x};propiedadesDisp();dibujar();estado('Estrobo de pared sin recinto girado '+(sentido<0?'−':'+')+'90°.');return;}
+  const rcG=recGeom(d),gG=rcG?geomPared(d,rcG):null;
+  if(!rcG||gG.lejos){const v=gG?gG.v:(d.dirV||{x:0,y:1});d.dirV=sentido<0?{x:v.y,y:-v.x}:{x:-v.y,y:v.x};d.manual=true;E._spl=null;E._visK=null;propiedadesDisp();dibujar();reverificar();estado('Estrobo de pared girado '+(sentido<0?'−':'+')+'90° sobre su propio punto: la cobertura gira con el dispositivo.');return;}   // sin recinto o lejos del muro: gira en su sitio
   if(!rotarPared(d,sentido)){estado('No hay otro muro válido para girar el estrobo en este recinto.');return;}
   propiedadesDisp();dibujar();reverificar();
   estado('Estrobo de pared girado '+(sentido<0?'−':'+')+'90°: ahora cubre desde otro muro. Tecla R gira +90°, Mayús+R −90°; arrástrelo para ajustar su posición a lo largo del muro.');
