@@ -65,3 +65,8 @@ Un recinto cuyo contorno cae por completo dentro de otro se trata como subrecint
 ## Cobertura limpia
 - La cobertura de detectores y la de notificación se recortan al recinto que las contiene.
 - Clic derecho sobre un recinto o uno de sus dispositivos → «Ocultar / Mostrar cobertura» de ese recinto (oculta detectores, visual, auditiva y nivel sonoro de ese recinto; los dispositivos se quedan). En la barra superior: «Ocultar todas / Mostrar todas».
+
+## Guardado en el navegador
+- El trabajo (proyecto, plano, recintos, dispositivos, coberturas ocultas) se guarda solo en IndexedDB de este navegador y se restaura al recargar la página o al publicar una mejora; no usa cookies ni localStorage. Casilla «Recordar mi trabajo en este navegador» (Archivo) para activarlo o desactivarlo y botón «Olvidar lo guardado».
+- Es local a ese equipo y navegador: el borrador .json sigue siendo el medio portátil (ahora también restaura los resultados de cada recinto sin mover dispositivos).
+- Nota para la norma de herramientas Sinergia: esta herramienta se aparta de «no persistir en el navegador» porque el usuario lo pidió expresamente; es opcional y desactivable.

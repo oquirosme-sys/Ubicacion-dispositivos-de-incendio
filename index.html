@@ -252,7 +252,9 @@
   <button class="sec" id="btnPNG">Exportar plano (PNG)</button>
   <button class="sec" id="btnCSV">Exportar dispositivos (CSV)</button>
   <button class="sec" id="btnInforme">Informe imprimible / PDF</button>
-  <small class="g">Sin localStorage ni cookies: el estado se guarda solo en el borrador .json. La base de datos Supabase llega en el paso 2.</small>
+  <label><input type="checkbox" id="chkAuto" style="width:auto" checked> Recordar mi trabajo en este navegador (se restaura al recargar la página)</label>
+  <button class="sec" id="btnOlvidar">Olvidar lo guardado</button> <small class="g" id="autoEstado"></small>
+  <small class="g">El guardado en el navegador (IndexedDB, sin cookies ni localStorage) es solo de este equipo y navegador; el borrador .json es el medio portátil. Se puede desactivar con la casilla. La base de datos Supabase llega en el paso 2.</small>
 </section></div>
 
 <div>
@@ -1181,6 +1183,7 @@ function ajustarVista(){
   E.vista.k=k;E.vista.x=(r.width-w*k)/2-b.x0*k;E.vista.y=(r.height-h*k)/2-b.y0*k;dibujar();
 }
 function dibujar(){
+  programarAutoguardado();
   const r=cv.getBoundingClientRect();cx.clearRect(0,0,r.width,r.height);cx.fillStyle='#fff';cx.fillRect(0,0,r.width,r.height);
   if(E.img&&$('vPlano').checked){const a=aPant({x:E.imgX,y:E.imgY});cx.globalAlpha=$('vOp').value/100;cx.drawImage(E.img,a.x,a.y,E.img.width*E.imgM*E.vista.k,E.img.height*E.imgM*E.vista.k);cx.globalAlpha=1;}
   // recintos
@@ -2061,13 +2064,21 @@ $('btnDict').onclick=()=>{$('dictamen').innerHTML=dictamen();};
    ARCHIVOS: borrador, PNG, CSV, informe
    ========================================================================== */
 function descargar(n,t,m){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:m||'text/plain'}));a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);}
-function recopilar(){
+// Convierte una imagen/canvas a PNG una sola vez por objeto (el autoguardado se repite y codificar un plano grande es caro).
+function dataUrlDe(img,clave){
+  if(E['_u_'+clave]&&E['_i_'+clave]===img)return E['_u_'+clave];
+  const c=document.createElement('canvas');c.width=img.width;c.height=img.height;c.getContext('2d').drawImage(img,0,0);
+  E['_i_'+clave]=img;return (E['_u_'+clave]=c.toDataURL('image/png'));
+}
+function recopilar(completo){
   const o={version:1,proyecto:{nombre:$('pNombre').value,pais:$('pais').value,ed72:$('ed72').value,ed101:$('ed101').value,ocup:$('ocup').value,niveles:$('pNiveles').value,alt:$('pAlt').value,reunion:$('pReunion').value,hab:$('pHab').value,cob:$('cobDet').value},
    cadena:E.chain,cadenaCustom:E.cadenaCustom,
    parametros:{espH:$('pEspH').value,espC:$('pEspC').value,cdMax:$('pCdMax').value,dba:$('pDba').value,aud:$('pAud').value,facRec:$('pFacRec').value,iso:$('pIso').value,co:$('pCO').value},
    recintos:E.recintos,marcas:E.marcas,disp:E.disp,eqCant:E.eqCant,seq:E.seq,
    plano:{nombre:E.imgNombre,m:E.imgM,x:E.imgX,y:E.imgY},vista:E.vista};
-  if($('chkImg').checked&&E.img){const c=document.createElement('canvas');c.width=E.img.width;c.height=E.img.height;c.getContext('2d').drawImage(E.img,0,0);o.plano.dataUrl=c.toDataURL('image/png');}
+  if((completo||$('chkImg').checked)&&E.img)o.plano.dataUrl=dataUrlDe(E.img,'img');
+  if(completo&&E.imgMuros)o.plano.murosUrl=dataUrlDe(E.imgMuros,'muros');
+  o.textosPdf=E.textosPdf||[];o.escala={n:$('escN').value,dpi:$('escDpi').value};
   return o;
 }
 function aplicar(o){
@@ -2077,8 +2088,67 @@ function aplicar(o){
   const q=o.parametros||{};[['espH','pEspH'],['espC','pEspC'],['cdMax','pCdMax'],['dba','pDba'],['aud','pAud'],['facRec','pFacRec'],['iso','pIso'],['co','pCO']].forEach(([a,b])=>{if(q[a]!=null)$(b).value=q[a];});
   E.recintos=o.recintos||[];E.marcas=o.marcas||[];E.disp=o.disp||[];E.eqCant=o.eqCant||{};E.seq=o.seq||1;E.resultados=[];$('resultados').innerHTML='';
   if(o.plano){E.imgNombre=o.plano.nombre||'';E.imgM=o.plano.m||0;E.imgX=o.plano.x||0;E.imgY=o.plano.y||0;if(o.plano.dataUrl){const im=new Image();im.onload=()=>{E.img=im;dibujar();};im.src=o.plano.dataUrl;}else if(o.plano.nombre)estado('El borrador no incluye la imagen del plano ('+o.plano.nombre+'): vuelva a cargarla y use «Aplicar escala» o calibre; las posiciones se conservan.');}
-  tablaEquipos();propiedades();if(o.vista)E.vista=o.vista;dibujar();
+  if(o.textosPdf)E.textosPdf=o.textosPdf;
+  if(o.escala){if(o.escala.n)$('escN').value=o.escala.n;if(o.escala.dpi)$('escDpi').value=o.escala.dpi;}
+  if(o.plano&&o.plano.murosUrl){const im2=new Image();im2.onload=()=>{E.imgMuros=im2;};im2.src=o.plano.murosUrl;}
+  tablaEquipos();reconstruirResultados();propiedades();if(o.vista)E.vista=o.vista;dibujar();
 }
+// Tras abrir un borrador o recargar: se recalculan los resultados y verificaciones de cada recinto, pero los dispositivos
+// guardados (incluidos los movidos o editados a mano) se conservan tal cual.
+function reconstruirResultados(){
+  E.resultados=[];E.globales=null;E.audPorRec={};E._spl=null;E.selDev=null;
+  if(!E.recintos.length||!E.disp.length){$('resultados').innerHTML='';return;}
+  const o=opciones();asignarHuecos();
+  E.recintos.forEach(r=>{
+    const mios=E.disp.filter(d=>d.rid===r.id);
+    if(r.generado&&mios.length){const x=planificarRecinto(r,o);x.disp=mios;E.resultados.push(x);if(x.aud&&x.aud.req)E.audPorRec[r.id]={req:x.aud.req,dba3:x.aud.dba3,parl:x.aud.parl};}
+    else r.generado=false;
+  });
+  if(!E.resultados.length){$('resultados').innerHTML='';return;}
+  E.globales=planificarGlobales(o,E.resultados,E.disp.filter(d=>d.rid===undefined&&!d.agregado));
+  verificar(E.resultados,o);mostrarResultados();
+}
+/* ==========================================================================
+   GUARDADO EN EL NAVEGADOR (IndexedDB): el trabajo sobrevive a recargar la página o a publicar una mejora.
+   Opcional (casilla), solo en este equipo; el borrador .json sigue siendo el medio portátil.
+   ========================================================================== */
+const IDB_NOMBRE = 'prediseno-alarmas-sinergia', IDB_ALMACEN = 'estado';
+// Espera (ms) tras el último cambio antes de guardar automáticamente (CRITERIO de rendimiento).
+const AUTOGUARDADO_ESPERA_MS = 1500;
+const _auto = {listo:false,t:0,activo:true};
+function idbAbrir(){return new Promise((res,rej)=>{try{const q=indexedDB.open(IDB_NOMBRE,1);q.onupgradeneeded=()=>q.result.createObjectStore(IDB_ALMACEN);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);}catch(e){rej(e);}});}
+async function idbPoner(k,v){const db=await idbAbrir();return new Promise((res,rej)=>{const t=db.transaction(IDB_ALMACEN,'readwrite');t.objectStore(IDB_ALMACEN).put(v,k);t.oncomplete=()=>{db.close();res();};t.onerror=()=>rej(t.error);});}
+async function idbLeer(k){const db=await idbAbrir();return new Promise((res,rej)=>{const q=db.transaction(IDB_ALMACEN,'readonly').objectStore(IDB_ALMACEN).get(k);q.onsuccess=()=>{db.close();res(q.result);};q.onerror=()=>rej(q.error);});}
+async function idbBorrar(k){const db=await idbAbrir();return new Promise((res,rej)=>{const t=db.transaction(IDB_ALMACEN,'readwrite');t.objectStore(IDB_ALMACEN).delete(k);t.oncomplete=()=>{db.close();res();};t.onerror=()=>rej(t.error);});}
+function programarAutoguardado(){
+  if(!_auto.listo||!_auto.activo)return;clearTimeout(_auto.t);_auto.t=setTimeout(guardarAhora,AUTOGUARDADO_ESPERA_MS);
+}
+async function guardarAhora(){
+  if(!_auto.listo||!_auto.activo)return;clearTimeout(_auto.t);
+  try{
+    if(!E.recintos.length&&!E.disp.length&&!E.img)return;   // no se pisa lo guardado con una hoja vacía
+    await idbPoner('borrador',{guardado:Date.now(),datos:recopilar(true)});
+    $('autoEstado').textContent='Guardado en este navegador: '+new Date().toLocaleTimeString('es-CR');
+  }catch(e){$('autoEstado').textContent='No se pudo guardar en el navegador ('+(e&&e.message?e.message:e)+'). Use «Guardar borrador (.json)».';}
+}
+async function restaurarGuardado(){
+  try{
+    const cfg=await idbLeer('config');_auto.activo=!(cfg&&cfg.auto===false);$('chkAuto').checked=_auto.activo;
+    const g=_auto.activo?await idbLeer('borrador'):null;
+    if(g&&g.datos){aplicar(g.datos);estado('Se restauró su trabajo guardado en este navegador ('+new Date(g.guardado).toLocaleString('es-CR')+'). Use «Olvidar lo guardado» para empezar de cero.');ajustarLienzo();}
+  }catch(e){$('autoEstado').textContent='Guardado en el navegador no disponible: '+(e&&e.message?e.message:e);}
+  _auto.listo=true;
+}
+$('chkAuto').onchange=async()=>{
+  _auto.activo=$('chkAuto').checked;
+  try{await idbPoner('config',{auto:_auto.activo});if(!_auto.activo){await idbBorrar('borrador');$('autoEstado').textContent='Guardado automático desactivado; se borró lo guardado.';}else{guardarAhora();}}catch(e){}
+};
+$('btnOlvidar').onclick=async()=>{
+  if(!confirm('Se borra lo guardado en este navegador (no afecta los borradores .json que haya descargado). La hoja actual no cambia hasta que recargue. ¿Continuar?'))return;
+  try{await idbBorrar('borrador');$('autoEstado').textContent='Se borró lo guardado en este navegador.';}catch(e){$('autoEstado').textContent='No se pudo borrar: '+e;}
+};
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')guardarAhora();});
+document.addEventListener('change',programarAutoguardado);document.addEventListener('input',programarAutoguardado);
 $('btnGuardar').onclick=()=>descargar('prediseno_alarmas_'+($('pNombre').value||'proyecto').replace(/\W+/g,'_')+'.json',JSON.stringify(recopilar()),'application/json');
 $('btnAbrir').onclick=()=>$('fileBorr').click();
 $('fileBorr').onchange=ev=>{const f=ev.target.files[0];if(!f)return;const fr=new FileReader();fr.onload=()=>{try{aplicar(JSON.parse(fr.result));if(E.disp.length&&E.recintos.length){const o=opciones();}}catch(e){alert('Borrador inválido: '+e.message);}};fr.readAsText(f);};
@@ -2137,7 +2207,7 @@ function iniciar(){
   $('tAjustar').onclick=ajustarVista;
   ['vCobDet','vCobVis','vCobAud','vSPL','vPlano','vOp','vSim'].forEach(i=>$(i).oninput=dibujar);
   $('btnDict').click();infoCadena();tablaEquipos();
-  window.addEventListener('resize',ajustarLienzo);ajustarLienzo();ajustarVista();
+  window.addEventListener('resize',ajustarLienzo);ajustarLienzo();ajustarVista();restaurarGuardado();
 }
 iniciar();
 
