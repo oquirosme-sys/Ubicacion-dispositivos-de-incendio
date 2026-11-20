@@ -110,3 +110,12 @@ Un recinto cuyo contorno cae por completo dentro de otro se trata como subrecint
 - Archivo → «Exportar a CAD (.dxf)»: dibujo a tamaño real (1:1) en metros o milímetros, DXF R12 (ASCII) que abren AutoCAD, Revit y BricsCAD; en AutoCAD se guarda como .dwg. El .dwg no se genera directamente (formato binario propietario; la herramienta es un solo archivo sin librerías ni internet).
 - Capas ALARMA-*: recintos, detectores, notificación, pulsadores, módulos, equipos, salidas, FACP, texto, coberturas (opcional), SLC, NAC y límite de la hoja del plano. Los símbolos NFPA 170 son bloques (SIM_*) con el giro de cada dispositivo; los equipos llevan sus módulos y la nota de P/N; el precableado va como polilíneas (retorno de clase A discontinuo).
 - La escala de impresión 1:N fija el tamaño de símbolos y rótulos (símbolo de 4 mm en papel × N). El eje Y se invierte (CAD crece hacia arriba); el límite de la hoja indica dónde superponer el plano original.
+
+## Dispositivos manuales a la mano
+- Tarjeta «Prediseño» → «Dispositivos manuales»: selector de tipo + «Colocar en el plano» (mismo efecto que «+ Dispositivo»), y «CO en cocinas y recintos con combustión», que pone un detector de CO en cada recinto tipo cocina, lavandería, cuarto de máquinas o parqueo que aún no lo tenga (el prediseño solo lo coloca si el estándar de cadena lo exige o si el recinto tiene CO «Forzar»). Quedan como dispositivos manuales y se conservan al regenerar.
+- El menú del botón derecho ya no se abre junto con el menú del navegador.
+
+## Vista del precableado y símbolo de CO
+- Módulo 3 (Precableado): tarjeta «Plano con dispositivos y precableado» con la misma vista del módulo 2 (plano, recintos, dispositivos, bloques de equipo y cableado; sin coberturas ni notas), con zoom por rueda, desplazamiento por arrastre y su propio «Ajustar vista». Se actualiza al generar, recalcular o quitar el precableado.
+- Símbolo de CO como en la simbología CDCLH-001S: hexágono negro con triángulo blanco y «CO» abajo a la derecha (también en el .dxf). Esa leyenda indica base de CO Simplex 4098-9771 con módulo TC4 4905-9835.
+- Cada detector/base de CO lleva su módulo TC4 4905-9835 (simbología CDCLH-001S): se dibuja a la par del detector (casilla «Módulos junto a equipos»), se totaliza por P/N en el resumen, sale en el CSV y en el .dxf (bloque SIM_MODULO_TC4) y cuenta como un punto más del lazo SLC en el precableado. La memoria no tiene su corriente: se toma como 0 mA y queda marcada «aproximada»; verifique la ficha del TC4.

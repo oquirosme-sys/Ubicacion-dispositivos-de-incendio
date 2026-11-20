@@ -68,6 +68,9 @@
   @media(max-width:1000px){.cols2{grid-template-columns:1fr}}
   .aviso-mod{font-size:.8rem;color:#5a6472}
   #app{padding:0}
+  #cv2{width:100%;height:62vh;min-height:380px;cursor:grab}
+  #mod4 .cols2{grid-template-columns:minmax(360px,.8fr) 1.4fr}
+  @media(max-width:1000px){#mod4 .cols2{grid-template-columns:1fr}}
   /* Barra de capas sobre el lienzo: una fila compacta, no una columna del panel */
   #lienzoWrap #capas{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;margin:0 0 6px;padding:4px 8px;background:#f4f7fa;border:1px solid var(--gb);border-radius:6px;font-size:.78rem}
   /* Barra de capas fija arriba: queda a la vista aunque se desplace el área de trabajo */
@@ -269,6 +272,12 @@
 <section class="card"><h2>Prediseño</h2><small class="g">Los criterios se definen en el módulo 1. Cree o cargue los recintos y genere.</small><br>  <button class="gran" id="btnGenerar">▶ Generar prediseño</button>
   <button class="sec" id="btnGenerarTodo" title="Recalcula todos los recintos y descarta los ajustes manuales de los dispositivos automáticos">↻ Regenerar todo</button>
   <button class="sec" id="btnLimpiar">Quitar dispositivos</button>
+  <div style="margin-top:10px;border-top:1px solid var(--gb);padding-top:8px"><b style="font-size:.82rem">Dispositivos manuales</b>
+   <small class="g" style="display:block">Para lo que el prediseño no coloca solo (por ejemplo CO en una cocina). Se suman a los automáticos y se conservan al regenerar.</small>
+   <select id="devTipo2" title="Tipo de dispositivo a colocar"></select>
+   <button class="sec" id="btnDevManual">＋ Colocar en el plano</button>
+   <button class="sec" id="btnCOCocina" title="Pone un detector de CO en cada recinto tipo cocina, lavandería, cuarto de máquinas o parqueo que aún no lo tenga">＋ CO en cocinas y recintos con combustión</button>
+  </div>
 </section><section class="card"><h2>Archivo</h2>
   <button class="sec" id="btnGuardar">Guardar borrador (.json)</button>
   <button class="sec" id="btnAbrir">Abrir borrador…</button>
@@ -346,6 +355,11 @@
 </section>
 </div>
 <div>
+<section class="card"><h2>Plano con dispositivos y precableado</h2>
+ <small class="g">Misma vista del módulo 2, solo con la ubicación de los dispositivos y el cableado. Rueda = zoom · arrastrar = desplazar. Línea continua = ida; discontinua = retorno de clase A.</small>
+ <div style="margin:4px 0"><button class="sec" id="btnVista2">Ajustar vista</button></div>
+ <canvas id="cv2"></canvas>
+</section>
 <section class="card"><h2>Circuitos de precableado</h2><div id="cabResultados"><small class="g">Coloque dispositivos y un panel (FACP) en el módulo 2 y pulse «Generar precableado».</small></div></section>
 </div>
 </div>
@@ -693,6 +707,8 @@ const MATRIZ_SENALES = [["BPE","Bomba/motor en marcha","Supervisión","Monitoreo
 const DISPOSITIVOS_PN = {"4090-9001":["Módulo direccionable IAM supervisado (1 entrada, T-Sense)","Monitoreo","Contacto seco supervisado: tamper, flujo, estados de bomba/generador"],"4090-9002":["Módulo direccionable de relé (IAM Relay)","Control","Salida de relé: paro/arranque de equipos, liberación de puertas"],"4090-9008":["Módulo de relé de doble contacto","Control","Dos relés con una dirección: recall primario y alterno de ascensor"],"4090-9118":["Módulo de relé con entrada T-Sense (relé + 1 entrada supervisada)","Control","Control con retroalimentación: dampers, ventiladores, válvula de gas"],"4090-9120":["Módulo de 6 puntos (4 entradas T-Sense + 2 relés)","Monitoreo","Alternativa para agrupar señales de bomba/generador; ver tabla inferior"],"4090-9006":["Periférico de liberación de supresión (SRP) con gabinete","Control","Liberación de solenoide de preacción/agente limpio"],"4090-9101":["Adaptador de zona convencional Clase B (ZAM)","Monitoreo","Para reutilizar lazos de dispositivos convencionales"],"4090-9007":["Módulo de señal IAM (NAC convencional 0.5 A)","Control","Referencia para circuitos de notificación convencionales; no usado en esta matriz"],"4090-9116":["Aislador de comunicaciones IDNet","Aislador","Por tramos/pisos según diseño del lazo; no depende de señales"]};
 // Equipos con sus módulos por unidad (monitoreo y control) calculados de la matriz: [ID, nombre, monitoreo, control, notas]
 const EQUIPOS = EQUIPOS_BASE.map(([id,n,nota])=>{let mon=0,ctl=0;MATRIZ_SENALES.forEach(r=>{if(r[0]===id){if(r[3]==='Control')ctl+=r[4];else mon+=r[4];}});return [id,n,mon,ctl,nota];});
+// Base de CO: según la leyenda de simbología de Sinergia (CDCLH-001S) lleva un módulo TC4 Simplex por detector.
+const CO_MODULO_TC4 = {pn:'4905-9835', desc:'Módulo TC4 de la base de CO 4098-9771 (CDCLH-001S)'};
 // Equipo de la matriz al que corresponde un bloque del plano (null si es salida o FACP).
 function equipoDe(m){return m.t==='eq'?m.eq:(m.t==='ahu'?'AHU':(m.t==='asc'?'ASC':null));}
 function nombreEquipo(id){const q=EQUIPOS.find(x=>x[0]===id);return q?q[1]:id;}
@@ -1271,7 +1287,8 @@ function modulos(o){
   let mon=0,ctl=0;const filas=[],pn={};
   EQUIPOS.forEach(q=>{const n=+cant[q[0]]||0;if(!n)return;mon+=n*q[2];ctl+=n*q[3];filas.push([q[1],n,n*q[2],n*q[3],q[4]]);
     dispositivosEquipo(q[0]).forEach(d=>{const x=pn[d.pn]=pn[d.pn]||{n:0,desc:d.desc,func:d.func};x.n+=n*d.n;});});   // módulos por P/N
-  const slc=(c.det_humo||0)+(c.det_calor||0)+(c.det_co||0)+(c.det_ducto||0)+(c.pulsador||0)+mon+ctl;
+  if(c.det_co)pn[CO_MODULO_TC4.pn]={n:c.det_co,desc:CO_MODULO_TC4.desc,func:'Módulo de base de CO'};   // uno por detector de CO
+  const slc=(c.det_humo||0)+(c.det_calor||0)+(c.det_co||0)*2+(c.det_ducto||0)+(c.pulsador||0)+mon+ctl;   // el TC4 ocupa un punto más del lazo
   const iso=Math.ceil(slc/Math.max(1,o.iso));
   return {mon,ctl,filas,slc,iso,pn};
 }
@@ -1414,7 +1431,8 @@ function sim(ctx,tipo,x,y,s,extra){
     case 'det_humo':hex(ctx,x,y,s);ctx.fill();ctx.stroke();txt('S');break;
     case 'det_calor':hex(ctx,x,y,s);ctx.fill();ctx.stroke();txt('H');break;
     case 'det_ducto':hex(ctx,x,y,s);ctx.fill();ctx.stroke();txt('S');ctx.setLineDash([2,2]);ctx.beginPath();ctx.moveTo(x,y-s);ctx.lineTo(x,y-s*1.6);ctx.stroke();break;
-    case 'det_co':hex(ctx,x,y,s);ctx.fillStyle='#111';ctx.fill();ctx.stroke();ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(x-s*.5,y+s*.4);ctx.lineTo(x+s*.5,y+s*.4);ctx.lineTo(x,y-s*.5);ctx.closePath();ctx.fill();txt('CO',s*.2,s*1.45,s*.55);break;
+    case 'det_co':hex(ctx,x,y,s);ctx.fillStyle='#111';ctx.fill();ctx.stroke();ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(x-s*.5,y+s*.4);ctx.lineTo(x+s*.5,y+s*.4);ctx.lineTo(x,y-s*.5);ctx.closePath();ctx.fill();
+      ctx.textAlign='left';ctx.fillStyle='#444';ctx.font=Math.round(s*.6)+'px Arial';ctx.fillText('CO',x+s*.8,y+s*1.05);break;   // «CO» abajo a la derecha, como en la simbología CDCLH-001S
     case 'pulsador':cuad(s*0.85);txt('F');break;
     case 'estrobo':{cuad(s*0.85);ctx.beginPath();ctx.moveTo(x-s*.85,y-s*.85);ctx.lineTo(x+s*.85,y+s*.85);ctx.moveTo(x+s*.85,y-s*.85);ctx.lineTo(x-s*.85,y+s*.85);ctx.stroke();cd(extra&&extra.cd,0,-s*1.3);break;}
     case 'estrobo_cielo':{ctx.beginPath();ctx.arc(x,y,s*.9,0,7);ctx.fill();ctx.stroke();ctx.beginPath();ctx.moveTo(x-s*.9,y-s*.9);ctx.lineTo(x+s*.9,y+s*.9);ctx.moveTo(x+s*.9,y-s*.9);ctx.lineTo(x-s*.9,y+s*.9);ctx.stroke();cd(extra&&extra.cd,0,-s*1.35);break;}
@@ -1423,6 +1441,7 @@ function sim(ctx,tipo,x,y,s,extra){
     case 'bocina_estrobo_cielo':case 'parl_estrobo_cielo':{ctx.beginPath();ctx.arc(x,y,s*.9,0,7);ctx.fill();ctx.stroke();ctx.beginPath();ctx.moveTo(x-s*.9,y-s*.9);ctx.lineTo(x+s*.9,y+s*.9);ctx.moveTo(x+s*.9,y-s*.9);ctx.lineTo(x-s*.9,y+s*.9);ctx.stroke();
       tri(x-s*.5,y-s*1.4,s*.4,tipo==='parl_estrobo_cielo');cd(extra&&extra.cd,s*.55,-s*1.4);break;}
     case 'bocina':case 'parlante':cuad(s*0.7);tri(x,y-s*1.25,s*.45,tipo==='parlante');txt(tipo==='bocina'?'H':'S',0,0,s*.7);break;
+    case 'modulo_tc4':ctx.beginPath();ctx.rect(x-s*.75,y-s*.75,s*1.5,s*1.5);ctx.fillStyle='#fff';ctx.fill();ctx.stroke();txt('TC4',0,0,s*.42);break;
     case 'aislador':cuad(s*0.75);txt('IM',0,0,s*.55);break;
     case 'modulo_mon':cuad(s*0.75);txt('AIM',0,0,s*.5);break;
     case 'modulo_ctl':cuad(s*0.75);txt('AOM',0,0,s*.5);break;
@@ -1437,11 +1456,12 @@ function sim(ctx,tipo,x,y,s,extra){
 /* ==========================================================================
    LIENZO: vista, dibujo e interacción
    ========================================================================== */
-const cv=$('cv'),cx=cv.getContext('2d');
+let cv=$('cv'),cx=cv.getContext('2d');   // «let»: la vista del módulo 3 reutiliza el mismo dibujo cambiando temporalmente de lienzo
 function aPant(p){return{x:p.x*E.vista.k+E.vista.x,y:p.y*E.vista.k+E.vista.y};}
 function aMundo(px,py){return{x:(px-E.vista.x)/E.vista.k,y:(py-E.vista.y)/E.vista.k};}
 function ajustarLienzo(){const r=cv.getBoundingClientRect(),d=window.devicePixelRatio||1;cv.width=Math.round(r.width*d);cv.height=Math.round(r.height*d);cx.setTransform(d,0,0,d,0,0);dibujar();}
 function ajustarVista(){
+  if(!E._modoCable)E._vista2Ajustada=false;   // un plano o recintos nuevos: la vista del módulo 3 se vuelve a ajustar al abrirla
   let b=null;const add=p=>{if(!b)b={x0:p.x,y0:p.y,x1:p.x,y1:p.y};b.x0=Math.min(b.x0,p.x);b.y0=Math.min(b.y0,p.y);b.x1=Math.max(b.x1,p.x);b.y1=Math.max(b.y1,p.y);};
   E.recintos.forEach(r=>r.poly.forEach(add));
   if(E.img&&$('vPlano').checked){add({x:E.imgX,y:E.imgY});add({x:E.imgX+E.img.width*E.imgM,y:E.imgY+E.img.height*E.imgM});}
@@ -1483,7 +1503,11 @@ function rehacer(){
 }
 ['mouseup','click','change','keyup'].forEach(ev=>document.addEventListener(ev,programarConfirmar,true));
 function dibujar(){
-  programarAutoguardado();
+  dibujarBase();
+  if(!E._modoCable&&$('mod4')&&$('mod4').style.display!=='none')dibujar2();
+}
+function dibujarBase(){
+  if(!E._modoCable)programarAutoguardado();
   const r=cv.getBoundingClientRect();cx.clearRect(0,0,r.width,r.height);cx.fillStyle='#fff';cx.fillRect(0,0,r.width,r.height);
   if(E.img&&$('vPlano').checked){const a=aPant({x:E.imgX,y:E.imgY});cx.globalAlpha=$('vOp').value/100;cx.drawImage(E.img,a.x,a.y,E.img.width*E.imgM*E.vista.k,E.img.height*E.imgM*E.vista.k);cx.globalAlpha=1;}
   // recintos
@@ -1501,7 +1525,8 @@ function dibujar(){
   const S=+$('vSim').value;
   // coberturas
   // Capas de cobertura seleccionables; las de notificación se recortan al recinto que las contiene.
-  const verDet=$('vCobDet').checked,verVis=$('vCobVis').checked,verAud=$('vCobAud').checked;
+  const V2=!!E._modoCable;   // vista del precableado: solo plano, recintos, dispositivos y cableado (sin coberturas ni notas)
+  const verDet=!V2&&$('vCobDet').checked,verVis=!V2&&$('vCobVis').checked,verAud=!V2&&$('vCobAud').checked;
   const recorta=(d,fn)=>{const rc=E.recintos.find(x=>x.id===d.rid);cx.save();if(rc){cx.beginPath();[rc.poly].concat(rc.poly.huecos||[]).forEach(pl=>{pl.forEach((q,i)=>{const a=aPant(q);cx[i?'lineTo':'moveTo'](a.x,a.y);});cx.closePath();});cx.clip('evenodd');}fn();cx.restore();};
   E.disp.forEach(d=>{
     const p=aPant(d);
@@ -1511,8 +1536,9 @@ function dibujar(){
     if(verVis&&d.radioVis){recorta(d,()=>{cx.beginPath();cx.arc(p.x,p.y,d.radioVis*E.vista.k,0,7);cx.fillStyle=COLOR.cobE;cx.fill();cx.strokeStyle='rgba(200,30,30,.9)';cx.setLineDash([6,4]);cx.lineWidth=1.5;cx.stroke();cx.setLineDash([]);});}
     if(verAud&&/bocina|parl/.test(d.tipo)&&d.radio)dibujarAudible(d,p,recorta);
   });
-  if($('vSPL').checked){dibujarSPL();leyendaSPL();}else if($('leyendaSPL'))$('leyendaSPL').style.display='none';
-  if($('vCable')&&$('vCable').checked&&E.cableado)dibujarCableado();
+  if(!E._modoCable&&$('vSPL').checked){dibujarSPL();leyendaSPL();}else if(!E._modoCable&&$('leyendaSPL'))$('leyendaSPL').style.display='none';
+  if((E._modoCable||($('vCable')&&$('vCable').checked))&&E.cableado)dibujarCableado();
+  if($('vModulos')&&$('vModulos').checked)E.disp.forEach(d=>{if(d.tipo==='det_co'){const p=aPant(d);sim(cx,'modulo_tc4',p.x+S*1.9,p.y,S);}});   // módulo TC4 de la base de CO
   E.disp.forEach(d=>{const p=aPant(d);if(d.giro){cx.save();cx.translate(p.x,p.y);cx.rotate(d.giro*Math.PI/180);sim(cx,d.tipo,0,0,S,{cd:d.cd});cx.restore();}else sim(cx,d.tipo,p.x,p.y,S,{cd:d.cd});if(d.manual){cx.beginPath();cx.arc(p.x,p.y,S*1.15,0,7);cx.strokeStyle='rgba(224,168,0,.9)';cx.lineWidth=2;cx.setLineDash([3,3]);cx.stroke();cx.setLineDash([]);}
     if(d.id===E.selDev){cx.beginPath();cx.arc(p.x,p.y,S*1.45,0,7);cx.strokeStyle='#0a5ad4';cx.lineWidth=2.5;cx.stroke();}});
   {const sol=solapes();if(sol.en.size){cx.save();cx.setLineDash([4,3]);cx.strokeStyle='#d6281c';cx.lineWidth=2.2;sol.en.forEach(d=>{const p=aPant(d);cx.beginPath();cx.arc(p.x,p.y,S*1.6,0,7);cx.stroke();});cx.restore();}}
@@ -1624,7 +1650,7 @@ function dibujarMarca(m,p,S){
     const mods=[];dispositivosEquipo(eq).forEach(d=>{for(let i=0;i<d.n;i++)mods.push(d.func==='Control'?'modulo_ctl':'modulo_mon');});
     const por=8,sp=S*1.75;mods.forEach((t,i)=>{sim(cx,t,p.x+S*1.9+(i%por)*sp,p.y+Math.floor(i/por)*sp,S);});   // mismo tamaño que los demás símbolos (control «Tamaño símbolos»)
   }
-  if($('vNotas')&&$('vNotas').checked){
+  if($('vNotas')&&$('vNotas').checked&&!E._modoCable){
     const L=dispositivosEquipo(eq).map(d=>d.n+'× '+d.pn+' ('+d.func+')');if(!L.length)L.push('sin módulos en la matriz');
     cx.save();cx.font='9px Arial';cx.textAlign='left';cx.textBaseline='top';
     const w=Math.max(...L.map(t=>cx.measureText(t).width))+8,h=L.length*11+6,x=p.x-w/2,y=p.y+S*0.8;
@@ -1669,6 +1695,7 @@ function parametrosCab(){
 function dispositivosCableables(){
   const slc=[],nac=[];
   E.disp.forEach(d=>{const c=circuitoDe(d);if(!c)return;const x={id:d.id,tipo:d.tipo,x:d.x,y:d.y,ma:c.ma,aprox:!!c.aprox,sala:d.sala||''};(c.tipo==='SLC'?slc:nac).push(x);});
+  E.disp.filter(d=>d.tipo==='det_co').forEach(d=>slc.push({id:d.id+'-TC4',tipo:'modulo_tc4',x:d.x,y:d.y,ma:0,aprox:true,sala:(d.sala||'')+' · TC4'}));   // corriente del TC4 sin dato en la memoria: verificar
   E.marcas.forEach(m=>{const e=equipoDe(m);if(!e)return;const rc=recintoEn(m);
     dispositivosEquipo(e).forEach(dp=>{for(let i=1;i<=dp.n;i++){const t=dp.func==='Control'?'modulo_ctl':'modulo_mon';slc.push({id:'M'+m.id+'-'+dp.pn+'-'+i,tipo:t,x:m.x,y:m.y,ma:PRE_I_SLC_MA[t],aprox:false,sala:(rc?rc.nombre:'')+' · '+e});}});});
   return {slc,nac};
@@ -1785,7 +1812,7 @@ function simboloDXF(t){
   switch(t){
     case 'det_humo':return [hex(),tx('S',0.5)];
     case 'det_calor':return [hex(),tx('H',0.5)];
-    case 'det_co':return [hex(),tx('CO',0.32)];
+    case 'det_co':return [hex(),{t:'P',c:1,pts:[[-0.25,0.2],[0.25,0.2],[0,-0.25]]},tx('CO',0.3,1.05,0.95)];   // triángulo y «CO» abajo a la derecha
     case 'det_ducto':return [hex(),tx('S',0.5),{t:'L',a:[0,0.5],b:[0,0.85]}];
     case 'pulsador':return [cuad(0.425),tx('F',0.5)];
     case 'estrobo':return [cuad(0.425)].concat(cruz(0.425));
@@ -1796,6 +1823,7 @@ function simboloDXF(t){
     case 'parlante':return [cuad(0.35),tx('S',0.4),tri(0,0.62,0.22)];
     case 'modulo_mon':return [cuad(0.375),tx('AIM',0.22)];
     case 'modulo_ctl':return [cuad(0.375),tx('AOM',0.22)];
+    case 'modulo_tc4':return [cuad(0.375),tx('TC4',0.22)];
     case 'aislador':return [cuad(0.375),tx('IM',0.25)];
   }
   return [cuad(0.4),tx('?',0.4)];
@@ -1824,7 +1852,7 @@ function exportarDXF(){
   g(0,'TABLE');g(2,'STYLE');g(70,1);g(0,'STYLE');g(2,'STANDARD');g(70,0);g(40,0);g(41,1);g(50,0);g(71,0);g(42,f(SZ*0.5*K));g(3,'txt');g(4,'');g(0,'ENDTAB');
   g(0,'ENDSEC');
   // ---- bloques de símbolos (una definición por tipo realmente usado)
-  const usados=new Set(E.disp.map(d=>d.tipo));E.marcas.forEach(m=>{const e=equipoDe(m);if(e)dispositivosEquipo(e).forEach(dp=>usados.add(dp.func==='Control'?'modulo_ctl':'modulo_mon'));});
+  const usados=new Set(E.disp.map(d=>d.tipo));if(E.disp.some(d=>d.tipo==='det_co'))usados.add('modulo_tc4');E.marcas.forEach(m=>{const e=equipoDe(m);if(e)dispositivosEquipo(e).forEach(dp=>usados.add(dp.func==='Control'?'modulo_ctl':'modulo_mon'));});
   g(0,'SECTION');g(2,'BLOCKS');
   usados.forEach(t=>{const nombre='SIM_'+t.toUpperCase();g(0,'BLOCK');g(8,'0');g(2,nombre);g(70,0);g(10,0);g(20,0);g(30,0);g(3,nombre);
     simboloDXF(t).forEach(e=>{
@@ -1855,6 +1883,7 @@ function exportarDXF(){
   E.disp.forEach(d=>{
     inserta(capaDeDispositivo(d.tipo),'SIM_'+d.tipo.toUpperCase(),d.x,d.y,SZ,-(d.giro||0));   // el giro del canvas es horario con Y hacia abajo
     if(d.cd)texto('ALARMA-TEXTO',d.x+SZ*0.6,d.y-SZ*0.6,SZ*0.3,d.cd+'cd');
+    if(d.tipo==='det_co')inserta('ALARMA-MODULOS','SIM_MODULO_TC4',d.x+SZ*1.9,d.y,SZ,0);   // módulo TC4 de la base de CO
   });
   // coberturas (opcionales): círculo de detectores y audibles, cuadrados de los estrobos (de pared: desde el muro)
   if($('dxfCob').checked){
@@ -1885,6 +1914,47 @@ function exportarDXF(){
   estado('Exportado «'+nombre+'»: unidades en '+(K===1000?'milímetros':'metros')+', tamaño real (1:1), símbolos de '+(SZ*1000).toFixed(0)+' mm de modelo para imprimir a 1:'+N+'. Ábralo en AutoCAD y guárdelo como .dwg si lo necesita.');
 }
 $('btnDXF').onclick=exportarDXF;
+// Detector de CO en cada recinto que lo requiere por su tipo (cocina, lavandería, máquinas, parqueo) y aún no lo tiene; queda como dispositivo manual.
+function agregarCOEnRecintos(){
+  if(!E.recintos.length){alert('No hay recintos.');return;}
+  let n=0;const candidatos=[];
+  E.recintos.forEach(r=>{
+    const t=TIPOS[r.tipo]||{};if(!t.co||E.disp.some(d=>d.rid===r.id&&d.tipo==='det_co'))return;
+    const cand=muestras(r.poly,PASO_CANDIDATOS_M,DIST_MIN_PARED_M),b=bbox(r.poly),c=masCercano({x:b.x0+b.w/2,y:b.y0+b.h/2},cand).p;
+    if(!c)return;
+    const d={id:E.seq++,tipo:'det_co',x:c.x,y:c.y,sala:r.nombre,rid:r.id,manual:true,agregado:true};
+    E.disp.push(d);const x=E.resultados.find(z=>z.r.id===r.id);if(x)x.disp.push(d);n++;candidatos.push(r.nombre);
+  });
+  if(!n){estado('No hay recintos tipo cocina, lavandería, máquinas o parqueo sin detector de CO. Para otro recinto use «Colocar en el plano» con «Detector de CO».');return;}
+  E._spl=null;propiedadesDisp();dibujar();reverificar();programarConfirmar();
+  estado('Detector de CO agregado en '+n+' recinto(s): '+candidatos.join(', ')+'. Puede moverlos o girarlos; se conservan al regenerar.');
+}
+$('btnCOCocina').onclick=agregarCOEnRecintos;
+$('btnDevManual').onclick=()=>{$('devTipo').value=$('devTipo2').value;herramienta('dev');estado('Haga clic en el plano para colocar «'+($('devTipo').selectedOptions[0]?$('devTipo').selectedOptions[0].text:'')+'». Cada clic agrega uno; Esc termina.');};
+$('devTipo2').addEventListener('change',()=>{$('devTipo').value=$('devTipo2').value;});
+/* --- Vista del precableado (módulo 3): el mismo plano con solo la ubicación de dispositivos y el cableado --- */
+// Ejecuta fn dibujando en el lienzo del módulo 3 con su propia vista (zoom y desplazamiento propios).
+function enVista2(fn){
+  const g={cv,cx,vista:E.vista,modo:E._modoCable},c2=$('cv2');
+  cv=c2;cx=c2.getContext('2d');E.vista=E.vista2||(E.vista2={k:1,x:0,y:0});E._modoCable=true;
+  try{fn();}finally{cv=g.cv;cx=g.cx;E.vista=g.vista;E._modoCable=g.modo;}
+}
+function dibujar2(){if($('cv2')&&$('mod4').style.display!=='none')enVista2(dibujarBase);}
+function ajustarLienzo2(){
+  const c2=$('cv2');if(!c2||$('mod4').style.display==='none')return;
+  const r=c2.getBoundingClientRect(),d=window.devicePixelRatio||1;c2.width=Math.round(r.width*d);c2.height=Math.round(r.height*d);c2.getContext('2d').setTransform(d,0,0,d,0,0);
+  if(!E._vista2Ajustada){E._vista2Ajustada=true;enVista2(ajustarVista);}else dibujar2();
+}
+$('btnVista2').onclick=()=>{enVista2(ajustarVista);};
+(function(){
+  const c2=$('cv2');let pan=null;
+  c2.addEventListener('wheel',e=>{e.preventDefault();const r=c2.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top,v=E.vista2||(E.vista2={k:1,x:0,y:0}),wx=(px-v.x)/v.k,wy=(py-v.y)/v.k,f=e.deltaY<0?1.15:1/1.15;
+    v.k*=f;v.x=px-wx*v.k;v.y=py-wy*v.k;dibujar2();},{passive:false});
+  c2.addEventListener('mousedown',e=>{if(e.button===2)return;E.vista2=E.vista2||{k:1,x:0,y:0};pan={x:e.clientX,y:e.clientY,vx:E.vista2.x,vy:E.vista2.y};c2.style.cursor='grabbing';e.preventDefault();});
+  window.addEventListener('mousemove',e=>{if(!pan)return;E.vista2.x=pan.vx+e.clientX-pan.x;E.vista2.y=pan.vy+e.clientY-pan.y;dibujar2();});
+  window.addEventListener('mouseup',()=>{if(pan){pan=null;c2.style.cursor='grab';}});
+  c2.addEventListener('contextmenu',e=>e.preventDefault());
+})();
 function recEdit(){return E.recintos.find(r=>r.id===E.edit);}
 function ocultarMenu(){$('menuCtx').style.display='none';}
 function distBordeIdx(pt,poly){let m=1e18,idx=-1,pr=null;for(let i=0;i<poly.length;i++){const sg=distSeg(pt,poly[i],poly[(i+1)%poly.length]);if(sg.d<m){m=sg.d;idx=i;pr=sg;}}return{d:m,i:idx,p:pr};}
@@ -1920,6 +1990,8 @@ window.addEventListener('mousemove',e=>{
     dibujar();}}
 });
 cv.addEventListener('contextmenu',e=>e.preventDefault());
+// El evento llega al menú de la herramienta (aparece bajo el puntero) o a sus paneles: también se cancela allí, para que no salga el menú del navegador.
+document.addEventListener('contextmenu',e=>{if(e.target.closest&&e.target.closest('#menuCtx,#lienzoWrap'))e.preventDefault();});
 /* --- Menú contextual (clic derecho sobre un recinto): ajustar polígono, copiar, borrar --- */
 // Tolerancia (en píxeles de pantalla) para que el clic derecho se tome como «sobre un lado» o «sobre un vértice»: múltiplo de HIT_PX (CRITERIO de usabilidad).
 const MENU_TOL_FACTOR = 2;
@@ -1927,7 +1999,7 @@ function menuContextual(e){
   const p=mundoDeEvento(e),k=E.vista.k,tol=HIT_PX*MENU_TOL_FACTOR,m=$('menuCtx');
   const mostrar=(ids,tit)=>{['mDevGiro','mDevRot','mDevRotInv','mMkCambiar','mMkSenales','mMkMover','mMkBorrar','mCob','mRegen','mRenombrar','mDevMover','mDevClon','mDevCambiar','mDevAud','mDevBor','mAgregar','mQuitar','mUltimo','mCerrar','mCancelar','mAjustar','mCopiar','mBorrar'].forEach(id=>{$(id).style.display=ids.includes(id)?'block':'none';});
     $('menuTit').textContent=tit;m.style.display='block';
-    m.style.left=Math.min(e.clientX,window.innerWidth-200)+'px';m.style.top=Math.min(e.clientY,window.innerHeight-60-ids.length*34)+'px';};
+    m.style.left=(Math.min(e.clientX,window.innerWidth-200)+3)+'px';m.style.top=(Math.min(e.clientY,window.innerHeight-60-ids.length*34)+3)+'px';};   // +3 px: el puntero no queda sobre el menú
   // Sobre un dispositivo: alternar bocina (visual+auditivo / solo visual) o borrarlo; se selecciona para editarlo en el panel
   const dv=devEn(p,tol);
   if(dv&&!(E.herr==='rec'&&E.borrador.length)){E.ctxDev=dv;E.selDev=dv.id;propiedadesDisp();dibujar();const esEstrobo=/estrobo/.test(dv.tipo),conBocina=/bocina|parl/.test(dv.tipo);
@@ -2779,6 +2851,7 @@ $('btnAbrir').onclick=()=>$('fileBorr').click();
 $('fileBorr').onchange=ev=>{const f=ev.target.files[0];if(!f)return;const fr=new FileReader();fr.onload=()=>{try{aplicar(JSON.parse(fr.result));if(E.disp.length&&E.recintos.length){const o=opciones();}}catch(e){alert('Borrador inválido: '+e.message);}};fr.readAsText(f);};
 $('btnPNG').onclick=()=>{const a=document.createElement('a');a.href=cv.toDataURL('image/png');a.download='plano_alarmas.png';a.click();};
 $('btnCSV').onclick=()=>{const L=['id;tipo;descripcion;recinto;x_m;y_m;cd;nota'];E.disp.forEach(d=>L.push([d.id,d.tipo,ROT[d.tipo]||d.tipo,d.sala||'',d.x.toFixed(2),d.y.toFixed(2),d.cd||'',d.nota||''].join(';')));
+  E.disp.filter(d=>d.tipo==='det_co').forEach(d=>L.push([d.id+'-TC4','modulo_tc4',CO_MODULO_TC4.pn+' — '+CO_MODULO_TC4.desc,d.sala||'',d.x.toFixed(2),d.y.toFixed(2),'','junto al detector de CO '+d.id].join(';')));
   // Equipos de la matriz y sus módulos (uno por fila, ubicados en el bloque del equipo) para replicarlos en el modelo
   E.marcas.forEach(m=>{const e=equipoDe(m);if(!e)return;const rc=recintoEn(m),sala=rc?rc.nombre:'';
     L.push(['M'+m.id,'equipo',e+' · '+nombreEquipo(e),sala,m.x.toFixed(2),m.y.toFixed(2),'','bloque de equipo'].join(';'));
@@ -2822,6 +2895,7 @@ function iniciar(){
   $('cabCableSLC').value='c03';$('cabCableNAC').value='c02';
   $('eqTipo').innerHTML=EQUIPOS.map(q=>'<option value="'+q[0]+'">'+q[0]+' · '+q[1]+'</option>').join('');
   $('devTipo').innerHTML=Object.keys(ROT).map(k=>'<option value="'+k+'"'+(k==='det_humo'?' selected':'')+'>'+ROT[k]+'</option>').join('');
+  $('devTipo2').innerHTML=Object.keys(ROT).map(k=>'<option value="'+k+'"'+(k==='det_co'?' selected':'')+'>'+ROT[k]+'</option>').join('');
   $('ed72').innerHTML=EDICIONES_72.map(e=>'<option>'+e+'</option>').join('');
   $('ed101').innerHTML=EDICIONES_101.map(e=>'<option>'+e+'</option>').join('');aplicarJurisdiccion();
   $('ocup').innerHTML=OCUPACIONES.map(o=>'<option value="'+o.id+'">'+o.n+'</option>').join('');
@@ -2840,7 +2914,7 @@ function iniciar(){
   $('tAjustar').onclick=ajustarVista;
   ['vCobDet','vCobVis','vCobAud','vSPL','vNotas','vModulos','vCable','vPlano','vOp','vSim'].forEach(i=>$(i).oninput=dibujar);
   $('btnDict').click();infoCadena();tablaEquipos();
-  window.addEventListener('resize',ajustarLienzo);ajustarLienzo();ajustarVista();restaurarGuardado();
+  window.addEventListener('resize',ajustarLienzo);window.addEventListener('resize',ajustarLienzo2);ajustarLienzo();ajustarVista();restaurarGuardado();
 }
 iniciar();
 
@@ -2851,7 +2925,7 @@ const GLOSARIO = [
  ['det_humo','Detector de humo','Hexágono con «S». Se ubica en cielo con espaciamiento nominal de 9.1 m (NFPA 72). NFPA 170:2018 Tabla 8.3.'],
  ['det_calor','Detector de calor','Hexágono con «H». Espaciamiento según el listado del equipo (15.2 m típico). NFPA 170:2018 Tabla 8.3.'],
  ['det_ducto','Detector de humo para ducto','Hexágono con «S» y toma de muestra. En manejadoras de aire (AHU). NFPA 170:2018 Tabla 8.3.'],
- ['det_co','Detector de CO','Hexágono negro con «CO». Solo si lo exige el tipo de ocupación o la cadena. NFPA 170:2018 Tabla 8.3.'],
+ ['det_co','Detector / base de CO','Hexágono negro con triángulo blanco y «CO» abajo a la derecha, como en la simbología CDCLH-001S. Según esa leyenda: base de monóxido de carbono Simplex 4098-9771 con módulo TC4 4905-9835. Solo si lo exige el tipo de ocupación o la cadena. NFPA 170:2018 Tabla 8.3.'],
  ['pulsador','Estación manual (pulsador)','Cuadrado con «F». A 1.5 m de cada salida y con recorrido máximo de 61 m. NFPA 170:2018 Tabla 8.3.'],
  ['estrobo','Estrobo de pared (solo visual)','Cuadrado con X sin triángulo: notificación visual sin bocina. Rótulo de la herramienta, no verificado en NFPA 170.'],
  ['estrobo_cielo','Estrobo de cielo (solo visual)','Círculo con X sin triángulo. Rótulo de la herramienta, no verificado en NFPA 170.'],
@@ -2861,6 +2935,7 @@ const GLOSARIO = [
  ['parl_estrobo_cielo','Parlante/estrobo de cielo','Versión de cielo del parlante/estrobo. NFPA 170:2018 Tabla 8.4.2.'],
  ['bocina','Bocina (solo audible)','Cuadrado con «H» y triángulo vacío. Cobertura por ley del inverso del cuadrado. NFPA 170:2018 Tabla 8.4.2.'],
  ['parlante','Parlante (solo audible)','Cuadrado con «S» y triángulo relleno. NFPA 170:2018 Tabla 8.4.2.'],
+ ['modulo_tc4','Módulo TC4 (base de CO)','Módulo Simplex 4905-9835 que acompaña a cada base de CO 4098-9771 según la simbología CDCLH-001S. Se dibuja a la par del detector de CO. Rótulo de la herramienta.'],
  ['aislador','Módulo aislador (IM)','Aísla un tramo del lazo SLC ante un corto. Rótulo de la herramienta, no verificado en NFPA 170.'],
  ['modulo_mon','Módulo de monitoreo (AIM)','Supervisa contactos (válvulas, flujo, presión). Rótulo de la herramienta, no verificado en NFPA 170.'],
  ['modulo_ctl','Módulo de control (AOM)','Comanda equipos (paro de AHU, retorno de ascensor). Rótulo de la herramienta, no verificado en NFPA 170.'],
@@ -2894,7 +2969,7 @@ function plegables(){
 let _lienzoInicial=true;
 function irModulo(id){
   ['mod1','mod2','mod3','mod4'].forEach(m=>{$(m).style.display=(m===id)?'':'none';});
-  if(id==='mod4'){actualizarPanelesCab();mostrarCableado();}
+  if(id==='mod4'){actualizarPanelesCab();mostrarCableado();ajustarLienzo2();}
   document.querySelectorAll('#tabs .seccion').forEach(b=>b.classList.toggle('activa',b.dataset.mod===id));
   if(id==='mod2'){ajustarLienzo();if(_lienzoInicial){_lienzoInicial=false;ajustarVista();}}
   window.scrollTo(0,0);
