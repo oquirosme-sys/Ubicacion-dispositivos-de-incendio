@@ -18,6 +18,7 @@ Archivo único `index.html`, sin librerías ni CDN, funciona sin internet (doble
 Lector propio, sin librerías ni internet (usa la descompresión nativa del navegador):
 - **Planos**: dibuja el vector de la hoja (con rotación) y busca «ESCALA 1:N» en el texto para fijar la escala; siempre verifique con «Calibrar con 2 puntos».
 - **Estándares de cadena**: extrae las frases normativas del PDF, sugiere parámetros (cd en dormitorios, dBA mínimo, cd en corredores, CO, pulsador en recepción) y usted elige qué adoptar.
+- **Recintos automáticos**: al cargar el PDF se genera una imagen solo con muros (sin texto, ejes punteados ni rectas larguísimas) y se detectan los recintos cerrados; cada uno toma su nombre del texto del plano que cae dentro (ej. «TRAINING 01», «KITCHEN»). En A02.00 detecta unos 45 recintos con áreas cercanas a las rotuladas; los falsos se borran y los que falten se crean con «Recinto por clic». También hay un botón «Detectar recintos automáticamente».
 - No lee PDF escaneados, cifrados ni imágenes incrustadas; en ese caso exporte a PNG/JPG o a .csv/.json. Probado con el plano A02.00 y el Manual de Disposiciones Técnicas 2013 (184 páginas).
 
 ## Verificación normativa

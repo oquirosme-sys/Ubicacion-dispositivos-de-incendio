@@ -100,6 +100,7 @@
   </div>
   <button class="sec" id="btnEscalaAuto">Aplicar escala (N y resolución)</button>
   <button class="sec" id="btnCalibrar">Calibrar con 2 puntos</button>
+  <button id="btnAuto">Detectar recintos automáticamente</button>
   <div class="nota"><b>Supuestos y limitaciones (carga de planos):</b><ul>
    <li>Los PDF se leen con un lector propio (sin internet): dibuja el vector de la hoja y busca «ESCALA 1:N» en el texto. No lee PDF escaneados, cifrados ni imágenes incrustadas: en ese caso exporte a PNG/JPG.</li>
    <li>La escala sale de «1:N + resolución» o de calibrar 2 puntos con una cota conocida; una escala errónea invalida todas las distancias y coberturas.</li>
@@ -298,12 +299,22 @@ const RELLENO_BUSQUEDA_PX = 20;
 // Lector PDF propio (CRITERIO de rendimiento/legibilidad, no normativas): ampliación máxima de
 // páginas pequeñas, profundidad de formularios anidados, grosor mínimo de trazo en píxeles y
 // ancho medio de carácter (fracción del cuerpo) para estimar el avance del texto.
+const PDF_GROSOR_MURO_PX = 1.5;   // grosor mínimo de los muros en la imagen de detección (px)
 const PDF_ESCALA_MAX = 4, PDF_PROF_MAX = 8, PDF_GROSOR_MIN_PX = 0.6, PDF_ANCHO_CARACTER = 0.5;
 // Lectura de estándares en PDF (CRITERIO de procesamiento): páginas máximas, largo de frase y tope de frases listadas.
 const PDF_PAGS_MAX = 400, ESTPDF_LARGO_MIN = 30, ESTPDF_LARGO_MAX = 420, ESTPDF_FRASES_MAX = 300;
 // Palabras clave de tema y de obligación para elegir frases de un estándar de cadena (CRITERIO).
 const ESTPDF_RE_TEMA = /(strobe|horn|speaker|audible|visible|candela|cd|detector|smoke|heat|pull station|manual station|notification|alarm|dBA|estrobo|bocina|parlante|humo|calor|pulsador|notificaci|alarma|sirena)/i;
 const ESTPDF_RE_MODAL = /(shall|must|required|minimum|maximum|at least|no more|not less|debe|deber|requer|m[ií]nimo|m[aá]ximo|obligatori)/i;
+// Detección automática de recintos (CRITERIOS de procesamiento, no normativos): espesor mínimo
+// de un muro (lo más fino se toma por mueble o texto), hueco de puerta máximo que se cierra,
+// y rango de área para aceptar un recinto.
+// Un conjunto de trazos conectados con diagonal menor a esto se toma por mobiliario/texto, no muro (CRITERIO).
+const COMPONENTE_MURO_MIN_M = 12;
+// Desplazamiento de TJ (milésimas de em) a partir del cual se considera un espacio entre palabras (CRITERIO).
+const PDF_ESPACIO_TJ = 200;
+const PDF_LINEA_LARGA_M = 25;   // trazos de una sola recta más largos que esto (ejes, cortes) no son muros
+const MURO_MIN_M = 0.08, PUERTA_CIERRE_M = 1.0, AUTO_AREA_MIN_M2 = 2, AUTO_AREA_MAX_M2 = 800, AUTO_NOMBRE_MAX = 40;
 // Tolerancia de simplificación del contorno (px). CRITERIO de procesamiento.
 const RELLENO_SIMPL_PX = 3;
 // Convención geométrica y gráfica (no normativas).
@@ -700,7 +711,7 @@ function verificar(res,o){
    GENERACIÓN
    ========================================================================== */
 function generar(){
-  if(!E.recintos.length){alert('Primero cree o dibuje al menos un recinto.');return;}
+  if(!E.recintos.length){alert('No hay recintos. Cargue un PDF/plano y pulse «Detectar recintos automáticamente», o cree uno con dimensiones.');return;}
   const o=opciones();
   const res=E.recintos.map(r=>planificarRecinto(r,o));
   const g=planificarGlobales(o,res);
@@ -943,11 +954,75 @@ function rdp(p,e){if(p.length<3)return p;let m=0,idx=0;const a=p[0],b=p[p.length
   for(let i=1;i<p.length-1;i++){const d=distSeg(p[i],a,b).d;if(d>m){m=d;idx=i;}}
   if(m>e)return rdp(p.slice(0,idx+1),e).slice(0,-1).concat(rdp(p.slice(idx),e));return [a,b];}
 
+/* --- Detección automática de recintos sobre el plano rasterizado ---
+   1) muros = trazos oscuros (en PDF: imagen aparte sin texto, ejes ni cortes largos);
+   2) se engrosan los muros para cerrar puertas; 3) cada zona libre cerrada es un recinto;
+   4) se recupera el contorno real y se nombra con el texto del PDF que cae dentro. */
+function erosionar(m,W,H,r){const inv=m.map(v=>v?0:1);return dilatar(inv,W,H,r).map(v=>v?0:1);}
+async function detectarRecintos(){
+  if(!E.img){alert('Cargue primero un plano.');return;}
+  estado('Detectando recintos… (puede tardar unos segundos)');await new Promise(r=>setTimeout(r,30));
+  const W0=E.img.width,H0=E.img.height,f=Math.min(1,RELLENO_LADO_MAX_PX/Math.max(W0,H0)),W=Math.round(W0*f),H=Math.round(H0*f);
+  const c2=document.createElement('canvas');c2.width=W;c2.height=H;const g=c2.getContext('2d',{willReadFrequently:true});g.drawImage(E.imgMuros||E.img,0,0,W,H);
+  const d=g.getImageData(0,0,W,H).data;let oscuro=new Uint8Array(W*H);
+  for(let i=0;i<W*H;i++)oscuro[i]=(d[i*4+3]>10&&(d[i*4]+d[i*4+1]+d[i*4+2])/3<RELLENO_UMBRAL_GRIS)?1:0;
+  const mpx=E.imgM/f,rFino=Math.max(1,Math.round(MURO_MIN_M/2/mpx)),rPuerta=Math.max(2,Math.round(PUERTA_CIERRE_M/2/mpx));
+  // Se descartan los conjuntos de trazos pequeños aislados (mobiliario, texto, símbolos): no son muros.
+  {const lim=COMPONENTE_MURO_MIN_M/mpx,vis=new Uint8Array(W*H),q=new Int32Array(W*H);
+   for(let s0=0;s0<W*H;s0++){if(!oscuro[s0]||vis[s0])continue;let ini=0,fin=0;q[fin++]=s0;vis[s0]=1;let x0=W,y0=H,x1=0,y1=0;
+     while(ini<fin){const i=q[ini++],x=i%W,y=(i/W)|0;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;
+       for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=W||ny>=H)continue;const j=ny*W+nx;if(oscuro[j]&&!vis[j]){vis[j]=1;q[fin++]=j;}}}
+     if(Math.hypot(x1-x0,y1-y0)<lim)for(let k=0;k<fin;k++)oscuro[q[k]]=0;}}
+  const muro=oscuro;   // las líneas finas SÍ son muros en este plano (doble línea); los ejes/cortes ya se omitieron en el PDF
+  const cerrado=dilatar(muro,W,H,rPuerta);
+  // etiquetado de zonas libres (4 vecinos)
+  const lab=new Int32Array(W*H),cola=new Int32Array(W*H),comps=[];let id=0;
+  for(let s0=0;s0<W*H;s0++){
+    if(cerrado[s0]||lab[s0])continue;id++;let ini=0,fin=0;cola[fin++]=s0;lab[s0]=id;
+    let x0=W,y0=H,x1=0,y1=0,n=0,borde=false;
+    while(ini<fin){const i=cola[ini++],x=i%W,y=(i/W)|0;n++;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;if(x===0||y===0||x===W-1||y===H-1)borde=true;
+      if(x>0&&!cerrado[i-1]&&!lab[i-1]){lab[i-1]=id;cola[fin++]=i-1;}if(x<W-1&&!cerrado[i+1]&&!lab[i+1]){lab[i+1]=id;cola[fin++]=i+1;}
+      if(y>0&&!cerrado[i-W]&&!lab[i-W]){lab[i-W]=id;cola[fin++]=i-W;}if(y<H-1&&!cerrado[i+W]&&!lab[i+W]){lab[i+W]=id;cola[fin++]=i+W;}}
+    comps.push({id,n,x0,y0,x1,y1,borde});
+  }
+  // textos del PDF → coordenadas de mundo (para nombrar)
+  const T=E.textosPdf||[];
+  let creados=0,total=0;
+  for(const c of comps){
+    const a=c.n*mpx*mpx;                                  // área aproximada (m²) de la zona cerrada
+    if(c.borde||a<AUTO_AREA_MIN_M2*0.25||a>AUTO_AREA_MAX_M2)continue;
+    const bw=c.x1-c.x0+1+2*rPuerta,bh=c.y1-c.y0+1+2*rPuerta,ox=c.x0-rPuerta,oy=c.y0-rPuerta;
+    let reg=new Uint8Array(bw*bh);
+    for(let y=c.y0;y<=c.y1;y++)for(let x=c.x0;x<=c.x1;x++)if(lab[y*W+x]===c.id)reg[(y-oy)*bw+(x-ox)]=1;
+    reg=dilatar(reg,bw,bh,rPuerta);                       // se recupera lo que se comió el engrosado de muros
+    for(let y=0;y<bh;y++)for(let x=0;x<bw;x++){const X=x+ox,Y=y+oy;if(reg[y*bw+x]&&(X<0||Y<0||X>=W||Y>=H||muro[Y*W+X]))reg[y*bw+x]=0;}
+    let sx=-1,sy=-1;for(let y=0;y<bh&&sy<0;y++)for(let x=0;x<bw;x++)if(reg[y*bw+x]){sx=x;sy=y;break;}
+    if(sy<0)continue;
+    const cont=contorno(reg,bw,bh,sx,sy);if(!cont||cont.length<4)continue;
+    const simp=rdp(cont,RELLENO_SIMPL_PX*f);
+    const poly=simp.map(q=>({x:E.imgX+(q.x+ox)/f*E.imgM,y:E.imgY+(q.y+oy)/f*E.imgM}));
+    const ar=area(poly);if(ar<AUTO_AREA_MIN_M2||ar>AUTO_AREA_MAX_M2)continue;
+    // nombre: textos del plano dentro del polígono (sin cifras de área ni letras sueltas)
+    // Textos del plano dentro del polígono, unidos por líneas (de arriba abajo); se descartan áreas («25 m²»),
+    // cifras sueltas y letras de ejes. La numeración «01», «02» se agrega al nombre.
+    const pz=T.filter(q=>dentro(q,poly)).map(q=>({x:q.x,y:-q.y,t:q.t,s:q.s||0.2}));
+    const lineas=pdfLineas(pz,0,0.01);
+    const nombres=lineas.filter(l=>/[A-Za-zÁÉÍÓÚÑáéíóúñ]{2,}/.test(l)&&!/m²|m2/i.test(l));
+    const nums=lineas.filter(l=>/^0\d$/.test(l.trim()));
+    const nombre=(nombres.slice(0,2).concat(nombres.length?nums.slice(0,1):[])).join(' ').replace(/\s+/g,' ').slice(0,AUTO_NOMBRE_MAX)||('Recinto '+(E.recintos.length+1));
+    nuevoRecinto(poly,nombre,guessTipo(nombre),+$('mAlto').value||2.7);creados++;total+=ar;
+  }
+  E.sel=null;propiedades();ajustarVista();
+  estado(creados?creados+' recintos detectados ('+total.toFixed(0)+' m² en total). Revise nombres y tipos (panel izquierdo), borre los falsos con «Borrar» y corrija con «Recinto por clic» los que falten.':'No se detectaron recintos: el plano no tiene muros gruesos cerrados o la escala es incorrecta. Use «Recinto por clic» o dibújelos.');
+  return creados;
+}
+$('btnAuto').onclick=detectarRecintos;
+
 /* --- Cargar plano --- */
 $('btnPlano').onclick=()=>$('filePlano').click();
 $('filePlano').onchange=async ev=>{const f=ev.target.files[0];if(!f)return;E.imgNombre=f.name;
   if(/\.pdf$/i.test(f.name)){await cargarPDF(f);}else{const url=URL.createObjectURL(f);const im=new Image();im.onload=()=>{ponerImagen(im);};im.src=url;}};
-function ponerImagen(im){E.img=im;E.imgX=0;E.imgY=0;aplicarEscala();ajustarVista();estado('Plano cargado ('+im.width+'×'+im.height+' px). Verifique la escala con «Calibrar con 2 puntos» sobre una cota conocida.');}
+function ponerImagen(im){E.img=im;E.imgMuros=null;E.imgX=0;E.imgY=0;aplicarEscala();ajustarVista();estado('Plano cargado ('+im.width+'×'+im.height+' px). Verifique la escala con «Calibrar con 2 puntos» sobre una cota conocida.');}
 function aplicarEscala(){if(!E.img)return;const N=+$('escN').value,dpi=+$('escDpi').value;if(N>0&&dpi>0)E.imgM=0.0254/dpi*N;ajustarVista();}
 $('btnEscalaAuto').onclick=aplicarEscala;
 $('btnCalibrar').onclick=()=>{if(!E.img){alert('Cargue un plano.');return;}herramienta('cal');};
@@ -1073,7 +1148,7 @@ function pdfColor(v){const c=n=>Math.max(0,Math.min(255,Math.round(n*255)));
   return null;}
 // --- Intérprete de contenido: dibuja (si hay ctx) y recoge texto ---
 async function pdfEjecutar(D,ctx,txt,res,E2,prof){
-  let i=0,pila=[],clip=null,cx0=0,cy0=0,M=E2.M,lw=1;
+  let i=0,pila=[],clip=null,cx0=0,cy0=0,M=E2.M,lw=1,dashed=false,ruta={p:[],compl:false};
   const Mst=[];let tm=[1,0,0,1,0,0],tlm=[1,0,0,1,0,0],fuente=null,tam=1,tl=0;
   const num=v=>typeof v==='number'?v:0;
   const pintar=op=>{
@@ -1081,22 +1156,32 @@ async function pdfEjecutar(D,ctx,txt,res,E2,prof){
     if(ctx){
       if(cierra)ctx.closePath();
       if(rellena)ctx.fill(eo?'evenodd':'nonzero');
-      if(traza){ctx.lineWidth=Math.max(lw,PDF_GROSOR_MIN_PX/((E2.esc*Math.hypot(M[0],M[1]))||1));ctx.stroke();}
+      if(traza){
+        // En el modo «solo muros» se omiten trazos punteados (ejes) y rectas únicas muy largas (cortes, ejes).
+        let omitir=false;
+        if(E2.muros){
+          if(dashed)omitir=true;
+          else if(!ruta.compl&&ruta.p.length===2){const dx=ruta.p[1][0]-ruta.p[0][0],dy=ruta.p[1][1]-ruta.p[0][1];
+            if(Math.hypot(dx,dy)*Math.hypot(M[0],M[1])*E2.mPt>PDF_LINEA_LARGA_M)omitir=true;}
+        }
+        if(!omitir){ctx.lineWidth=Math.max(lw,(E2.muros?PDF_GROSOR_MURO_PX:PDF_GROSOR_MIN_PX)/((E2.esc*Math.hypot(M[0],M[1]))||1));ctx.stroke();}
+      }
       if(clip)ctx.clip(clip);
       ctx.beginPath();
     }
-    clip=null;
+    ruta={p:[],compl:false};clip=null;
   };
-  const mostrar=sv=>{
-    const t=pdfDecodificar(fuente,sv);if(!t)return;
+  const mostrar=(sv,registrar)=>{
+    const t=pdfDecodificar(fuente,sv);if(!t)return '';
     const T=mulM(tm,M),s=Math.abs(tam)*Math.hypot(T[2],T[3]);
-    E2.textos.push({x:T[4],y:T[5],t,s});
+    if(registrar!==false)E2.textos.push({x:T[4],y:T[5],t,s});
     let adv=t.length*Math.abs(tam)*PDF_ANCHO_CARACTER;
-    if(ctx&&t.trim()&&tam!==0){
+    if(ctx&&!E2.muros&&t.trim()&&tam!==0){
       ctx.save();ctx.transform(tm[0],tm[1],tm[2],tm[3],tm[4],tm[5]);ctx.scale(1,-1);
       ctx.font=Math.abs(tam)+'px Arial';ctx.textBaseline='alphabetic';adv=ctx.measureText(t).width;ctx.fillText(t,0,0);ctx.restore();
     }
     tm=mulM([1,0,0,1,adv,0],tm);
+    return t;
   };
   while(true){
     i=pws(txt,i);if(i>=txt.length)break;
@@ -1106,20 +1191,21 @@ async function pdfEjecutar(D,ctx,txt,res,E2,prof){
     const op=m[0];i+=op.length;const a=pila;
     if(op==='BI'){const re=/\sEI(?=\s|$)/g;re.lastIndex=i;const q=re.exec(txt);i=q?q.index+q[0].length:txt.length;pila=[];continue;}
     switch(op){
-      case 'q':if(ctx)ctx.save();Mst.push({M:M.slice(),lw});break;
-      case 'Q':if(ctx)ctx.restore();if(Mst.length){const s=Mst.pop();M=s.M;lw=s.lw;}break;
+      case 'q':if(ctx)ctx.save();Mst.push({M:M.slice(),lw,dashed});break;
+      case 'Q':if(ctx)ctx.restore();if(Mst.length){const s=Mst.pop();M=s.M;lw=s.lw;dashed=s.dashed;}break;
       case 'cm':{const mm=a.map(num);if(mm.length===6){M=mulM(mm,M);if(ctx)ctx.transform(mm[0],mm[1],mm[2],mm[3],mm[4],mm[5]);}break;}
       case 'w':lw=num(a[0]);break;
       case 'J':if(ctx)ctx.lineCap=['butt','round','square'][num(a[0])]||'butt';break;
       case 'j':if(ctx)ctx.lineJoin=['miter','round','bevel'][num(a[0])]||'miter';break;
-      case 'd':if(ctx){const arr=(Array.isArray(a[0])?a[0]:[]).map(num);try{ctx.setLineDash(arr.some(x=>x<0)?[]:arr);}catch(e){}}break;
-      case 'm':if(ctx)ctx.moveTo(num(a[0]),num(a[1]));cx0=num(a[0]);cy0=num(a[1]);break;
-      case 'l':if(ctx)ctx.lineTo(num(a[0]),num(a[1]));cx0=num(a[0]);cy0=num(a[1]);break;
-      case 'c':if(ctx)ctx.bezierCurveTo(num(a[0]),num(a[1]),num(a[2]),num(a[3]),num(a[4]),num(a[5]));cx0=num(a[4]);cy0=num(a[5]);break;
-      case 'v':if(ctx)ctx.bezierCurveTo(cx0,cy0,num(a[0]),num(a[1]),num(a[2]),num(a[3]));cx0=num(a[2]);cy0=num(a[3]);break;
-      case 'y':if(ctx)ctx.bezierCurveTo(num(a[0]),num(a[1]),num(a[2]),num(a[3]),num(a[2]),num(a[3]));cx0=num(a[2]);cy0=num(a[3]);break;
-      case 'h':if(ctx)ctx.closePath();break;
-      case 're':if(ctx)ctx.rect(num(a[0]),num(a[1]),num(a[2]),num(a[3]));break;
+      case 'd':if(ctx){const arr=(Array.isArray(a[0])?a[0]:[]).map(num);try{ctx.setLineDash(arr.some(x=>x<0)?[]:arr);}catch(e){}}
+        dashed=(Array.isArray(a[0])?a[0]:[]).some(x=>typeof x==='number'&&x>0);break;
+      case 'm':if(ctx)ctx.moveTo(num(a[0]),num(a[1]));if(ruta.p.length)ruta.compl=true;ruta.p.push([num(a[0]),num(a[1])]);cx0=num(a[0]);cy0=num(a[1]);break;
+      case 'l':if(ctx)ctx.lineTo(num(a[0]),num(a[1]));ruta.p.push([num(a[0]),num(a[1])]);cx0=num(a[0]);cy0=num(a[1]);break;
+      case 'c':ruta.compl=true;if(ctx)ctx.bezierCurveTo(num(a[0]),num(a[1]),num(a[2]),num(a[3]),num(a[4]),num(a[5]));cx0=num(a[4]);cy0=num(a[5]);break;
+      case 'v':ruta.compl=true;if(ctx)ctx.bezierCurveTo(cx0,cy0,num(a[0]),num(a[1]),num(a[2]),num(a[3]));cx0=num(a[2]);cy0=num(a[3]);break;
+      case 'y':ruta.compl=true;if(ctx)ctx.bezierCurveTo(num(a[0]),num(a[1]),num(a[2]),num(a[3]),num(a[2]),num(a[3]));cx0=num(a[2]);cy0=num(a[3]);break;
+      case 'h':ruta.compl=true;if(ctx)ctx.closePath();break;
+      case 're':ruta.compl=true;if(ctx)ctx.rect(num(a[0]),num(a[1]),num(a[2]),num(a[3]));break;
       case 'S':case 's':case 'f':case 'F':case 'f*':case 'B':case 'B*':case 'b':case 'b*':case 'n':pintar(op);break;
       case 'W':clip='nonzero';break;
       case 'W*':clip='evenodd';break;
@@ -1135,7 +1221,7 @@ async function pdfEjecutar(D,ctx,txt,res,E2,prof){
               const mat=(pdfGet(D,d.Matrix)||[1,0,0,1,0,0]).map(x=>pdfNum(D,x));
               if(ctx){ctx.save();ctx.transform(mat[0],mat[1],mat[2],mat[3],mat[4],mat[5]);
                 const bb=pdfGet(D,d.BBox);if(bb){const b=bb.map(x=>pdfNum(D,x));ctx.beginPath();ctx.rect(b[0],b[1],b[2]-b[0],b[3]-b[1]);ctx.clip();ctx.beginPath();}}
-              await pdfEjecutar(D,ctx,b2s(u),pdfGet(D,d.Resources)||res,{M:mulM(mat,M),esc:E2.esc,textos:E2.textos},prof+1);
+              await pdfEjecutar(D,ctx,b2s(u),pdfGet(D,d.Resources)||res,{M:mulM(mat,M),esc:E2.esc,textos:E2.textos,muros:E2.muros,mPt:E2.mPt},prof+1);
               if(ctx)ctx.restore();
             }
           }
@@ -1151,13 +1237,16 @@ async function pdfEjecutar(D,ctx,txt,res,E2,prof){
       case 'Tj':mostrar(a[0]);break;
       case "'":tlm=mulM([1,0,0,1,0,-tl],tlm);tm=tlm.slice();mostrar(a[0]);break;
       case '"':tlm=mulM([1,0,0,1,0,-tl],tlm);tm=tlm.slice();mostrar(a[2]);break;
-      case 'TJ':(Array.isArray(a[0])?a[0]:[]).forEach(it=>{if(typeof it==='number')tm=mulM([1,0,0,1,-it/1000*tam,0],tm);else mostrar(it);});break;
+      case 'TJ':{const T0=mulM(tm,M),s0=Math.abs(tam)*Math.hypot(T0[2],T0[3]);let comb='';
+        (Array.isArray(a[0])?a[0]:[]).forEach(it=>{if(typeof it==='number'){tm=mulM([1,0,0,1,-it/1000*tam,0],tm);if(-it>=PDF_ESPACIO_TJ)comb+=' ';}else comb+=mostrar(it,false);});
+        if(comb.trim())E2.textos.push({x:T0[4],y:T0[5],t:comb,s:s0});break;}
       default:break;
     }
     pila=[];
   }
 }
-async function pdfRenderizar(D,pag){
+async function pdfRenderizar(D,pag,opt){
+  opt=opt||{};
   const mb=(pdfGet(D,pag.h.MediaBox)||[0,0,612,792]).map(x=>pdfNum(D,x));
   const x0=Math.min(mb[0],mb[2]),y0=Math.min(mb[1],mb[3]),x1=Math.max(mb[0],mb[2]),y1=Math.max(mb[1],mb[3]);
   const w=x1-x0,h=y1-y0,esc=Math.min(PDF_ESCALA_MAX,RELLENO_LADO_MAX_PX/Math.max(w,h));
@@ -1168,15 +1257,15 @@ async function pdfRenderizar(D,pag){
   const MT={0:[esc,0,0,-esc,-x0*esc,y1*esc],90:[0,esc,esc,0,-y0*esc,-x0*esc],180:[-esc,0,0,esc,x1*esc,-y0*esc],270:[0,-esc,-esc,0,y1*esc,x1*esc]}[rot]||[esc,0,0,-esc,-x0*esc,y1*esc];
   c.setTransform(MT[0],MT[1],MT[2],MT[3],MT[4],MT[5]);c.strokeStyle='#000';c.fillStyle='#000';c.beginPath();
   const textos=[];
-  await pdfEjecutar(D,c,await pdfContenido(D,pag),pdfGet(D,pag.h.Resources),{M:[1,0,0,1,0,0],esc,textos},0);
-  return {canvas:cvp,esc,textos,rot};
+  await pdfEjecutar(D,c,await pdfContenido(D,pag),pdfGet(D,pag.h.Resources),{M:[1,0,0,1,0,0],esc,textos,muros:!!opt.muros,mPt:opt.mPt||0},0);
+  return {canvas:cvp,esc,textos,rot,MT};
 }
-function pdfLineas(textos,rot){
+function pdfLineas(textos,rot,tolMin){
   // Pasa las posiciones al sentido de lectura de la página según /Rotate (y hacia arriba).
   const R={90:(x,y)=>[y,-x],180:(x,y)=>[-x,-y],270:(x,y)=>[-y,x]}[rot||0];
   if(R)textos=textos.map(p=>{const q=R(p.x,p.y);return {x:q[0],y:q[1],t:p.t,s:p.s};});
   const t=textos.filter(x=>x.t&&x.t.trim()).sort((a,b)=>(b.y-a.y)||(a.x-b.x)),L=[];
-  for(const p of t){const l=L[L.length-1];if(l&&Math.abs(l.y-p.y)<=Math.max(1,p.s*0.4))l.p.push(p);else L.push({y:p.y,p:[p]});}
+  for(const p of t){const l=L[L.length-1];if(l&&Math.abs(l.y-p.y)<=Math.max(tolMin==null?1:tolMin,p.s*0.4))l.p.push(p);else L.push({y:p.y,p:[p]});}
   return L.map(l=>{l.p.sort((a,b)=>a.x-b.x);let s='',ult=null;
     for(const p of l.p){if(ult!==null&&p.x-ult>p.s*0.2&&!/\s$/.test(s)&&!/^\s/.test(p.t))s+=' ';s+=p.t;ult=p.x+p.t.length*p.s*PDF_ANCHO_CARACTER;}
     return s.trim();}).filter(Boolean);
@@ -1193,7 +1282,12 @@ async function cargarPDF(f){
     const todo=pdfLineas(r.textos,r.rot).join(' '),mE=/escala\s*:?\s*1\s*:\s*(\d{2,4})/i.exec(todo);
     await new Promise(res=>r.canvas.toBlob(b=>{const im=new Image();im.onload=()=>{
       $('escDpi').value=(72*r.esc).toFixed(2);if(mE)$('escN').value=mE[1];ponerImagen(im);
+      E.textosPdf=r.textos.map(p=>({t:p.t,s:p.s*r.esc*E.imgM,x:E.imgX+(r.MT[0]*p.x+r.MT[2]*p.y+r.MT[4])*E.imgM,y:E.imgY+(r.MT[1]*p.x+r.MT[3]*p.y+r.MT[5])*E.imgM}));   // en metros de mundo
       estado('PDF cargado ('+im.width+'×'+im.height+' px). '+(mE?'Escala detectada en el plano: 1:'+mE[1]+'. ':'No se detectó «ESCALA 1:N» en el texto: ingrésela y pulse «Aplicar escala». ')+'Verifique con «Calibrar con 2 puntos».');res();};im.src=URL.createObjectURL(b);}));
+    // Segunda pasada: imagen solo con muros (sin texto, ejes ni cortes) para detectar recintos
+    const Nesc=mE?+mE[1]:(+$('escN').value||1);
+    E.imgMuros=(await pdfRenderizar(D,pgs[n-1],{muros:true,mPt:0.0254/72*Nesc})).canvas;
+    await detectarRecintos();
   }catch(err){alert('No se pudo leer el PDF: '+err.message+'. Si es un PDF escaneado o protegido, expórtelo a PNG/JPG y cárguelo como imagen.');estado('');}
 }
 
