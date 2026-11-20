@@ -21,8 +21,9 @@ Menú con **Ajustar polígono** (arrastrar vértices, clic en un lado agrega vé
 Lector propio, sin librerías ni internet (usa la descompresión nativa del navegador):
 - **Planos**: dibuja el vector de la hoja (con rotación) y busca «ESCALA 1:N» en el texto para fijar la escala; siempre verifique con «Calibrar con 2 puntos».
 - **Estándares de cadena**: extrae las frases normativas del PDF, sugiere parámetros (cd en dormitorios, dBA mínimo, cd en corredores, CO, pulsador en recepción) y usted elige qué adoptar.
-- **Recintos automáticos**: al cargar el PDF se genera una imagen solo con muros (sin texto, ejes punteados ni rectas larguísimas) y se detectan los recintos. Tres métodos (selector junto al botón): *solo por rótulos de área* (cada «25 m²» del plano ancla un recinto y su área valida el contorno; ignora la tabla de áreas del cajetín), *rótulos + espacios sin rótulo* (recomendado) y *solo geometría*. Cada recinto toma su nombre del texto del plano. En A02.00 detecta unos 31 recintos; los rótulos sin recinto se listan en el mensaje para crearlos con «Recinto por clic».
-- **Capas de cobertura** seleccionables: detectores, notificación visual y notificación auditiva (las dos últimas recortadas a cada recinto).
+- **Con plano en PDF** (por defecto): se detecta la **huella del edificio como un solo recinto**, sin seccionar espacios, y el prediseño cubre toda la planta (detectores en malla, estrobos de cielo por celdas, audibles por nivel sonoro). No considera muros interiores. Si se necesita separar espacios: clic derecho → Ajustar polígono, «Dibujar recinto», o el método «Rótulos + espacios sin rótulo» / «Solo por rótulos de área» (selector junto al botón «Detectar recintos automáticamente»).
+- **Sin plano**: se crean recintos con dimensiones (Modo B) o dibujándolos.
+- **Capas de cobertura** seleccionables: detectores, notificación visual y notificación auditiva (las dos últimas recortadas a cada recinto; colores: verde detectores, rojo visual, azul auditiva).
 - No lee PDF escaneados, cifrados ni imágenes incrustadas; en ese caso exporte a PNG/JPG o a .csv/.json. Probado con el plano A02.00 y el Manual de Disposiciones Técnicas 2013 (184 páginas).
 
 ## Verificación normativa
@@ -30,3 +31,8 @@ Verificado contra las copias provistas: NFPA 72:2022 (Handbook) y NFPA 101:2015.
 
 ## Pendiente (paso 2)
 Base de datos Supabase (proyectos, recintos, dispositivos, estándares de cadena).
+
+## Estructura en módulos
+1. **Proyecto y criterios de diseño:** datos del proyecto, normas, estándar de cadena, parámetros NFPA y equipos.
+2. **Ejecución:** planta o recintos, generar prediseño, coberturas, resultados y archivo (borrador .json, PNG, CSV, informe).
+3. **Glosario de simbología:** imagen y explicación de cada símbolo, capas de cobertura y siglas.

@@ -14,7 +14,7 @@
   header h1{margin:0;font-size:1.1rem} header p{margin:0;font-size:.78rem;color:#cfe0ee}
   #app{display:grid;grid-template-columns:400px 1fr;gap:12px;padding:12px;align-items:start}
   @media(max-width:1000px){#app{grid-template-columns:1fr}}
-  #lateral{max-height:calc(100vh - 80px);overflow:auto;padding-right:4px}
+  #lateral{max-height:calc(100vh - 130px);overflow:auto;padding-right:4px}
   details{background:#fff;border:1px solid var(--gb);border-radius:8px;margin-bottom:8px}
   summary{cursor:pointer;font-weight:700;color:var(--az0);padding:9px 12px;font-size:.92rem}
   details>div.cuerpo{padding:4px 12px 12px}
@@ -47,18 +47,55 @@
   #menuCtx{position:fixed;z-index:50;background:#fff;border:1px solid var(--gb);border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.25);padding:4px;display:none;min-width:170px}
   #menuCtx button{display:block;width:100%;text-align:left;background:#fff;color:var(--tx);border:0;margin:0;padding:7px 10px;font-weight:600}
   #menuCtx button:hover{background:var(--azc)} #menuCtx .titulo{font-size:.72rem;color:#5a6472;padding:3px 10px}
+
+  /* Estructura de módulos (mismo patrón que las demás herramientas de Sinergia) */
+  body{font-family:Montserrat,"Segoe UI",Arial,sans-serif}
+  .barra{background:var(--az0);color:#fff}
+  .barra-in{max-width:1500px;margin:0 auto;padding:10px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .app-id{display:flex;align-items:center;gap:10px}
+  .tesela{background:#e8f0f7;border-radius:8px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;font-size:1.1rem}
+  .app-nombre{font-weight:700;font-size:.95rem}.app-lema{font-size:.7rem;color:#cfe0ee}
+  .sesion-correo{font-size:.75rem;color:#cfe0ee}
+  .page{max-width:1500px;margin:0 auto;padding:12px 18px}
+  .page-head h1{margin:8px 0 2px;font-size:1.35rem;color:var(--az0)}.page-head p{margin:0;font-size:.8rem;color:#5a6472}
+  .tabs-cm{display:flex;gap:6px;margin:14px 0;overflow-x:auto;border-bottom:1px solid var(--gb);padding-bottom:8px}
+  .tabs-cm .seccion{background:transparent;color:#46515e;border:0;border-radius:18px;padding:7px 14px;margin:0;font-size:.8rem;white-space:nowrap}
+  .tabs-cm .seccion:hover{background:rgba(0,0,0,.05)}
+  .tabs-cm .seccion.activa{background:var(--az);color:#fff}
+  .card{background:#fff;border:1px solid var(--gb);border-radius:10px;padding:12px 14px;margin-bottom:12px}
+  .card h2{margin:0 0 6px;font-size:.98rem;color:var(--az0)}
+  .cols2{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+  @media(max-width:1000px){.cols2{grid-template-columns:1fr}}
+  .aviso-mod{font-size:.8rem;color:#5a6472}
+  #app{padding:0}
+  .glos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+  .glos-item{display:flex;gap:12px;border:1px solid var(--gb);border-radius:8px;padding:8px 10px;background:#fbfcfd}
+  .glos-item canvas{width:72px;height:72px;min-height:0;flex:none;border:1px solid var(--gb);border-radius:6px;cursor:default}
+  .glos-item b{font-size:.85rem;color:var(--az0)}.glos-item p{margin:2px 0 0;font-size:.76rem;color:#46515e}
+  .pie{margin:20px 0 6px;font-size:.72rem;color:#5a6472;display:flex;gap:14px;flex-wrap:wrap;border-top:1px solid var(--gb);padding-top:8px}
+  @media print{.barra,.page-head,.tabs-cm,.pie{display:none!important}.page{padding:0}}
 </style>
 </head>
 <body>
-<header>
-  <h1>Prediseño de ubicación de dispositivos de alarma contra incendio</h1>
-  <p>SinergiaIngeniería · NFPA 72 / NFPA 101 / Manual de Disposiciones Técnicas CR 2013 · símbolos NFPA 170:2018 · prediseño, no sustituye el diseño firmado</p>
+<header class="barra">
+  <div class="barra-in">
+    <div class="app-id"><span class="tesela">🔥</span>
+      <div><div class="app-nombre">Prediseño de alarmas contra incendio</div>
+      <div class="app-lema">NFPA 72 · NFPA 101 · NFPA 170 · Manual de Disposiciones Técnicas CR 2013</div></div></div>
+    <span class="sesion-correo">Sinergia Ingeniería</span>
+  </div>
 </header>
-
-<div id="app">
-<div id="lateral">
-
-<details open><summary>1. Proyecto y normas aplicables</summary><div class="cuerpo">
+<div class="page">
+  <div class="page-head"><div><h1>Prediseño de ubicación de dispositivos de alarma</h1>
+   <p>Prediseño, no sustituye el diseño firmado. Sin internet ni cookies: el estado se guarda en el borrador .json.</p></div></div>
+  <nav class="tabs-cm" id="tabs" role="tablist">
+   <button class="seccion activa" data-mod="mod1" role="tab">1 · Proyecto y criterios de diseño</button>
+   <button class="seccion" data-mod="mod2" role="tab">2 · Ejecución</button>
+   <button class="seccion" data-mod="mod3" role="tab">3 · Glosario de simbología</button>
+  </nav>
+<div id="mod1" class="modulo">
+<div class="cols2">
+<div><section class="card"><h2>Información del proyecto y normas</h2>
   <label>Nombre del proyecto</label><input type="text" id="pNombre" value="Proyecto de prueba — oficina">
   <div class="f2">
    <div><label>Año de NFPA 72 a cumplir</label><select id="ed72"><option>2016</option><option>2019</option><option selected>2022</option><option>2025</option></select></div>
@@ -79,9 +116,7 @@
   </select>
   <button class="sec" id="btnDict">Actualizar requisitos obligatorios</button>
   <div id="dictamen"></div>
-</div></details>
-
-<details><summary>2. Estándar de cadena hotelera</summary><div class="cuerpo">
+</section><section class="card"><h2>Estándar de cadena hotelera</h2>
   <label>Estándar de cadena</label><select id="cadena"><option value="ninguna">Ninguna (solo normas)</option><option value="hyatt">Hyatt (FLS Q1 2024)</option><option value="marriott">Marriott (Módulo 14)</option></select>
   <div class="f2">
     <button class="sec" id="btnImpEst">Cargar estándar (.pdf / .json / .csv)</button>
@@ -91,9 +126,33 @@
   <small class="g">PDF: se extraen las frases normativas y usted elige. CSV: columnas ID, Tema, Regla, Referencia (como las pestañas de la guía de hoteles). JSON: {nombre, parametros, reglas:[{id,tema,regla,ref}]}.</small>
   <div id="estPdf"></div>
   <div id="cadenaInfo"></div>
-</div></details>
-
-<details open><summary>3. Planta y recintos</summary><div class="cuerpo">
+</section></div>
+<div><section class="card"><h2>Criterios de diseño (parámetros de prediseño)</h2>
+  <div class="f2">
+   <div><label>Espaciamiento humo (m)</label><select id="pEspH"><option value="9.1" selected>9.1 m (30 ft) — nominal NFPA 72</option><option value="7.6">7.6 m (25 ft) — listado menor</option><option value="6.1">6.1 m (20 ft) — listado menor</option></select></div>
+   <div><label>Espaciamiento calor listado (m)</label><select id="pEspC"><option value="15.2" selected>15.2 m (50 ft) — listado típico</option><option value="12.2">12.2 m (40 ft)</option><option value="9.1">9.1 m (30 ft)</option><option value="6.1">6.1 m (20 ft)</option></select></div>
+   <div><label>cd máx. estrobo de pared</label><select id="pCdMax"><option>15</option><option>30</option><option>45</option><option>60</option><option selected>75</option><option>95</option><option>110</option><option>135</option><option>150</option><option>177</option></select></div>
+   <div><label>Audible: dBA a 3 m del dispositivo</label><select id="pDba"><option value="75">75 dBA</option><option value="80">80 dBA</option><option value="85" selected>85 dBA</option><option value="90">90 dBA</option><option value="95">95 dBA</option></select></div>
+   <div><label>Notificación audible</label><select id="pAud"><option value="bocina">Bocina / estrobo</option><option value="parlante">Parlante / estrobo (voz)</option></select></div>
+   <div><label>Recorrido real / distancia recta</label><select id="pFacRec"><option value="1" selected>1.0 — NFPA: 61 m tal cual</option><option value="1.2">1.2 (recorrido con pocos giros)</option><option value="1.3">1.3 (oficina con mobiliario)</option><option value="1.5">1.5 (laberinto de muros)</option></select></div>
+   <div><label>Aislador cada N disp. SLC</label><select id="pIso"><option value="10">10</option><option value="15">15</option><option value="20" selected>20</option><option value="25">25</option><option value="30">30</option></select></div>
+   <div><label>Incluir CO (según tipo/cadena)</label><select id="pCO"><option value="1">Sí</option><option value="0">No</option></select></div>
+  </div>
+  <div class="nota"><b>Supuestos y limitaciones (parámetros):</b><ul>
+   <li>Valores por defecto = criterio de NFPA 72:2022 (humo 9.1 m según §17.7.4.2.3.1; pulsadores a 61 m según §17.15.9.5, recorrido tal cual). Las demás opciones son selectores.</li>
+   <li>El espaciamiento de calor es el <i>listado</i> del detector (ficha UL/FM): 15.2 m es un valor de mercado, no normativo.</li>
+   <li>dBA a 3 m (dato del equipo) y aislador cada N (fabricante) no vienen de NFPA; el factor de recorrido distinto de 1.0 es criterio de Sinergia, más conservador.</li>
+  </ul></div>
+</section><section class="card"><h2>Equipos supervisados y módulos</h2>
+  <small class="g">Cantidades de equipos del proyecto (los marcadores AHU/ascensor del plano se suman automáticamente).</small>
+  <div id="equiposTabla"></div>
+</section></div>
+</div>
+<p class="aviso-mod">Siguiente: módulo 2 · Ejecución, para cargar la planta o crear recintos y generar el prediseño.</p>
+</div>
+<div id="mod2" class="modulo" style="display:none">
+<div id="app">
+<div id="lateral"><section class="card"><h2>Planta y recintos</h2>
   <b>Modo A — cargar plano</b>
   <button id="btnPlano">Cargar plano (imagen / PDF)</button>
   <input type="file" id="filePlano" accept="image/*,.pdf" class="sinoche">
@@ -104,7 +163,7 @@
   <button class="sec" id="btnEscalaAuto">Aplicar escala (N y resolución)</button>
   <button class="sec" id="btnCalibrar">Calibrar con 2 puntos</button>
   <button id="btnAuto">Detectar recintos automáticamente</button>
-  <select id="autoModo" title="Método de detección"><option value="rotulos">Solo por rótulos de área (estricto)</option><option value="ambos" selected>Rótulos + espacios sin rótulo (recomendado)</option><option value="geom">Solo geometría (sin rótulos)</option></select>
+  <select id="autoModo" title="Método de detección"><option value="huella" selected>Huella del edificio, sin seccionar (recomendado)</option><option value="ambos">Rótulos + espacios sin rótulo</option><option value="rotulos">Solo por rótulos de área (estricto)</option><option value="geom">Solo geometría (sin rótulos)</option></select>
   <div class="nota"><b>Supuestos y limitaciones (carga de planos):</b><ul>
    <li>Los PDF se leen con un lector propio (sin internet): dibuja el vector de la hoja y busca «ESCALA 1:N» en el texto. No lee PDF escaneados, cifrados ni imágenes incrustadas: en ese caso exporte a PNG/JPG.</li>
    <li>La escala sale de «1:N + resolución» o de calibrar 2 puntos con una cota conocida; una escala errónea invalida todas las distancias y coberturas.</li>
@@ -123,34 +182,9 @@
   <hr>
   <b>Recinto seleccionado</b>
   <div id="propRec"><small class="g">Seleccione un recinto en el lienzo.</small></div>
-</div></details>
-
-<details open><summary>4. Parámetros de prediseño</summary><div class="cuerpo">
-  <div class="f2">
-   <div><label>Espaciamiento humo (m)</label><select id="pEspH"><option value="9.1" selected>9.1 m (30 ft) — nominal NFPA 72</option><option value="7.6">7.6 m (25 ft) — listado menor</option><option value="6.1">6.1 m (20 ft) — listado menor</option></select></div>
-   <div><label>Espaciamiento calor listado (m)</label><select id="pEspC"><option value="15.2" selected>15.2 m (50 ft) — listado típico</option><option value="12.2">12.2 m (40 ft)</option><option value="9.1">9.1 m (30 ft)</option><option value="6.1">6.1 m (20 ft)</option></select></div>
-   <div><label>cd máx. estrobo de pared</label><select id="pCdMax"><option>15</option><option>30</option><option>45</option><option>60</option><option selected>75</option><option>95</option><option>110</option><option>135</option><option>150</option><option>177</option></select></div>
-   <div><label>Audible: dBA a 3 m del dispositivo</label><select id="pDba"><option value="75">75 dBA</option><option value="80">80 dBA</option><option value="85" selected>85 dBA</option><option value="90">90 dBA</option><option value="95">95 dBA</option></select></div>
-   <div><label>Notificación audible</label><select id="pAud"><option value="bocina">Bocina / estrobo</option><option value="parlante">Parlante / estrobo (voz)</option></select></div>
-   <div><label>Recorrido real / distancia recta</label><select id="pFacRec"><option value="1" selected>1.0 — NFPA: 61 m tal cual</option><option value="1.2">1.2 (recorrido con pocos giros)</option><option value="1.3">1.3 (oficina con mobiliario)</option><option value="1.5">1.5 (laberinto de muros)</option></select></div>
-   <div><label>Aislador cada N disp. SLC</label><select id="pIso"><option value="10">10</option><option value="15">15</option><option value="20" selected>20</option><option value="25">25</option><option value="30">30</option></select></div>
-   <div><label>Incluir CO (según tipo/cadena)</label><select id="pCO"><option value="1">Sí</option><option value="0">No</option></select></div>
-  </div>
-  <button class="gran" id="btnGenerar">▶ Generar prediseño</button>
+</section><section class="card"><h2>Prediseño</h2><small class="g">Los criterios se definen en el módulo 1. Cree o cargue los recintos y genere.</small><br>  <button class="gran" id="btnGenerar">▶ Generar prediseño</button>
   <button class="sec" id="btnLimpiar">Quitar dispositivos</button>
-  <div class="nota"><b>Supuestos y limitaciones (parámetros):</b><ul>
-   <li>Valores por defecto = criterio de NFPA 72:2022 (humo 9.1 m según §17.7.4.2.3.1; pulsadores a 61 m según §17.15.9.5, recorrido tal cual). Las demás opciones son selectores.</li>
-   <li>El espaciamiento de calor es el <i>listado</i> del detector (ficha UL/FM): 15.2 m es un valor de mercado, no normativo.</li>
-   <li>dBA a 3 m (dato del equipo) y aislador cada N (fabricante) no vienen de NFPA; el factor de recorrido distinto de 1.0 es criterio de Sinergia, más conservador.</li>
-  </ul></div>
-</div></details>
-
-<details><summary>5. Equipos supervisados y módulos</summary><div class="cuerpo">
-  <small class="g">Cantidades de equipos del proyecto (los marcadores AHU/ascensor del plano se suman automáticamente).</small>
-  <div id="equiposTabla"></div>
-</div></details>
-
-<details open><summary>6. Archivo</summary><div class="cuerpo">
+</section><section class="card"><h2>Archivo</h2>
   <button class="sec" id="btnGuardar">Guardar borrador (.json)</button>
   <button class="sec" id="btnAbrir">Abrir borrador…</button>
   <input type="file" id="fileBorr" accept=".json" class="sinoche">
@@ -159,9 +193,7 @@
   <button class="sec" id="btnCSV">Exportar dispositivos (CSV)</button>
   <button class="sec" id="btnInforme">Informe imprimible / PDF</button>
   <small class="g">Sin localStorage ni cookies: el estado se guarda solo en el borrador .json. La base de datos Supabase llega en el paso 2.</small>
-</div></details>
-
-</div>
+</section></div>
 
 <div>
  <div id="lienzoWrap">
@@ -194,6 +226,37 @@
  </div>
  <div id="resultados"></div>
 </div>
+</div>
+</div>
+
+<div id="mod3" class="modulo" style="display:none">
+<section class="card"><h2>Glosario de simbología</h2>
+ <p>Símbolos que dibuja la herramienta en el plano. Las imágenes son las mismas que aparecen en el lienzo y en el informe.</p>
+ <div id="glosSim" class="glos-grid"></div>
+ <div class="nota"><b>Supuestos y limitaciones (simbología):</b><ul>
+  <li>Los símbolos de detectores, estación manual y bocina/estrobo siguen las Tablas 8.3 y 8.4.2 de NFPA 170:2018 (verificadas contra la copia disponible). Los demás (módulos, FACP, AHU, ascensor, salida) son rótulos de la herramienta, <b>no verificados contra NFPA 170</b>.</li>
+  <li>El número rojo junto a un estrobo es su intensidad en candelas (cd). Un triángulo vacío indica solo notificación audible o estrobo; el triángulo relleno, voz (parlante).</li>
+  <li>La simbología de su proyecto o de la cadena hotelera puede diferir; confirmar con la leyenda del cliente antes de emitir planos.</li>
+ </ul></div>
+</section>
+<section class="card"><h2>Capas de cobertura</h2>
+ <div id="glosCob" class="glos-grid"></div>
+</section>
+<section class="card"><h2>Siglas y términos</h2>
+ <table><tr><th>Término</th><th>Significado</th></tr>
+ <tr><td>FACP</td><td>Panel de control de alarma de incendio (central).</td></tr>
+ <tr><td>SLC</td><td>Circuito de línea de señalización: lazo que conecta detectores, módulos y estaciones.</td></tr>
+ <tr><td>NAC</td><td>Circuito de aparatos de notificación (bocinas y estrobos).</td></tr>
+ <tr><td>AHU</td><td>Manejadora de aire: lleva detector de ducto y módulo de control para paro.</td></tr>
+ <tr><td>cd</td><td>Candelas: intensidad luminosa del estrobo.</td></tr>
+ <tr><td>dBA</td><td>Nivel sonoro ponderado A; se indica el nivel a 3 m del dispositivo.</td></tr>
+ <tr><td>AHJ</td><td>Autoridad competente (quien aprueba el diseño: bomberos, municipalidad, etc.).</td></tr>
+ <tr><td>Huella</td><td>Contorno exterior del edificio detectado en el plano; se usa como un solo recinto.</td></tr>
+ <tr><td>Prediseño</td><td>Propuesta preliminar de ubicación; no sustituye el diseño firmado.</td></tr></table>
+</section>
+</div>
+
+  <footer class="pie"><b>Sinergia Ingeniería Latinoamérica</b><span>Costa Rica</span><span>Panamá</span><span>República Dominicana</span><span>Guatemala</span></footer>
 </div>
 
 <div id="menuCtx"><div class="titulo" id="menuTit"></div><button id="mAjustar">✎ Ajustar polígono</button><button id="mCopiar">⧉ Copiar</button><button id="mBorrar" style="color:var(--ro)">🗑 Borrar</button></div>
@@ -293,6 +356,8 @@ const AISLADOR_CADA_N = 20;
 const PASO_MUESTRA_M = 0.5, PASO_CANDIDATOS_M = 1.0, PASO_GLOBAL_M = 2.0;
 // Máximo de subdivisiones por eje al repartir estrobos (CRITERIO de cálculo).
 const MAX_DIV_ESTROBO = 8;
+// Una celda de estrobos cuyo centro cae fuera del recinto se conserva solo si está a menos de esta fracción del lado (CRITERIO).
+const ESTROBO_CELDA_FUERA = 0.75;
 // Máximo de dispositivos agregados por relleno (protección contra bucles).
 const MAX_AGREGADOS = 200;
 // Radios mínimos de recinto para considerar (m²). Recintos menores se ignoran por ruido.
@@ -334,13 +399,15 @@ const AUTO_TOL_AREA = 0.35, AUTO_FUGA_FACTOR = 2.5;
 // Búsqueda de píxel libre alrededor de la semilla (px) y límites de la detección sin rótulos (CRITERIOS).
 // Semillas de prueba alrededor de cada rótulo (rejilla de ±N pasos de PASO m), error que se da por bueno,
 // mínimo de rótulos alineados que delata una tabla de áreas, y área máxima de un espacio abierto compartido (CRITERIOS).
+// Huella del edificio: cierre de aberturas de la envolvente (m) y tolerancia de simplificación del contorno (m) (CRITERIOS).
+const AUTO_HUELLA_CIERRE_M = 1.5, AUTO_HUELLA_SIMPL_M = 0.3, AUTO_HUELLA_MIN_M2 = 20;
 const AUTO_SEMILLAS_N = 2, AUTO_PASO_SEMILLA_M = 0.8, AUTO_OK_ERR = 0.12, AUTO_TABLA_MIN = 8, AUTO_COMB_MAX_M2 = 400;
 const AUTO_BUSQUEDA_SEMILLA_PX = 25, AUTO_SIN_ROTULO_MAX_M2 = 400, AUTO_RELLENO_MIN = 0.45;
 // Tolerancia de simplificación del contorno (px). CRITERIO de procesamiento.
 const RELLENO_SIMPL_PX = 3;
 // Convención geométrica y gráfica (no normativas).
 const RAIZ2 = Math.SQRT2, GRADOS_180 = 180, RAD_90 = Math.PI / 2;
-const COLOR = {recinto:'#1b4a75',sel:'#e0a800',humo:'#1e7d3c',calor:'#c05a00',co:'#222',estrobo:'#a4231f',pulsador:'#a4231f',mod:'#5a3d99',cob:'rgba(30,125,60,0.10)',cobE:'rgba(164,35,31,0.07)',cobA:'rgba(27,74,117,0.07)'};
+const COLOR = {recinto:'#1b4a75',sel:'#e0a800',humo:'#1e7d3c',calor:'#c05a00',co:'#222',estrobo:'#a4231f',pulsador:'#a4231f',mod:'#5a3d99',cob:'rgba(30,125,60,0.16)',cobE:'rgba(214,40,40,0.20)',cobA:'rgba(30,90,200,0.18)'};
 
 /* Ocupaciones (NFPA 101 cap. 12–43 / Manual CR cap. 4). «dormir» activa reglas de áreas de dormir. */
 const OCUPACIONES = [
@@ -551,12 +618,12 @@ function estrobosRecinto(r,tipo,o){
       if(L<=2*CORREDOR_EXTREMO_MAX_M)pos=[L/2];
       else{const n=Math.ceil((L-2*ini)/CORREDOR_SEP_MAX_M)+1;pos=[];for(let i=0;i<n;i++)pos.push(ini+i*(L-2*ini)/(n-1));}
       pos.forEach(t=>{const lpPt=eje==='x'?{x:b.x0+t,y:b.y0+DIST_MIN_PARED_M}:{x:b.x0+DIST_MIN_PARED_M,y:b.y0+t};
-        const w=desgiro(lpPt,th);res.devs.push({tipo:'estrobo_pared',x:w.x,y:w.y,cd});});
+        const w=desgiro(lpPt,th);res.devs.push({tipo:'estrobo_pared',x:w.x,y:w.y,cd,radioVis:CORREDOR_SEP_MAX_M/2});});
       res.modo='Corredor (18.5.5.8): '+pos.length+' × '+cd+' cd';
     }else{
       const cand=muestras(r.poly,PASO_CANDIDATOS_M,DIST_MIN_PARED_M);
       const ext=rellenar(muestras(r.poly,PASO_MUESTRA_M,0),cand,[],CORREDOR_SEP_MAX_M/2);
-      ext.forEach(p=>res.devs.push({tipo:'estrobo_pared',x:p.x,y:p.y,cd}));
+      ext.forEach(p=>res.devs.push({tipo:'estrobo_pared',x:p.x,y:p.y,cd,radioVis:CORREDOR_SEP_MAX_M/2}));
       res.modo='Corredor irregular: '+ext.length+' × '+cd+' cd (aproximado)';
       res.notas.push('Forma irregular: verifique a mano que haya un estrobo a ≤ 4.5 m de cada extremo (18.5.5.8.5) o trate el corredor como recinto (18.5.5.8.1).');
     }
@@ -577,7 +644,7 @@ function estrobosRecinto(r,tipo,o){
   if(!mejor){
     // Opción 2: malla de estrobos de cielo al centro de cada celda (Tabla 18.5.5.7.1(b)).
     const alt=Math.min(r.h,ALTURA_MAX_ESTROBO_CIELO_M);
-    let sol=null;
+    let sol=null,candCache=null;const candS=()=>candCache||(candCache=muestras(r.poly,PASO_CANDIDATOS_M,DIST_MIN_PARED_M));
     for(let n=2;n<=MAX_DIV_ESTROBO*MAX_DIV_ESTROBO&&!sol;n++){
       for(let kx=1;kx<=MAX_DIV_ESTROBO;kx++){const ky=Math.ceil(n/kx);if(kx*ky!==n&&kx*ky>n)continue;if(ky>MAX_DIV_ESTROBO)continue;
         const lado=Math.max(b.w/kx,b.h/ky),cd=candelaCielo(lado,alt);if(cd==null)continue;
@@ -585,8 +652,8 @@ function estrobosRecinto(r,tipo,o){
         if(cdF>Math.max(o.cdMax,dormir?DORMIR_CD_CERCA:0))continue;
         const devs=[];
         for(let i=0;i<kx;i++)for(let j=0;j<ky;j++){const c=desgiro({x:b.x0+(i+.5)*b.w/kx,y:b.y0+(j+.5)*b.h/ky},th);
-          const q=(dentro(c,r.poly))?c:masCercano(c,muestras(r.poly,PASO_CANDIDATOS_M,DIST_MIN_PARED_M)).p;
-          if(q)devs.push({tipo:'estrobo_cielo',x:q.x,y:q.y,cd:cdF,lado});}
+          let q=null;if(dentro(c,r.poly))q=c;else{const mc=masCercano(c,candS());if(mc.p&&mc.d<=lado*ESTROBO_CELDA_FUERA)q=mc.p;}
+          if(q&&!devs.some(z=>Math.hypot(z.x-q.x,z.y-q.y)<lado*0.5))devs.push({tipo:'estrobo_cielo',x:q.x,y:q.y,cd:cdF,lado});}
         if(devs.length&&(!sol||devs.length<sol.devs.length))sol={devs,cd:cdF,lado};
       }
     }
@@ -656,7 +723,7 @@ function planificarRecinto(r,o){
       extra.forEach(p=>out.disp.push({tipo:parl?'parlante':'bocina',x:p.x,y:p.y,sala:r.nombre,radio}));
       out.aud.extra=extra.length;
     }
-    e.devs.forEach(d=>out.disp.push({tipo:parl?(d.tipo==='estrobo_cielo'?'parl_estrobo_cielo':'parl_estrobo'):(d.tipo==='estrobo_cielo'?'bocina_estrobo_cielo':'bocina_estrobo'),x:d.x,y:d.y,cd:d.cd,sala:r.nombre,lado:d.lado,radio,pared:d.tipo==='estrobo_pared'}));
+    e.devs.forEach(d=>out.disp.push({tipo:parl?(d.tipo==='estrobo_cielo'?'parl_estrobo_cielo':'parl_estrobo'):(d.tipo==='estrobo_cielo'?'bocina_estrobo_cielo':'bocina_estrobo'),x:d.x,y:d.y,cd:d.cd,sala:r.nombre,lado:d.lado,radioVis:d.radioVis,radio,pared:d.tipo==='estrobo_pared'}));
   }else{out.notas.push('Este recinto no lleva dispositivos de notificación según su tipo/estándar de cadena.');}
   // --- Supuestos y limitaciones del recinto (todo resultado lleva los suyos) ---
   out.sup=['Cielo liso, plano y horizontal de '+r.h+' m, sin vigas, ni obstrucciones, ni flujo de aire que distorsione el humo.',
@@ -895,9 +962,10 @@ function dibujar(){
   const recorta=(d,fn)=>{const rc=E.recintos.find(x=>x.id===d.rid);cx.save();if(rc){cx.beginPath();rc.poly.forEach((q,i)=>{const a=aPant(q);cx[i?'lineTo':'moveTo'](a.x,a.y);});cx.closePath();cx.clip();}fn();cx.restore();};
   E.disp.forEach(d=>{
     const p=aPant(d);
-    if(verDet&&(d.tipo==='det_humo'||d.tipo==='det_calor')){cx.beginPath();cx.arc(p.x,p.y,d.radio*E.vista.k,0,7);cx.fillStyle=d.tipo==='det_humo'?COLOR.cob:'rgba(192,90,0,0.08)';cx.fill();cx.strokeStyle=d.tipo==='det_humo'?'rgba(30,125,60,.45)':'rgba(192,90,0,.45)';cx.lineWidth=1;cx.stroke();}
-    if(verVis&&d.lado&&d.tipo.indexOf('estrobo')>0){const l=d.lado*E.vista.k;recorta(d,()=>{cx.fillStyle=COLOR.cobE;cx.fillRect(p.x-l/2,p.y-l/2,l,l);cx.strokeStyle='rgba(164,35,31,.5)';cx.setLineDash([5,4]);cx.lineWidth=1;cx.strokeRect(p.x-l/2,p.y-l/2,l,l);cx.setLineDash([]);});}
-    if(verAud&&/bocina|parl/.test(d.tipo)&&d.radio){recorta(d,()=>{cx.beginPath();cx.arc(p.x,p.y,d.radio*E.vista.k,0,7);cx.fillStyle=COLOR.cobA;cx.fill();cx.strokeStyle='rgba(27,74,117,.5)';cx.lineWidth=1;cx.stroke();});}
+    if(verDet&&(d.tipo==='det_humo'||d.tipo==='det_calor')){cx.beginPath();cx.arc(p.x,p.y,d.radio*E.vista.k,0,7);cx.fillStyle=d.tipo==='det_humo'?COLOR.cob:'rgba(192,90,0,0.08)';cx.fill();cx.strokeStyle=d.tipo==='det_humo'?'rgba(30,125,60,.8)':'rgba(192,90,0,.8)';cx.lineWidth=1.5;cx.stroke();}
+    if(verVis&&d.lado&&d.tipo.indexOf('estrobo')>0){const l=d.lado*E.vista.k;recorta(d,()=>{cx.fillStyle=COLOR.cobE;cx.fillRect(p.x-l/2,p.y-l/2,l,l);cx.strokeStyle='rgba(200,30,30,.9)';cx.setLineDash([6,4]);cx.lineWidth=1.5;cx.strokeRect(p.x-l/2,p.y-l/2,l,l);cx.setLineDash([]);});}
+    if(verVis&&d.radioVis){recorta(d,()=>{cx.beginPath();cx.arc(p.x,p.y,d.radioVis*E.vista.k,0,7);cx.fillStyle=COLOR.cobE;cx.fill();cx.strokeStyle='rgba(200,30,30,.9)';cx.setLineDash([6,4]);cx.lineWidth=1.5;cx.stroke();cx.setLineDash([]);});}
+    if(verAud&&/bocina|parl/.test(d.tipo)&&d.radio){recorta(d,()=>{cx.beginPath();cx.arc(p.x,p.y,d.radio*E.vista.k,0,7);cx.fillStyle=COLOR.cobA;cx.fill();cx.strokeStyle='rgba(20,70,190,.9)';cx.lineWidth=1.5;cx.stroke();});}
   });
   E.disp.forEach(d=>{const p=aPant(d);sim(cx,d.tipo,p.x,p.y,S,{cd:d.cd});});
   E.marcas.forEach(m=>{const p=aPant(m);sim(cx,m.t==='salida'?'salida':m.t,p.x,p.y,S);});
@@ -1032,6 +1100,37 @@ function rdp(p,e){if(p.length<3)return p;let m=0,idx=0;const a=p[0],b=p[p.length
    2) se engrosan los muros para cerrar puertas; 3) cada zona libre cerrada es un recinto;
    4) se recupera el contorno real y se nombra con el texto del PDF que cae dentro. */
 function erosionar(m,W,H,r){const inv=m.map(v=>v?0:1);return dilatar(inv,W,H,r).map(v=>v?0:1);}
+function detectarHuella(oscuro,W,H,f,mpx){
+  // Componente de muros más grande que no sea el marco de la hoja = envolvente del edificio
+  const lab=new Int32Array(W*H),q=new Int32Array(W*H);let mejor=null,id=0;
+  for(let s0=0;s0<W*H;s0++){
+    if(!oscuro[s0]||lab[s0])continue;id++;let ini=0,fin=0;q[fin++]=s0;lab[s0]=id;let x0=W,y0=H,x1=0,y1=0;
+    while(ini<fin){const i=q[ini++],x=i%W,y=(i/W)|0;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=W||ny>=H)continue;const j=ny*W+nx;if(oscuro[j]&&!lab[j]){lab[j]=id;q[fin++]=j;}}}
+    if((x1-x0)<0.9*W&&(y1-y0)<0.9*H&&(!mejor||fin>mejor.n))mejor={id,n:fin};
+  }
+  if(!mejor)return 0;
+  const cm=new Uint8Array(W*H);for(let i=0;i<W*H;i++)if(lab[i]===mejor.id)cm[i]=1;
+  const rpx=Math.max(2,Math.round(AUTO_HUELLA_CIERRE_M/mpx)),cerr=dilatar(cm,W,H,rpx);
+  // El exterior se inunda desde el borde de la imagen; lo que no es exterior es el edificio
+  const ext=new Uint8Array(W*H);let ini=0,fin=0;
+  const semilla=i=>{if(!cerr[i]&&!ext[i]){ext[i]=1;q[fin++]=i;}};
+  for(let x=0;x<W;x++){semilla(x);semilla((H-1)*W+x);}for(let y=0;y<H;y++){semilla(y*W);semilla(y*W+W-1);}
+  while(ini<fin){const i=q[ini++],x=i%W,y=(i/W)|0;
+    if(x>0)semilla(i-1);if(x<W-1)semilla(i+1);if(y>0)semilla(i-W);if(y<H-1)semilla(i+W);}
+  const dentroM=new Uint8Array(W*H);for(let i=0;i<W*H;i++)dentroM[i]=ext[i]?0:1;
+  const huella=erosionar(dentroM,W,H,rpx);   // deshace el engrosado
+  let sx=-1,sy=-1;for(let i=0;i<W*H;i++)if(huella[i]){sx=i%W;sy=(i/W)|0;break;}
+  if(sx<0)return 0;
+  const cont=contorno(huella,W,H,sx,sy);if(!cont||cont.length<4)return 0;
+  const poly=rdp(cont,AUTO_HUELLA_SIMPL_M/mpx).map(p=>({x:E.imgX+p.x/f*E.imgM,y:E.imgY+p.y/f*E.imgM}));
+  const ar=poly.length>=3?area(poly):0;
+  if(ar<AUTO_HUELLA_MIN_M2)return 0;
+  nuevoRecinto(poly,'Planta (huella del edificio)','oficina',+$('mAlto').value||2.7);
+  E.sel=null;propiedades();ajustarVista();
+  estado('Huella del edificio detectada como UN solo recinto ('+ar.toFixed(0)+' m²): el prediseño cubre toda la planta sin seccionar espacios. No considera muros interiores; para separar espacios use clic derecho → Ajustar, «Dibujar recinto» o el método «Rótulos + espacios sin rótulo».');
+  return 1;
+}
 async function detectarRecintos(){
   if(!E.img){alert('Cargue primero un plano.');return;}
   let modo=$('autoModo').value;
@@ -1047,6 +1146,7 @@ async function detectarRecintos(){
      while(ini<fin){const i=q[ini++],x=i%W,y=(i/W)|0;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;
        for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=W||ny>=H)continue;const j=ny*W+nx;if(oscuro[j]&&!vis0[j]){vis0[j]=1;q[fin++]=j;}}}
      if(Math.hypot(x1-x0,y1-y0)<lim)for(let k=0;k<fin;k++)oscuro[q[k]]=0;}}
+  if(modo==='huella')return detectarHuella(oscuro,W,H,f,mpx);
   const muro=oscuro;
   // 2) Cierres de puertas con varios radios (se elige el que mejor reproduce el área rotulada)
   const radios=AUTO_RADIOS_M.map(rm=>{const rpx=Math.max(2,Math.round(rm/mpx));return{rpx,cerr:dilatar(muro,W,H,rpx)};});
@@ -1602,6 +1702,53 @@ function iniciar(){
   window.addEventListener('resize',ajustarLienzo);ajustarLienzo();ajustarVista();
 }
 iniciar();
+
+/* ==========================================================================
+   MÓDULOS (pestañas) y GLOSARIO de simbología
+   ========================================================================== */
+const GLOSARIO = [
+ ['det_humo','Detector de humo','Hexágono con «S». Se ubica en cielo con espaciamiento nominal de 9.1 m (NFPA 72). NFPA 170:2018 Tabla 8.3.'],
+ ['det_calor','Detector de calor','Hexágono con «H». Espaciamiento según el listado del equipo (15.2 m típico). NFPA 170:2018 Tabla 8.3.'],
+ ['det_ducto','Detector de humo para ducto','Hexágono con «S» y toma de muestra. En manejadoras de aire (AHU). NFPA 170:2018 Tabla 8.3.'],
+ ['det_co','Detector de CO','Hexágono negro con «CO». Solo si lo exige el tipo de ocupación o la cadena. NFPA 170:2018 Tabla 8.3.'],
+ ['pulsador','Estación manual (pulsador)','Cuadrado con «F». A 1.5 m de cada salida y con recorrido máximo de 61 m. NFPA 170:2018 Tabla 8.3.'],
+ ['bocina_estrobo','Bocina/estrobo de pared','Cuadrado con X y triángulo; el número rojo son las candelas. NFPA 170:2018 Tabla 8.4.2.'],
+ ['bocina_estrobo_cielo','Bocina/estrobo de cielo','Círculo con X y triángulo. Se ubica en retícula de cobertura (NFPA 72, tabla de cielo). NFPA 170:2018 Tabla 8.4.2.'],
+ ['parl_estrobo','Parlante/estrobo de pared','Igual al de bocina pero con triángulo relleno: notificación por voz. NFPA 170:2018 Tabla 8.4.2.'],
+ ['parl_estrobo_cielo','Parlante/estrobo de cielo','Versión de cielo del parlante/estrobo. NFPA 170:2018 Tabla 8.4.2.'],
+ ['bocina','Bocina (solo audible)','Cuadrado con «H» y triángulo vacío. Cobertura por ley del inverso del cuadrado. NFPA 170:2018 Tabla 8.4.2.'],
+ ['parlante','Parlante (solo audible)','Cuadrado con «S» y triángulo relleno. NFPA 170:2018 Tabla 8.4.2.'],
+ ['aislador','Módulo aislador (IM)','Aísla un tramo del lazo SLC ante un corto. Rótulo de la herramienta, no verificado en NFPA 170.'],
+ ['modulo_mon','Módulo de monitoreo (AIM)','Supervisa contactos (válvulas, flujo, presión). Rótulo de la herramienta, no verificado en NFPA 170.'],
+ ['modulo_ctl','Módulo de control (AOM)','Comanda equipos (paro de AHU, retorno de ascensor). Rótulo de la herramienta, no verificado en NFPA 170.'],
+ ['facp','Panel de alarma (FACP)','Central de la alarma, normalmente en recepción o cuarto de control. Rótulo de la herramienta.'],
+ ['salida','Salida','Salida de egreso; de ella parten las distancias a pulsadores. Rótulo de la herramienta.'],
+ ['ahu','Manejadora de aire (AHU)','Equipo que recibe detector de ducto y módulo de control. Rótulo de la herramienta.'],
+ ['asc','Ascensor','Marca el vestíbulo que recibe detector de humo para recall. Rótulo de la herramienta.']
+];
+function glosario(){
+  const d=window.devicePixelRatio||1;
+  const celda=(dib,tit,txt)=>{const it=document.createElement('div');it.className='glos-item';
+    const c=document.createElement('canvas');c.width=72*d;c.height=72*d;const g=c.getContext('2d');g.setTransform(d,0,0,d,0,0);dib(g);
+    const t=document.createElement('div');t.innerHTML='<b>'+esc(tit)+'</b><p>'+esc(txt)+'</p>';it.appendChild(c);it.appendChild(t);return it;};
+  const G=$('glosSim');G.innerHTML='';
+  GLOSARIO.forEach(([tipo,tit,txt])=>G.appendChild(celda(g=>sim(g,tipo,36,40,13,tipo.indexOf('estrobo')>=0?{cd:'75'}:{}),tit,txt)));
+  const C=$('glosCob');C.innerHTML='';
+  [['rgba(30,125,60,.30)','rgba(30,125,60,.9)','Cobertura de detectores','Círculo verde: radio de 0.7 × espaciamiento alrededor de cada detector de humo o calor.',0],
+   ['rgba(214,40,40,.28)','rgba(200,30,30,.9)','Cobertura de notificación visual','Cuadro o círculo rojo: área que cubre cada estrobo, recortada al recinto que lo contiene.',1],
+   ['rgba(30,90,200,.26)','rgba(20,70,190,.9)','Cobertura de notificación auditiva','Círculo azul: distancia a la que se mantiene el nivel sonoro requerido (dBA).',0]
+  ].forEach(([fi,tr,tit,txt,cuad])=>C.appendChild(celda(g=>{g.fillStyle=fi;g.strokeStyle=tr;g.lineWidth=2;g.beginPath();
+    if(cuad)g.rect(10,10,52,52);else g.arc(36,36,27,0,7);g.fill();g.stroke();},tit,txt)));
+}
+let _lienzoInicial=true;
+function irModulo(id){
+  ['mod1','mod2','mod3'].forEach(m=>{$(m).style.display=(m===id)?'':'none';});
+  document.querySelectorAll('#tabs .seccion').forEach(b=>b.classList.toggle('activa',b.dataset.mod===id));
+  if(id==='mod2'){ajustarLienzo();if(_lienzoInicial){_lienzoInicial=false;ajustarVista();}}
+  window.scrollTo(0,0);
+}
+document.querySelectorAll('#tabs .seccion').forEach(b=>{b.onclick=()=>irModulo(b.dataset.mod);});
+glosario();
 </script>
 </body>
 </html>
