@@ -84,3 +84,4 @@ Un recinto cuyo contorno cae por completo dentro de otro se trata como subrecint
 ## Estrobo de pared (Figura 18.5.5.7.1)
 - El estrobo de pared se coloca a mitad de un muro y se pega al muro: al elegir «Pared» en el panel, al agregarlo o al arrastrarlo siempre queda en el muro más cercano. De ese muro parten los cuadrados anidados de cobertura (6.1, 9.1, 12.2… m).
 - Se prueba cada muro del recinto y se elige el que da el cuadrado más pequeño que lo contiene. La verificación del recinto comprueba que el recinto cabe en el cuadrado que cubren las candelas del aparato.
+- Los estrobos de pared se pueden rotar: clic derecho → «Rotar 90°» / «Rotar −90°», botones ↻ ↺ del panel «Dispositivo seleccionado» o tecla R (Mayús+R en sentido contrario). Cada giro pasa el estrobo al punto medio del siguiente muro del recinto y la cobertura parte de ese muro.
