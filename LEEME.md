@@ -85,3 +85,12 @@ Un recinto cuyo contorno cae por completo dentro de otro se trata como subrecint
 - El estrobo de pared se coloca a mitad de un muro y se pega al muro: al elegir «Pared» en el panel, al agregarlo o al arrastrarlo siempre queda en el muro más cercano. De ese muro parten los cuadrados anidados de cobertura (6.1, 9.1, 12.2… m).
 - Se prueba cada muro del recinto y se elige el que da el cuadrado más pequeño que lo contiene. La verificación del recinto comprueba que el recinto cabe en el cuadrado que cubren las candelas del aparato.
 - Los estrobos de pared se pueden rotar: clic derecho → «Rotar 90°» / «Rotar −90°», botones ↻ ↺ del panel «Dispositivo seleccionado» o tecla R (Mayús+R en sentido contrario). Cada giro pasa el estrobo al punto medio del siguiente muro del recinto y la cobertura parte de ese muro.
+
+## Nivel sonoro por ocupación
+- En el mapa de nivel sonoro (dBA) todo lo que baja del nivel requerido o sube de 110 dBA se pinta en rojo. Una leyenda sobre el lienzo indica, por recinto, el nivel que requiere y el mínimo y máximo que alcanza hoy (en rojo y negrita si está fuera de parámetros).
+- Módulo 1 → Criterios: tabla «Niveles sonoros requeridos por tipo de recinto» (ambiente supuesto + 15 dB; dormir ≥ 75 dBA; máximo 110 dBA). El panel «Recinto seleccionado» también muestra el nivel requerido.
+
+## Deshacer, módulos para Revit y giro del símbolo
+- Ctrl+Z deshace y Ctrl+Y (o Ctrl+Mayús+Z) rehace, también con los botones ↶ ↷ de «Herramientas». Cada acción es un paso: generar prediseño, mover, editar, borrar, agregar equipos, rotar… (hasta 60 pasos).
+- Cada bloque de equipo dibuja a la par un símbolo por módulo requerido (AIM monitoreo / AOM control) y su nota con los P/N; casilla «Módulos junto a equipos». El resumen de resultados totaliza los módulos por P/N y el CSV de dispositivos incluye cada equipo y cada módulo (con P/N, recinto y la ubicación del bloque) para que el modelador los replique en Revit.
+- Giro del símbolo sobre su propio eje: campo «Giro del símbolo (°)» y botones ↺ −15° / ↻ +15° / ⟳ 90° en el panel, clic derecho → «Girar símbolo 90°», o tecla G (Mayús+G en sentido contrario). Es solo rotación del dispositivo: no cambia su posición ni su cobertura (la rotación de pared/muro sigue con R).
