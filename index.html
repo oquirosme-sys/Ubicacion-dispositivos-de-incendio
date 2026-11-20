@@ -2022,7 +2022,7 @@ window.addEventListener('mouseup',e=>{
 window.addEventListener('mousemove',e=>{
   if(arrR){if(Math.hypot(e.clientX-arrR.x,e.clientY-arrR.y)>4)arrR.mov=true;if(arrR.mov){const sn=puntoSnap(mundoDeEvento(e),e);E.cursor=sn.p;E.snapPt=sn.t?{x:sn.p.x,y:sn.p.y,t:sn.t}:null;E.borrador=[arrR.a];dibujar();return;}}
   if(arrM){const p=mundoDeEvento(e);arrM.m.x=p.x;arrM.m.y=p.y;movio=true;dibujar();return;}
-  if(arrD){const p=mundoDeEvento(e);arrD.d.x=p.x;arrD.d.y=p.y;if(esEstroboPared(arrD.d))pegarAPared(arrD.d);arrD.d.manual=true;movio=true;E._spl=null;dibujar();return;}
+  if(arrD){const p=mundoDeEvento(e);arrD.d.x=p.x;arrD.d.y=p.y;arrD.d.manual=true;movio=true;E._spl=null;dibujar();return;}
   if(arr){if(Math.hypot(e.clientX-arr.x,e.clientY-arr.y)>4)arr.mov=true;if(arr.mov){E.vista.x=arr.vx+e.clientX-arr.x;E.vista.y=arr.vy+e.clientY-arr.y;dibujar();}}
   if(arrV){const r=recEdit();if(r){const p=mundoDeEvento(e);movio=true;
     if(arrV.tipo==='v')r.poly[arrV.i]={x:p.x,y:p.y};
@@ -2146,7 +2146,7 @@ $('mCopiar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel)
   estado('Copiado «'+r.nombre+'»: mueva el cursor y haga clic para pegar (puede pegar varias veces). Esc termina.');dibujar();};
 $('mBorrar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel);if(!r)return;E.recintos=E.recintos.filter(x=>x!==r);E.sel=null;E.edit=null;invalidar(r.id);propiedades();dibujar();estado('Recinto «'+r.nombre+'» borrado.');};
 cv.addEventListener('wheel',e=>{e.preventDefault();const r=cv.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top,w=aMundo(px,py),f=e.deltaY<0?1.15:1/1.15;E.vista.k*=f;E.vista.x=px-w.x*E.vista.k;E.vista.y=py-w.y*E.vista.k;dibujar();},{passive:false});
-window.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&!e.altKey&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){const k=e.key.toLowerCase();if(k==='z'&&!e.shiftKey){e.preventDefault();deshacer();return;}if(k==='y'||(k==='z'&&e.shiftKey)){e.preventDefault();rehacer();return;}}if((e.key==='g'||e.key==='G')&&!e.ctrlKey&&!e.metaKey&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){const dg=devSel();if(dg){girarSimbolo(dg,e.shiftKey?-15:15);e.preventDefault();}}if((e.key==='r'||e.key==='R')&&!e.ctrlKey&&!e.metaKey&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){const dr=devSel();if(dr&&esEstroboPared(dr)){girarEstroboPared(dr,e.shiftKey?-1:1);e.preventDefault();}}if(e.code==='Space'&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){espacio=true;e.preventDefault();}if(e.key==='Escape'){E.borrador=[];E.calib=[];ocultarMenu();terminarAjuste();if(E.herr==='dev'||E.herr==='clon'||E.herr==='eq')herramienta('sel');E.moverMarca=null;E.moverDisp=null;}if(e.key==='Enter'){if(E.edit)terminarAjuste();else if(E.herr==='rec')cerrarBorrador();}});
+window.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&!e.altKey&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){const k=e.key.toLowerCase();if(k==='z'&&!e.shiftKey){e.preventDefault();deshacer();return;}if(k==='y'||(k==='z'&&e.shiftKey)){e.preventDefault();rehacer();return;}}if((e.key==='g'||e.key==='G')&&!e.ctrlKey&&!e.metaKey&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){const dg=devSel();if(dg){girarSimbolo(dg,e.shiftKey?-15:15);e.preventDefault();}}if((e.key==='r'||e.key==='R')&&!e.ctrlKey&&!e.metaKey&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){const dr=devSel();if(dr&&esEstroboPared(dr)){girarEstroboPared(dr,e.shiftKey?-1:1);e.preventDefault();}}if(e.code==='Space'&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){espacio=true;e.preventDefault();}if(e.key==='Escape'){E.borrador=[];E.calib=[];ocultarMenu();terminarAjuste();if(E.herr!=='sel'&&E.herr!=='cal')herramienta('sel');E.moverMarca=null;E.moverDisp=null;if(document.activeElement&&document.activeElement.blur&&/BUTTON/.test(document.activeElement.tagName))document.activeElement.blur();}   // Esc: cualquier herramienta vuelve a Seleccionar (mano para desplazar)if(e.key==='Enter'){if(E.edit)terminarAjuste();else if(E.herr==='rec')cerrarBorrador();}});
 window.addEventListener('keyup',e=>{if(e.code==='Space')espacio=false;});
 // Si la ventana pierde el foco (Alt+Tab, clic fuera) se pierde el «soltar»: se reinician teclas y arrastres para que los clics de dibujo no queden bloqueados.
 window.addEventListener('blur',()=>{espacio=false;arr=null;arrV=null;arrD=null;suprimir=false;});
@@ -2154,7 +2154,7 @@ cv.addEventListener('mousemove',e=>{E.cursor=mundoDeEvento(e);
   if(E.herr==='rec'||E.herr==='rect'){const sn=puntoSnap(E.cursor,e);E.cursor=sn.p;E.snapPt=sn.t?{x:sn.p.x,y:sn.p.y,t:sn.t}:null;
     if(!E._raf)E._raf=requestAnimationFrame(()=>{E._raf=0;dibujar();});}else E.snapPt=null;
   if((E.borrador.length||E.pegando)&&!(E.herr==='rec'||E.herr==='rect'))dibujar();
-  if(!arrD){cv.style.cursor=(E.herr==='sel'&&!E.edit&&!E.pegando&&(devEn(E.cursor)||marcaEn(E.cursor)))?'move':'crosshair';}
+  if(!arrD){cv.style.cursor=(E.herr==='sel'&&!E.edit&&!E.pegando&&(devEn(E.cursor)||marcaEn(E.cursor)))?'move':(E.herr==='sel'&&!E.edit&&!E.pegando?'grab':'crosshair');}
   if($('vSPL').checked&&E.audPorRec&&!E.borrador.length&&!arrD){const rr=recintoMin(E.cursor),A=rr&&E.audPorRec[rr.id];
     if(A){const v=nivelSonoroEn(E.cursor,rr.id);estado('Nivel sonoro aquí: '+(isFinite(v)?v.toFixed(0):'—')+' dBA · requerido '+A.req.toFixed(0)+' dBA en «'+rr.nombre+'» · máx. permitido '+AUDIBLE_MAX_DBA+' dBA (NFPA 72 §18.4)');}}});
 function crearRect(a,b){
@@ -2170,7 +2170,7 @@ cv.addEventListener('click',e=>{
   if(suprimir){suprimir=false;return;}
   let p=mundoDeEvento(e);if(E.herr==='rec'||E.herr==='rect')p=puntoSnap(p,e).p;
   if(E.moverMarca){const m=E.moverMarca;m.x=p.x;m.y=p.y;E.moverMarca=null;dibujar();estado('Bloque movido.');return;}
-  if(E.moverDisp){const d=E.moverDisp;d.x=p.x;d.y=p.y;if(esEstroboPared(d))pegarAPared(d);d.manual=true;E.moverDisp=null;E._spl=null;E.selDev=d.id;propiedadesDisp();dibujar();reverificar();estado('Dispositivo movido.');return;}
+  if(E.moverDisp){const d=E.moverDisp;d.x=p.x;d.y=p.y;d.manual=true;E.moverDisp=null;E._spl=null;E.selDev=d.id;propiedadesDisp();dibujar();reverificar();estado('Dispositivo movido.');return;}
   if(E.herr==='clon'&&E.plantilla){agregarDisp(p,E.plantilla);return;}
   if(E.pegando){const g=E.pegando,id=E.seq++;E.recintos.push({id,nombre:g.nombre,tipo:g.tipo,poly:g.rel.map(q=>({x:q.x+p.x,y:q.y+p.y})),h:g.h,det:g.det,not:g.not,co:g.co});E.sel=id;propiedades();dibujar();return;}
   if(E.edit){const r=recEdit();if(r){const k=E.vista.k,iv=r.poly.findIndex(q=>Math.hypot(q.x-p.x,q.y-p.y)*k<=HIT_PX);
