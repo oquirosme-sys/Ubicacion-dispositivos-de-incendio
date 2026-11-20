@@ -51,3 +51,8 @@ Un recinto cuyo contorno cae por completo dentro de otro se trata como subrecint
 - «＋ Dispositivo» (con el selector de tipo) agrega dispositivos a mano en el plano, además de los automáticos; se conservan al volver a generar y entran en la verificación del recinto.
 - «Borrar recintos…» abre una lista con casillas para elegir cuáles borrar.
 - Las herramientas y las capas están en el panel izquierdo del módulo 2.
+
+## Paneles plegables y edición rápida
+- Cada tarjeta de los módulos 1 y 2 se pliega con clic en su título; «Plegar todo / Desplegar todo» arriba del panel. Al seleccionar un dispositivo se abre su panel.
+- Clic derecho sobre un dispositivo: Mover (clic en el nuevo lugar), Agregar similares (clona tipo, candelas y dBA con un clic por cada uno; Esc termina), Cambiar tipo/propiedades, bocina sí/no y Borrar. Los mismos botones están en el panel «Dispositivo seleccionado».
+- Recinto rectangular: clic en dos esquinas o arrastrar. Los recintos nuevos toman el nombre del texto del plano que cae dentro.

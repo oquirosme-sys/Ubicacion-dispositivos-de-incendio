@@ -68,6 +68,20 @@
   @media(max-width:1000px){.cols2{grid-template-columns:1fr}}
   .aviso-mod{font-size:.8rem;color:#5a6472}
   #app{padding:0}
+  /* Barra de capas sobre el lienzo: una fila compacta, no una columna del panel */
+  #lienzoWrap #capas{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;margin:0 0 6px;padding:4px 8px;background:#f4f7fa;border:1px solid var(--gb);border-radius:6px;font-size:.78rem}
+  #lienzoWrap #capas>b{grid-column:auto}
+  #lienzoWrap #capas label{display:flex;align-items:center;gap:5px;margin:0;font-weight:600;white-space:nowrap}
+  #lienzoWrap #capas label:has(input[type=range]),#lienzoWrap #capas label:has(input[type=number]){grid-column:auto;justify-content:flex-start}
+  #lienzoWrap #capas input[type=range]{width:80px}#lienzoWrap #capas input[type=number]{width:52px}
+  #mod2 canvas#cv{height:calc(100vh - 250px)}
+  .card>h2.plegable{cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center}
+  .card>h2.plegable::after{content:'▾';font-size:1rem;color:#5a6472}
+  .card.cerrada>h2.plegable::after{content:'▸'}
+  .card.cerrada>*:not(h2){display:none!important}
+  .card.cerrada>h2{margin-bottom:0}
+  .card>h2.plegable:hover{color:var(--az)}
+  .plegar-todo{display:flex;gap:6px;margin-bottom:8px}.plegar-todo button{padding:4px 9px;font-size:.74rem}
   #dlgBorrar{border:1px solid var(--gb);border-radius:10px;padding:16px;max-width:520px;width:92vw;color:var(--tx)}
   #dlgBorrar::backdrop{background:rgba(0,0,0,.35)}
   #dlgLista{max-height:46vh;overflow:auto;border:1px solid var(--gb);border-radius:6px;padding:4px 8px}
@@ -177,7 +191,7 @@
 </div>
 <div id="mod2" class="modulo" style="display:none">
 <div id="app">
-<div id="lateral"><section class="card" id="cardHerr"><h2>Herramientas y capas</h2>
+<div id="lateral"><div class="plegar-todo"><button class="sec" id="plegarTodo">Plegar todo</button><button class="sec" id="desplegarTodo">Desplegar todo</button></div><section class="card" id="cardHerr"><h2>Herramientas</h2>
   <div id="barra">
    <button id="tSel" class="act">Seleccionar</button>
    <button id="tRec" class="sec">Dibujar recinto</button>
@@ -195,17 +209,6 @@
    <button id="tDev" class="sec" title="Agregar dispositivos a mano, además de los automáticos">＋ Dispositivo</button>
    <select id="devTipo" title="Tipo de dispositivo a agregar" style="width:auto;max-width:100%"></select>
    <button id="tAjustar" class="sec">Ajustar vista</button>
-  </div>
-  <div id="capas">
-   <b>Cobertura:</b>
-   <label style="margin:0"><input type="checkbox" id="vCobDet" checked style="width:auto"> Detectores</label>
-   <label style="margin:0"><input type="checkbox" id="vCobVis" style="width:auto"> Notificación visual</label>
-   <label style="margin:0"><input type="checkbox" id="vCobAud" style="width:auto"> Notificación auditiva</label>
-   <label style="margin:0" title="Rojo: por debajo del nivel requerido; verde: cumple; naranja: sobre 110 dBA"><input type="checkbox" id="vSPL" style="width:auto"> Nivel sonoro (dBA)</label>
-   <label style="margin:0"><input type="checkbox" id="vPlano" checked style="width:auto"> Plano</label>
-   <label style="margin:0">Opacidad plano <input type="range" id="vOp" min="10" max="100" value="55" style="width:90px"></label>
-   <label style="margin:0">Tamaño símbolos <input type="range" id="vSim" min="8" max="40" value="16" style="width:90px"></label>
-   <label style="margin:0">Cierre de huecos de puerta (px) <input type="number" id="rellCierre" value="10" min="0" max="40" style="width:56px"></label>
   </div>
 </section><section class="card"><h2>Planta y recintos</h2>
   <b>Modo A — cargar plano</b>
@@ -253,6 +256,17 @@
 
 <div>
  <div id="lienzoWrap">
+  <div id="capas">
+   <b>Cobertura:</b>
+   <label style="margin:0"><input type="checkbox" id="vCobDet" checked style="width:auto"> Detectores</label>
+   <label style="margin:0"><input type="checkbox" id="vCobVis" style="width:auto"> Notificación visual</label>
+   <label style="margin:0"><input type="checkbox" id="vCobAud" style="width:auto"> Notificación auditiva</label>
+   <label style="margin:0" title="Rojo: por debajo del nivel requerido; verde: cumple; naranja: sobre 110 dBA"><input type="checkbox" id="vSPL" style="width:auto"> Nivel sonoro (dBA)</label>
+   <label style="margin:0"><input type="checkbox" id="vPlano" checked style="width:auto"> Plano</label>
+   <label style="margin:0">Opacidad plano <input type="range" id="vOp" min="10" max="100" value="55" style="width:90px"></label>
+   <label style="margin:0">Tamaño símbolos <input type="range" id="vSim" min="8" max="40" value="16" style="width:90px"></label>
+   <label style="margin:0">Cierre de huecos de puerta (px) <input type="number" id="rellCierre" value="10" min="0" max="40" style="width:56px"></label>
+  </div>
   <canvas id="cv"></canvas>
   <div id="estado">Cargue un plano o cree un recinto con dimensiones. Rueda = zoom · arrastrar con botón central o Espacio = desplazar · Enter/doble clic = cerrar polígono · Esc = cancelar.</div>
  </div>
@@ -298,7 +312,7 @@
   <div id="dlgLista"></div>
   <div style="margin-top:10px;text-align:right"><button class="sec" id="dlgCancelar">Cancelar</button><button class="peligro" id="dlgBorrarSel">Borrar seleccionados</button></div>
 </dialog>
-<div id="menuCtx"><div class="titulo" id="menuTit"></div><button id="mDevAud">🔊 Agregar bocina</button><button id="mDevBor" style="color:var(--ro)">🗑 Borrar dispositivo</button><button id="mAgregar">＋ Agregar punto aquí</button><button id="mQuitar">− Eliminar punto</button><button id="mUltimo">↶ Quitar último punto</button><button id="mCerrar">✔ Cerrar polígono</button><button id="mCancelar">✖ Cancelar dibujo</button><button id="mAjustar">✎ Ajustar polígono</button><button id="mCopiar">⧉ Copiar</button><button id="mBorrar" style="color:var(--ro)">🗑 Borrar</button></div>
+<div id="menuCtx"><div class="titulo" id="menuTit"></div><button id="mDevMover">✥ Mover (clic en el nuevo lugar)</button><button id="mDevClon">⧉ Agregar similares</button><button id="mDevCambiar">✎ Cambiar tipo / propiedades</button><button id="mDevAud">🔊 Agregar bocina</button><button id="mDevBor" style="color:var(--ro)">🗑 Borrar dispositivo</button><button id="mAgregar">＋ Agregar punto aquí</button><button id="mQuitar">− Eliminar punto</button><button id="mUltimo">↶ Quitar último punto</button><button id="mCerrar">✔ Cerrar polígono</button><button id="mCancelar">✖ Cancelar dibujo</button><button id="mAjustar">✎ Ajustar polígono</button><button id="mCopiar">⧉ Copiar</button><button id="mBorrar" style="color:var(--ro)">🗑 Borrar</button></div>
 
 <script>
 "use strict";
@@ -887,6 +901,7 @@ function ladoParaCd(tabla,cd){let l=0;tabla.forEach(([lado,c])=>{if(c<=cd&&lado>
 function devSel(){return E.disp.find(d=>d.id===E.selDev)||null;}
 function propiedadesDisp(){
   const c=$('propDisp');if(!c)return;const d=devSel();
+  if(d&&c.closest('.card'))c.closest('.card').classList.remove('cerrada');   // al seleccionar un dispositivo se abre su panel
   if(!d){c.innerHTML='<small class="g">Haga clic en un dispositivo del plano para cambiar su tipo, candelas, montaje (pared/cielo) o nivel sonoro. Arrástrelo para moverlo; clic derecho para más opciones. Para agregar uno a mano, además de los automáticos, elija el tipo junto a «＋ Dispositivo» en Herramientas y haga clic en el plano.</small>';return;}
   const opt=(lista,val,fmt)=>lista.map(v=>'<option value="'+v[0]+'"'+(String(v[0])===String(val)?' selected':'')+'>'+(fmt?fmt(v):v[1])+'</option>').join('');
   const grupoDet=/^det_/.test(d.tipo),grupoNot=/estrobo|^bocina$|^parlante$/.test(d.tipo);
@@ -904,8 +919,10 @@ function propiedadesDisp(){
       const lw=ladoParaCd(TABLA_ESTROBO_PARED,d.cd),lc=ladoParaCd(TABLA_ESTROBO_CIELO[k],d.cd);
       h+='<small class="g">Con '+d.cd+' cd: pared, habitación de hasta '+(lw?lw.toFixed(1)+' × '+lw.toFixed(1)+' m':'— (menor que la tabla)')+'; cielo (cielo ≤ '+k+' m), hasta '+(lc?lc.toFixed(1)+' × '+lc.toFixed(1)+' m':'—')+'. NFPA 72:2022 Tabla 18.5.5.7.1(a)/(b); el cambio no se vuelve a validar contra el recinto.</small>';}
   }else h+='<small class="g">Este dispositivo no tiene opciones editables (se puede mover y borrar).</small>';
-  h+='<br><button class="peligro" id="pdBorrar">Borrar dispositivo</button>';
+  h+='<br><button class="sec" id="pdMover">✥ Mover</button><button class="sec" id="pdClon">⧉ Agregar similares</button><button class="peligro" id="pdBorrar">Borrar dispositivo</button>';
   c.innerHTML=h;
+  $('pdClon').onclick=()=>iniciarSimilares(d);
+  $('pdMover').onclick=()=>{E.moverDisp=d;estado('Mover «'+(ROT[d.tipo]||d.tipo)+'»: haga clic en el nuevo lugar (Esc cancela). También puede arrastrarlo directamente.');};
   const ap=()=>aplicarDisp();['pdTipo','pdFun','pdMon','pdCd','pdDba'].forEach(i=>{if($(i))$(i).onchange=ap;});
   $('pdBorrar').onclick=()=>borrarDisp(d);
 }
@@ -1138,37 +1155,47 @@ function dibujar(){
     if(d.id===E.selDev){cx.beginPath();cx.arc(p.x,p.y,S*1.45,0,7);cx.strokeStyle='#0a5ad4';cx.lineWidth=2.5;cx.stroke();}});
   E.marcas.forEach(m=>{const p=aPant(m);sim(cx,m.t==='salida'?'salida':m.t,p.x,p.y,S);});
   // borrador
-  if(E.borrador.length){cx.strokeStyle='#e0a800';cx.lineWidth=2;cx.beginPath();E.borrador.forEach((p,i)=>{const q=aPant(p);cx[i?'lineTo':'moveTo'](q.x,q.y);});if(E.cursor){const q=aPant(E.cursor);cx.lineTo(q.x,q.y);}cx.stroke();E.borrador.forEach(p=>{const q=aPant(p);cx.fillStyle='#e0a800';cx.fillRect(q.x-3,q.y-3,6,6);});}
+  if(E.herr==='rect'&&E.borrador.length===1&&E.cursor){const a=aPant(E.borrador[0]),b=aPant(E.cursor);cx.strokeStyle='#e0a800';cx.lineWidth=2;cx.setLineDash([6,4]);cx.fillStyle='rgba(224,168,0,.15)';cx.fillRect(a.x,a.y,b.x-a.x,b.y-a.y);cx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);cx.setLineDash([]);}
+  else if(E.borrador.length){cx.strokeStyle='#e0a800';cx.lineWidth=2;cx.beginPath();E.borrador.forEach((p,i)=>{const q=aPant(p);cx[i?'lineTo':'moveTo'](q.x,q.y);});if(E.cursor){const q=aPant(E.cursor);cx.lineTo(q.x,q.y);}cx.stroke();E.borrador.forEach(p=>{const q=aPant(p);cx.fillStyle='#e0a800';cx.fillRect(q.x-3,q.y-3,6,6);});}
   if(E.calib.length){cx.fillStyle='#d00';E.calib.forEach(p=>{const q=aPant(p);cx.fillRect(q.x-4,q.y-4,8,8);});if(E.calib.length===2){const a=aPant(E.calib[0]),b=aPant(E.calib[1]);cx.strokeStyle='#d00';cx.beginPath();cx.moveTo(a.x,a.y);cx.lineTo(b.x,b.y);cx.stroke();}}
   // barra de escala 5 m
   const k=E.vista.k;cx.fillStyle='#111';cx.fillRect(12,r.height-18,5*k,3);cx.font='11px Arial';cx.textAlign='left';cx.fillText('5 m',12,r.height-24);
 }
 function estado(t){$('estado').textContent=t;}
 // Agrega un dispositivo a mano en el punto p, con valores por defecto del recinto que lo contiene (se suma a los automáticos).
-function agregarDisp(p){
-  const t=$('devTipo').value,o=opciones(),rc=recintoMin(p),A=rc&&(E.audPorRec||{})[rc.id];
+function agregarDisp(p,pl){   // pl: dispositivo plantilla (para «agregar similares»); sin plantilla usa el tipo elegido en la barra
+  const t=pl?pl.tipo:$('devTipo').value,o=opciones(),rc=recintoMin(p),A=rc&&(E.audPorRec||{})[rc.id];
   const d={id:E.seq++,tipo:t,x:p.x,y:p.y,sala:rc?rc.nombre:'Manual',rid:rc?rc.id:undefined,manual:true,agregado:true};
   if(/estrobo/.test(t)){
     const cielo=/cielo/.test(t),alt=rc?rc.h:2.7,k=alt<=3.05?3.05:(alt<=6.1?6.10:9.14);
-    d.cd=+$('pCdMax').value||CATALOGO_CD[0];d.pared=!cielo;d.lado=cielo?(ladoParaCd(TABLA_ESTROBO_CIELO[k],d.cd)||undefined):undefined;
+    d.cd=(pl&&pl.cd)||+$('pCdMax').value||CATALOGO_CD[0];d.pared=!cielo;d.lado=cielo?(ladoParaCd(TABLA_ESTROBO_CIELO[k],d.cd)||undefined):undefined;
   }
   if(/bocina|parl/.test(t)){
-    const parl=/parl/.test(t);d.dba3=o.dba>0?o.dba:(parl?PARLANTE_DBA_3M:BOCINA_DBA_3M);
+    const parl=/parl/.test(t);d.dba3=(pl&&pl.dba3)||(o.dba>0?o.dba:(parl?PARLANTE_DBA_3M:BOCINA_DBA_3M));
     d.req=A?A.req:((rc&&TIPOS[rc.tipo]?TIPOS[rc.tipo].amb||0:0)+AUDIBLE_SOBRE_AMBIENTE_DB);d.radio=radioAudible(d.dba3,d.req);
     E.audPorRec=E.audPorRec||{};if(rc&&!E.audPorRec[rc.id])E.audPorRec[rc.id]={req:d.req,dba3:d.dba3,parl};
   }
   if(t==='det_humo'||t==='det_calor')d.radio=(t==='det_humo'?o.espH:o.espC)*FACTOR_RADIO_COBERTURA;
   E.disp.push(d);const x=E.resultados.find(z=>rc&&z.r.id===rc.id);if(x)x.disp.push(d);
   E.selDev=d.id;E._spl=null;propiedadesDisp();dibujar();reverificar();
-  estado('Agregado «'+(ROT[t]||t)+'» en '+d.sala+'. Siga haciendo clic para agregar más del mismo tipo; Esc o «Seleccionar» para terminar. Se conserva al volver a generar.');
+  estado('Agregado «'+(ROT[t]||t)+'» en '+d.sala+'. Siga haciendo clic para agregar más iguales; Esc o «Seleccionar» para terminar. Se conserva al volver a generar.');
 }
 function herramienta(h){E.herr=h;E.borrador=[];E.calib=[];E.edit=null;E.pegando=null;['tSel','tRec','tRect','tRell','tSal','tFacp','tAhu','tAsc','tBor','tDev'].forEach(id=>$(id).classList.toggle('act',id==={sel:'tSel',rec:'tRec',rect:'tRect',rell:'tRell',salida:'tSal',facp:'tFacp',ahu:'tAhu',asc:'tAsc',bor:'tBor',dev:'tDev'}[h]));
   const m={sel:'Clic sobre un recinto para seleccionarlo.',rec:'Clic para cada vértice; doble clic o Enter para cerrar; Esc cancela.',rect:'Clic en dos esquinas opuestas del recinto.',rell:'Clic dentro de un recinto del plano: se rellena hasta los muros.',salida:'Clic para colocar una salida.',facp:'Clic para colocar el FACP/recepción.',ahu:'Clic para colocar una manejadora de aire.',asc:'Clic para colocar un vestíbulo de ascensor.',bor:'Clic sobre un recinto o marcador para borrarlo.',cal:'Clic en 2 puntos de distancia conocida.'}[h];estado(m||'');dibujar();}
-function nuevoRecinto(poly,nombre,tipo,h){const id=E.seq++;E.recintos.push({id,nombre:nombre||('Recinto '+id),tipo:tipo||guessTipo(nombre||''),poly,h:h||+$('mAlto').value||2.7,det:'auto',not:'auto',co:false});E.sel=id;propiedades();dibujar();}
+// Nombre de un recinto a partir de los textos del plano (PDF) que caen dentro de su contorno; '' si no hay plano o no hay texto.
+function nombrePlano(poly){
+  const T=E.textosPdf||[];if(!T.length)return '';
+  const pz=T.filter(q=>dentro(q,poly)).map(q=>({x:q.x,y:-q.y,t:q.t,s:q.s||0.2}));
+  const lineas=pdfLineas(pz,0,0.01);
+  const nombres=lineas.filter(l=>/[A-Za-zÁÉÍÓÚÑáéíóúñ]{2,}/.test(l)&&!/m²|m2/i.test(l));
+  const nums=lineas.filter(l=>/^0\d$/.test(l.trim()));
+  return (nombres.slice(0,2).concat(nombres.length?nums.slice(0,1):[])).join(' ').replace(/\s+/g,' ').slice(0,AUTO_NOMBRE_MAX);
+}
+function nuevoRecinto(poly,nombre,tipo,h){const id=E.seq++;const nm=nombre||nombrePlano(poly)||('Recinto '+id);E.recintos.push({id,nombre:nm,tipo:tipo||guessTipo(nm),poly,h:h||+$('mAlto').value||2.7,det:'auto',not:'auto',co:false});E.sel=id;propiedades();dibujar();}
 function guessTipo(n){n=n.toLowerCase();if(/corredor|pasillo|hall|corridor/.test(n))return 'corredor';if(/ba[ñn]o|shower|wc|sshh/.test(n))return 'bano';if(/kitchen|cocina/.test(n))return 'cocina';if(/elect|comms|data|tele/.test(n))return 'tecnico';if(/store|bodega|storage/.test(n))return 'bodega';if(/stair|escal/.test(n))return 'escalera';if(/lobby|lounge|recep/.test(n))return 'lobby';return $('mTipo').value||'oficina';}
 function mundoDeEvento(e){const r=cv.getBoundingClientRect();return aMundo(e.clientX-r.left,e.clientY-r.top);}
 function recintoEn(p){for(let i=E.recintos.length-1;i>=0;i--)if(dentro(p,E.recintos[i].poly))return E.recintos[i];return null;}
-let arr=null,espacio=false,arrV=null,arrD=null,movio=false,suprimir=false;
+let arr=null,espacio=false,arrV=null,arrD=null,arrR=null,movio=false,suprimir=false;
 function invalidar(){E.disp=[];E.resultados=[];E._spl=null;E.selDev=null;$('resultados').innerHTML='';if(typeof propiedadesDisp==='function')propiedadesDisp();}
 // Dispositivo bajo el cursor (tolerancia en px de pantalla: el mayor entre HIT_PX y el tamaño del símbolo).
 function devEn(p,tolPx){const k=E.vista.k,t=Math.max(tolPx||HIT_PX,+$('vSim').value);let m=null,dm=1e18;
@@ -1179,6 +1206,7 @@ function distBordeIdx(pt,poly){let m=1e18,idx=-1,pr=null;for(let i=0;i<poly.leng
 cv.addEventListener('mousedown',e=>{
   ocultarMenu();
   if(e.button===1||espacio||e.button===2){arr={x:e.clientX,y:e.clientY,vx:E.vista.x,vy:E.vista.y,mov:false,btn:e.button};e.preventDefault();return;}
+  if(e.button===0&&E.herr==='rect'){arrR={a:mundoDeEvento(e),x:e.clientX,y:e.clientY,mov:false};}
   if(e.button===0&&E.herr==='sel'&&!E.edit&&!E.pegando){const d=devEn(mundoDeEvento(e));if(d){arrD={d};movio=false;e.preventDefault();return;}}
   if(e.button===0&&E.edit){const r=recEdit();if(r){const p=mundoDeEvento(e),k=E.vista.k;
     const iv=r.poly.findIndex(q=>Math.hypot(q.x-p.x,q.y-p.y)*k<=HIT_PX);
@@ -1190,10 +1218,12 @@ window.addEventListener('mouseup',e=>{
   if(arr&&arr.btn===2&&!arr.mov&&e.target===cv)menuContextual(e);
   arr=null;
   if(arrV){if(movio){invalidar();suprimir=true;}arrV=null;}
+  if(arrR){if(arrR.mov){crearRect(arrR.a,mundoDeEvento(e));suprimir=true;}arrR=null;}
   if(arrD){if(movio){suprimir=true;E.selDev=arrD.d.id;propiedadesDisp();reverificar();}arrD=null;}
   if(suprimir)setTimeout(()=>{suprimir=false;},0);   // el clic de ese mismo gesto llega antes; si no llega, no se traga el siguiente
 });
 window.addEventListener('mousemove',e=>{
+  if(arrR){if(Math.hypot(e.clientX-arrR.x,e.clientY-arrR.y)>4)arrR.mov=true;if(arrR.mov){E.cursor=mundoDeEvento(e);E.borrador=[arrR.a];dibujar();return;}}
   if(arrD){const p=mundoDeEvento(e);arrD.d.x=p.x;arrD.d.y=p.y;arrD.d.manual=true;movio=true;E._spl=null;dibujar();return;}
   if(arr){if(Math.hypot(e.clientX-arr.x,e.clientY-arr.y)>4)arr.mov=true;if(arr.mov){E.vista.x=arr.vx+e.clientX-arr.x;E.vista.y=arr.vy+e.clientY-arr.y;dibujar();}}
   if(arrV){const r=recEdit();if(r){const p=mundoDeEvento(e);movio=true;
@@ -1207,14 +1237,14 @@ cv.addEventListener('contextmenu',e=>e.preventDefault());
 const MENU_TOL_FACTOR = 2;
 function menuContextual(e){
   const p=mundoDeEvento(e),k=E.vista.k,tol=HIT_PX*MENU_TOL_FACTOR,m=$('menuCtx');
-  const mostrar=(ids,tit)=>{['mDevAud','mDevBor','mAgregar','mQuitar','mUltimo','mCerrar','mCancelar','mAjustar','mCopiar','mBorrar'].forEach(id=>{$(id).style.display=ids.includes(id)?'block':'none';});
+  const mostrar=(ids,tit)=>{['mDevMover','mDevClon','mDevCambiar','mDevAud','mDevBor','mAgregar','mQuitar','mUltimo','mCerrar','mCancelar','mAjustar','mCopiar','mBorrar'].forEach(id=>{$(id).style.display=ids.includes(id)?'block':'none';});
     $('menuTit').textContent=tit;m.style.display='block';
     m.style.left=Math.min(e.clientX,window.innerWidth-200)+'px';m.style.top=Math.min(e.clientY,window.innerHeight-60-ids.length*34)+'px';};
   // Sobre un dispositivo: alternar bocina (visual+auditivo / solo visual) o borrarlo; se selecciona para editarlo en el panel
   const dv=devEn(p,tol);
   if(dv&&!(E.herr==='rec'&&E.borrador.length)){E.ctxDev=dv;E.selDev=dv.id;propiedadesDisp();dibujar();const esEstrobo=/estrobo/.test(dv.tipo),conBocina=/bocina|parl/.test(dv.tipo);
     $('mDevAud').textContent=conBocina?'🔇 Quitar bocina (solo visual)':'🔊 Agregar bocina (visual + auditivo)';
-    mostrar((esEstrobo?['mDevAud']:[]).concat(['mDevBor']),ROT[dv.tipo]||dv.tipo);return;}
+    mostrar(['mDevMover','mDevClon','mDevCambiar'].concat(esEstrobo?['mDevAud']:[],['mDevBor']),ROT[dv.tipo]||dv.tipo);return;}
   // Dibujando un polígono: quitar el último punto, cerrarlo o cancelarlo
   if(E.herr==='rec'&&E.borrador.length){E.ctxP=p;mostrar(['mUltimo'].concat(E.borrador.length>=3?['mCerrar']:[],['mCancelar']),'Dibujando polígono ('+E.borrador.length+' puntos)');return;}
   // Recinto bajo el cursor, o el más cercano cuyo lado o vértice esté dentro de la tolerancia
@@ -1236,6 +1266,14 @@ $('mDevAud').onclick=()=>{ocultarMenu();const d=E.ctxDev;if(!d)return;const A=(E
   else{d.tipo=d.tipo.replace(/^(bocina_|parl_)/,'');delete d.dba3;d.radio=undefined;}
   d.manual=true;E._spl=null;propiedadesDisp();dibujar();reverificar();};
 $('mDevBor').onclick=()=>{ocultarMenu();if(E.ctxDev)borrarDisp(E.ctxDev);};
+// Agregar similares: el dispositivo elegido sirve de plantilla (tipo, candelas, dBA); cada clic en el plano coloca uno igual.
+function iniciarSimilares(d){
+  E.plantilla={tipo:d.tipo,cd:d.cd,dba3:d.dba3};herramienta('clon');
+  estado('Agregar similares de «'+(ROT[d.tipo]||d.tipo)+(d.cd?' '+d.cd+' cd':'')+'»: haga clic en el plano para colocar cada uno. Esc termina.');
+}
+$('mDevClon').onclick=()=>{ocultarMenu();if(E.ctxDev)iniciarSimilares(E.ctxDev);};
+$('mDevMover').onclick=()=>{ocultarMenu();if(!E.ctxDev)return;E.moverDisp=E.ctxDev;estado('Mover «'+(ROT[E.ctxDev.tipo]||E.ctxDev.tipo)+'»: haga clic en el nuevo lugar (Esc cancela). También puede arrastrarlo directamente.');};
+$('mDevCambiar').onclick=()=>{ocultarMenu();E.selDev=E.ctxDev?E.ctxDev.id:E.selDev;propiedadesDisp();dibujar();const c=$('propDisp');if(c){c.scrollIntoView({block:'center'});const f=c.querySelector('select');if(f)f.focus();}};
 $('mAgregar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel);if(!r||!E.ctxBd)return;r.poly.splice(E.ctxBd.i+1,0,{x:E.ctxBd.p.x,y:E.ctxBd.p.y});invalidar();dibujar();estado('Punto agregado en «'+r.nombre+'» ('+r.poly.length+' vértices). Use «Ajustar polígono» para arrastrarlo.');};
 $('mQuitar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel);if(!r||E.ctxIv==null||E.ctxIv<0||r.poly.length<=3)return;r.poly.splice(E.ctxIv,1);invalidar();dibujar();estado('Punto eliminado de «'+r.nombre+'» ('+r.poly.length+' vértices).');};
 $('mUltimo').onclick=()=>{ocultarMenu();E.borrador.pop();dibujar();estado('Último punto quitado ('+E.borrador.length+' puntos).');};
@@ -1264,7 +1302,7 @@ $('mCopiar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel)
   estado('Copiado «'+r.nombre+'»: mueva el cursor y haga clic para pegar (puede pegar varias veces). Esc termina.');dibujar();};
 $('mBorrar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel);if(!r)return;E.recintos=E.recintos.filter(x=>x!==r);E.sel=null;E.edit=null;invalidar();propiedades();dibujar();estado('Recinto «'+r.nombre+'» borrado.');};
 cv.addEventListener('wheel',e=>{e.preventDefault();const r=cv.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top,w=aMundo(px,py),f=e.deltaY<0?1.15:1/1.15;E.vista.k*=f;E.vista.x=px-w.x*E.vista.k;E.vista.y=py-w.y*E.vista.k;dibujar();},{passive:false});
-window.addEventListener('keydown',e=>{if(e.code==='Space'&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){espacio=true;e.preventDefault();}if(e.key==='Escape'){E.borrador=[];E.calib=[];ocultarMenu();terminarAjuste();if(E.herr==='dev')herramienta('sel');}if(e.key==='Enter'){if(E.edit)terminarAjuste();else if(E.herr==='rec')cerrarBorrador();}});
+window.addEventListener('keydown',e=>{if(e.code==='Space'&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){espacio=true;e.preventDefault();}if(e.key==='Escape'){E.borrador=[];E.calib=[];ocultarMenu();terminarAjuste();if(E.herr==='dev'||E.herr==='clon')herramienta('sel');E.moverDisp=null;}if(e.key==='Enter'){if(E.edit)terminarAjuste();else if(E.herr==='rec')cerrarBorrador();}});
 window.addEventListener('keyup',e=>{if(e.code==='Space')espacio=false;});
 // Si la ventana pierde el foco (Alt+Tab, clic fuera) se pierde el «soltar»: se reinician teclas y arrastres para que los clics de dibujo no queden bloqueados.
 window.addEventListener('blur',()=>{espacio=false;arr=null;arrV=null;arrD=null;suprimir=false;});
@@ -1272,12 +1310,19 @@ cv.addEventListener('mousemove',e=>{E.cursor=mundoDeEvento(e);if(E.borrador.leng
   if(!arrD){cv.style.cursor=(E.herr==='sel'&&!E.edit&&!E.pegando&&devEn(E.cursor))?'move':'crosshair';}
   if($('vSPL').checked&&E.audPorRec&&!E.borrador.length&&!arrD){const rr=recintoMin(E.cursor),A=rr&&E.audPorRec[rr.id];
     if(A){const v=splSuma(E.cursor,audibles(rr.id));estado('Nivel sonoro aquí: '+(isFinite(v)?v.toFixed(0):'—')+' dBA · requerido '+A.req.toFixed(0)+' dBA en «'+rr.nombre+'» · máx. permitido '+AUDIBLE_MAX_DBA+' dBA (NFPA 72 §18.4)');}}});
+function crearRect(a,b){
+  if(Math.abs(b.x-a.x)*Math.abs(b.y-a.y)<AREA_MIN_RECINTO_M2){E.borrador=[];dibujar();estado('Rectángulo demasiado pequeño.');return;}
+  nuevoRecinto([{x:a.x,y:a.y},{x:b.x,y:a.y},{x:b.x,y:b.y},{x:a.x,y:b.y}]);E.borrador=[];dibujar();
+  estado('Recinto rectangular creado'+(E.recintos.length&&E.recintos[E.recintos.length-1].nombre.indexOf('Recinto ')!==0?' con el nombre del plano: «'+E.recintos[E.recintos.length-1].nombre+'»':'')+'. Puede arrastrar de una esquina a la otra o hacer clic en dos esquinas.');
+}
 function cerrarBorrador(){if(E.borrador.length>=3&&area(E.borrador)>=AREA_MIN_RECINTO_M2){nuevoRecinto(E.borrador.slice());}E.borrador=[];dibujar();}
 cv.addEventListener('dblclick',e=>{if(E.herr==='rec'){E.borrador.pop();cerrarBorrador();}});
 cv.addEventListener('click',e=>{
   if(arr||espacio)return;
   if(suprimir){suprimir=false;return;}
   const p=mundoDeEvento(e);
+  if(E.moverDisp){const d=E.moverDisp;d.x=p.x;d.y=p.y;d.manual=true;E.moverDisp=null;E._spl=null;E.selDev=d.id;propiedadesDisp();dibujar();reverificar();estado('Dispositivo movido.');return;}
+  if(E.herr==='clon'&&E.plantilla){agregarDisp(p,E.plantilla);return;}
   if(E.pegando){const g=E.pegando,id=E.seq++;E.recintos.push({id,nombre:g.nombre,tipo:g.tipo,poly:g.rel.map(q=>({x:q.x+p.x,y:q.y+p.y})),h:g.h,det:g.det,not:g.not,co:g.co});E.sel=id;propiedades();dibujar();return;}
   if(E.edit){const r=recEdit();if(r){const k=E.vista.k,iv=r.poly.findIndex(q=>Math.hypot(q.x-p.x,q.y-p.y)*k<=HIT_PX);
     if(iv>=0){if(e.shiftKey&&r.poly.length>3){r.poly.splice(iv,1);invalidar();dibujar();}}
@@ -1285,7 +1330,7 @@ cv.addEventListener('click',e=>{
     return;}
   if(E.herr==='sel'){const dv=devEn(p);if(dv){E.selDev=dv.id;E.sel=null;propiedades();propiedadesDisp();dibujar();return;}E.selDev=null;propiedadesDisp();const r=recintoEn(p);E.sel=r?r.id:null;propiedades();dibujar();}
   else if(E.herr==='rec'){E.borrador.push(p);dibujar();}
-  else if(E.herr==='rect'){E.borrador.push(p);if(E.borrador.length===2){const a=E.borrador[0],b=E.borrador[1];nuevoRecinto([{x:a.x,y:a.y},{x:b.x,y:a.y},{x:b.x,y:b.y},{x:a.x,y:b.y}]);E.borrador=[];}dibujar();}
+  else if(E.herr==='rect'){E.borrador.push(p);if(E.borrador.length===2){crearRect(E.borrador[0],E.borrador[1]);}else dibujar();}
   else if(E.herr==='rell'){rellenar_clic(p);}
   else if(E.herr==='dev'){agregarDisp(p);}
   else if(['salida','facp','ahu','asc'].includes(E.herr)){E.marcas.push({id:E.seq++,t:E.herr,x:p.x,y:p.y});tablaEquipos();dibujar();}
@@ -1301,30 +1346,43 @@ cv.addEventListener('click',e=>{
 });
 
 /* --- Relleno por clic sobre el plano (inundación sobre la imagen binarizada) --- */
+// Cierres sucesivos (múltiplos del valor del campo «cierre de huecos») que se prueban si el relleno se escapa por una puerta (CRITERIO).
+const RELLENO_REINTENTOS = [1, 1.6, 2.5, 3.5];
 function rellenar_clic(pm){
   if(!E.img){alert('Cargue primero un plano.');return;}
+  const fuente=E.imgMuros||E.img;   // el render «solo muros» del PDF no tiene mobiliario ni texto: el relleno se escapa menos
   const W0=E.img.width,H0=E.img.height,f=Math.min(1,RELLENO_LADO_MAX_PX/Math.max(W0,H0)),W=Math.round(W0*f),H=Math.round(H0*f);
-  const cv2=document.createElement('canvas');cv2.width=W;cv2.height=H;const c2=cv2.getContext('2d',{willReadFrequently:true});c2.drawImage(E.img,0,0,W,H);
-  const d=c2.getImageData(0,0,W,H).data;let muro=new Uint8Array(W*H);
-  for(let i=0;i<W*H;i++){const g=(d[i*4]+d[i*4+1]+d[i*4+2])/3;muro[i]=(d[i*4+3]>10&&g<RELLENO_UMBRAL_GRIS)?1:0;}
-  const rad=Math.round((+$('rellCierre').value||0)*f);
-  if(rad>0)muro=dilatar(muro,W,H,rad);
-  let sx=Math.round((pm.x-E.imgX)/E.imgM*f),sy=Math.round((pm.y-E.imgY)/E.imgM*f);
-  // Si el clic cae sobre una línea o un texto, se busca el píxel libre más cercano (anillos crecientes).
-  if(sx>=0&&sy>=0&&sx<W&&sy<H&&muro[sy*W+sx]){const R=Math.round(RELLENO_BUSQUEDA_PX*f);let hallado=false;
-    for(let rr=1;rr<=R&&!hallado;rr++)for(let dy=-rr;dy<=rr&&!hallado;dy++)for(let dx=-rr;dx<=rr;dx++){if(Math.max(Math.abs(dx),Math.abs(dy))!==rr)continue;
-      const nx=sx+dx,ny=sy+dy;if(nx>=0&&ny>=0&&nx<W&&ny<H&&!muro[ny*W+nx]){sx=nx;sy=ny;hallado=true;break;}}}
-  if(sx<0||sy<0||sx>=W||sy>=H||muro[sy*W+sx]){estado('El clic cayó sobre un muro/línea; haga clic en un espacio libre del recinto.');return;}
-  const vis=new Uint8Array(W*H),pila=[sy*W+sx];vis[sy*W+sx]=1;let n=0;const lim=W*H*RELLENO_MAX_FRACCION;
-  while(pila.length){const i=pila.pop();n++;if(n>lim){estado('El relleno se escapó (puerta abierta o recinto demasiado grande). Aumente «cierre de huecos» o use «Dibujar recinto».');return;}
-    const x=i%W,y=(i/W)|0;
-    if(x>0&&!vis[i-1]&&!muro[i-1]){vis[i-1]=1;pila.push(i-1);}if(x<W-1&&!vis[i+1]&&!muro[i+1]){vis[i+1]=1;pila.push(i+1);}
-    if(y>0&&!vis[i-W]&&!muro[i-W]){vis[i-W]=1;pila.push(i-W);}if(y<H-1&&!vis[i+W]&&!muro[i+W]){vis[i+W]=1;pila.push(i+W);}}
-  const cont=contorno(vis,W,H,sx,sy);if(!cont||cont.length<3){estado('No se pudo trazar el contorno.');return;}
-  const s=rdp(cont,RELLENO_SIMPL_PX*f);
-  const poly=s.map(p=>({x:E.imgX+p.x/f*E.imgM,y:E.imgY+p.y/f*E.imgM}));
-  if(area(poly)<AREA_MIN_RECINTO_M2){estado('Área demasiado pequeña.');return;}
-  nuevoRecinto(poly);estado('Recinto creado ('+area(poly).toFixed(1)+' m²). Revise nombre y tipo a la izquierda.');
+  const cv2=document.createElement('canvas');cv2.width=W;cv2.height=H;const c2=cv2.getContext('2d',{willReadFrequently:true});c2.drawImage(fuente,0,0,W,H);
+  const d=c2.getImageData(0,0,W,H).data;const muro0=new Uint8Array(W*H);
+  for(let i=0;i<W*H;i++){const g=(d[i*4]+d[i*4+1]+d[i*4+2])/3;muro0[i]=(d[i*4+3]>10&&g<RELLENO_UMBRAL_GRIS)?1:0;}
+  const rad0=Math.max(1,Math.round((+$('rellCierre').value||0)*f));
+  let sx0=Math.round((pm.x-E.imgX)/E.imgM*f),sy0=Math.round((pm.y-E.imgY)/E.imgM*f);
+  if(sx0<0||sy0<0||sx0>=W||sy0>=H){estado('El clic cayó fuera del plano.');return;}
+  let ultimo='';
+  for(const mult of RELLENO_REINTENTOS){
+    const rad=Math.round(rad0*mult),muro=dilatar(muro0,W,H,rad);let sx=sx0,sy=sy0;
+    // Si el clic cae sobre una línea o un texto, se busca el píxel libre más cercano (anillos crecientes).
+    if(muro[sy*W+sx]){const R=Math.round(RELLENO_BUSQUEDA_PX*f);let hallado=false;
+      for(let rr=1;rr<=R&&!hallado;rr++)for(let dy=-rr;dy<=rr&&!hallado;dy++)for(let dx=-rr;dx<=rr;dx++){if(Math.max(Math.abs(dx),Math.abs(dy))!==rr)continue;
+        const nx=sx+dx,ny=sy+dy;if(nx>=0&&ny>=0&&nx<W&&ny<H&&!muro[ny*W+nx]){sx=nx;sy=ny;hallado=true;break;}}}
+    if(muro[sy*W+sx]){ultimo='El clic cayó sobre un muro/línea; haga clic en un espacio libre del recinto.';continue;}
+    const vis=new Uint8Array(W*H),pila=[sy*W+sx];vis[sy*W+sx]=1;let n=0,escapo=false;const lim=W*H*RELLENO_MAX_FRACCION;
+    while(pila.length){const i=pila.pop();n++;if(n>lim){escapo=true;break;}
+      const x=i%W,y=(i/W)|0;
+      if(x>0&&!vis[i-1]&&!muro[i-1]){vis[i-1]=1;pila.push(i-1);}if(x<W-1&&!vis[i+1]&&!muro[i+1]){vis[i+1]=1;pila.push(i+1);}
+      if(y>0&&!vis[i-W]&&!muro[i-W]){vis[i-W]=1;pila.push(i-W);}if(y<H-1&&!vis[i+W]&&!muro[i+W]){vis[i+W]=1;pila.push(i+W);}}
+    if(escapo){ultimo='El relleno se escapó (puerta abierta o recinto demasiado grande). Use «Dibujar recinto» o «Recinto rectangular».';continue;}
+    const cont=contorno(vis,W,H,sx,sy);if(!cont||cont.length<3){ultimo='No se pudo trazar el contorno.';continue;}
+    // Se recupera lo que el cierre se comió: el contorno se calcula sobre la región rellenada y se dilata el mismo radio
+    const reg=dilatar(vis,W,H,rad);for(let i=0;i<W*H;i++)if(muro0[i])reg[i]=0;
+    const c2c=contorno(reg,W,H,sx,sy)||cont;
+    const poly=rdp(c2c,RELLENO_SIMPL_PX*f).map(p=>({x:E.imgX+p.x/f*E.imgM,y:E.imgY+p.y/f*E.imgM}));
+    if(poly.length<3||area(poly)<AREA_MIN_RECINTO_M2){ultimo='Área demasiado pequeña.';continue;}
+    nuevoRecinto(poly);const r=E.recintos[E.recintos.length-1];
+    estado('Recinto creado ('+area(poly).toFixed(1)+' m²)'+(r.nombre.indexOf('Recinto ')!==0?' con el nombre del plano: «'+r.nombre+'»':'')+'. Revise nombre y tipo a la izquierda.');
+    return;
+  }
+  estado(ultimo||'No se pudo crear el recinto.');
 }
 function dilatar(m,W,H,r){const t=new Uint8Array(W*H),o=new Uint8Array(W*H);
   for(let y=0;y<H;y++){let c=0;for(let x=0;x<W+r;x++){if(x<W&&m[y*W+x])c++;if(x-2*r-1>=0&&m[y*W+x-2*r-1])c--;const xc=x-r;if(xc>=0&&xc<W)t[y*W+xc]=c>0?1:0;}}
@@ -1996,6 +2054,13 @@ function glosario(){
   ].forEach(([fi,tr,tit,txt,cuad])=>C.appendChild(celda(g=>{g.fillStyle=fi;g.strokeStyle=tr;g.lineWidth=2;g.beginPath();
     if(cuad)g.rect(10,10,52,52);else g.arc(36,36,27,0,7);g.fill();g.stroke();},tit,txt)));
 }
+// Tarjetas plegables: clic en el título para cerrar lo que no se necesita (queda solo el título) y volver a abrirlo.
+function plegables(){
+  document.querySelectorAll('#mod1 .card,#mod2 #lateral .card').forEach(c=>{const h=c.querySelector(':scope>h2');if(!h)return;
+    h.classList.add('plegable');h.title='Clic para plegar o desplegar';h.onclick=()=>c.classList.toggle('cerrada');});
+  const todo=cerrar=>document.querySelectorAll('#mod1 .card,#mod2 #lateral .card').forEach(c=>c.classList.toggle('cerrada',cerrar));
+  $('plegarTodo').onclick=()=>todo(true);$('desplegarTodo').onclick=()=>todo(false);
+}
 let _lienzoInicial=true;
 function irModulo(id){
   ['mod1','mod2','mod3'].forEach(m=>{$(m).style.display=(m===id)?'':'none';});
@@ -2004,7 +2069,7 @@ function irModulo(id){
   window.scrollTo(0,0);
 }
 document.querySelectorAll('#tabs .seccion').forEach(b=>{b.onclick=()=>irModulo(b.dataset.mod);});
-glosario();propiedadesDisp();
+glosario();propiedadesDisp();plegables();
 </script>
 </body>
 </html>
