@@ -1048,7 +1048,11 @@ function notaModoCob(){
    comb:'<b>Supuestos y limitaciones (recintos combinados):</b> la pérdida por muro del sonido (10–30 dB) y los muros que atraviesa la luz (0 o 1) son criterios de prediseño, no valores de NFPA. El plano no trae puertas ni vidrios: se cuentan cambios de recinto. El programa no quita bocinas redundantes ni reemplaza la verificación de cada recinto contra NFPA 72 §18.4 y §18.5.',
    libre:'<b>Supuestos y limitaciones (sin recintos asignados):</b> se usan todos los dispositivos sin contar muros ni recortar por recinto, en campo libre. Solo se pinta la zona cubierta: el área sin cubrir no se marca en rojo porque sin recintos no hay límite que comparar. No hay verificación por recinto ni porcentaje por recinto contra las tablas de NFPA 72. Una bocina sin recinto asume 15 dBA sobre un ambiente de 0 dBA: ajuste su nivel a mano. Un estrobo de pared sin recinto cubre hacia su propia dirección (tecla R la gira 90°) y, si se aleja del muro, la cobertura parte del dispositivo y deja de cumplir la Figura 18.5.5.7.1.'
   };
-  n.style.display=T[m]?'':'none';n.innerHTML=T[m]||'';
+  n.style.display=T[m]?'':'none';
+  if(E._notaModo===m)return;   // no se reescribe en cada redibujo: así conserva si el usuario la dejó abierta o plegada
+  const abierta=!!(n.querySelector('details')&&n.querySelector('details').open);E._notaModo=m;
+  const t=T[m]||'',i=t.indexOf('</b>')+4;   // el título (en negrita) es el rótulo plegable; el resto, el contenido
+  n.innerHTML=T[m]?'<details'+(abierta?' open':'')+'><summary style="cursor:pointer;color:#7a4a00">'+t.slice(0,i)+' (clic para ver)</summary>'+t.slice(i)+'</details>':'';
 }
 function textoModoSPL(){if($('splModo').value==='libre')return 'sin recintos asignados (todos los dispositivos, sin contar muros)';return $('splModo').value==='comb'?'combinado con recintos vecinos, '+($('splPerd').value||0)+' dB de pérdida por muro':'solo los dispositivos de cada recinto';}
 // Rejilla de puntos alrededor de unos dispositivos (sin depender de recintos): caja de los dispositivos ampliada «ext» metros.
