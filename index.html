@@ -1056,7 +1056,7 @@ function dibujarCobVis(d,p,recorta){
   const k=E.vista.k,cielo=/cielo/.test(d.tipo),rc=recGeom(d);
   let centrado=cielo,base=p,u={x:1,y:0},v={x:0,y:1};
   if(!cielo){
-    if(rc){const g=geomPared(d,rc);v=g.v;u=g.u;base=aPant(g.base);}else centrado=true;   // v: hacia el interior del recinto
+    {const g=geomPared(d,rc);v=g.v;u=g.u;base=aPant(g.base);}   // v: hacia el interior del recinto
   }
   const insuf=!d.lado,Lx=d.lado||d.ladoInsuf;
   const lados=insuf?[Lx]:COBERTURA_VISUAL_LADOS_M.filter(s=>s<Lx-0.05).concat([Lx]);
@@ -1131,7 +1131,7 @@ function cobVisContiene(d,rc,p){
   if(d.radioVis)return Math.hypot(p.x-d.x,p.y-d.y)<=d.radioVis;
   if(!d.lado)return false;
   const h=d.lado/2;
-  if(/cielo/.test(d.tipo)||!rc)return Math.abs(p.x-d.x)<=h&&Math.abs(p.y-d.y)<=h;
+  if(/cielo/.test(d.tipo))return Math.abs(p.x-d.x)<=h&&Math.abs(p.y-d.y)<=h;
   const g=geomPared(d,rc),lat=(p.x-g.base.x)*g.u.x+(p.y-g.base.y)*g.u.y,prof=(p.x-g.base.x)*g.v.x+(p.y-g.base.y)*g.v.y;
   return Math.abs(lat)<=h&&prof>=0&&prof<=d.lado;
 }
@@ -1203,6 +1203,7 @@ function esEstroboPared(d){return /estrobo/.test(d.tipo)&&!/cielo/.test(d.tipo)&
 // Recinto que se usa para la geometría de la cobertura: el que contiene hoy al dispositivo (si lo movieron a otro recinto), y si no, el suyo.
 function recGeom(d){return recintoMin(d)||E.recintos.find(x=>x.id===d.rid)||null;}
 function geomPared(d,rc){
+  if(!rc){const v=d.dirV||{x:0,y:1};return {pb:{x:d.x,y:d.y},base:{x:d.x,y:d.y},v,u:{x:-v.y,y:v.x}};}   // sin recinto: el estrobo de pared cubre hacia su propia dirección (R la gira 90°)
   const pb=puntoBorde(d,rc.poly);let dx=d.x-pb.x,dy=d.y-pb.y,m=Math.hypot(dx,dy);
   if(m<1e-6){const b=bbox(rc.poly);dx=b.x0+b.w/2-pb.x;dy=b.y0+b.h/2-pb.y;m=Math.hypot(dx,dy)||1;}
   else if(!enRecinto(d,rc.poly)){dx=-dx;dy=-dy;}   // arrastrado fuera del recinto: el interior queda del otro lado
@@ -1240,6 +1241,7 @@ function rotarPared(d,sentido){
 }
 function girarEstroboPared(d,sentido){
   if(!d||!esEstroboPared(d))return;
+  if(!recGeom(d)){const v=d.dirV||{x:0,y:1};d.dirV=sentido<0?{x:v.y,y:-v.x}:{x:-v.y,y:v.x};propiedadesDisp();dibujar();estado('Estrobo de pared sin recinto girado '+(sentido<0?'−':'+')+'90°.');return;}
   if(!rotarPared(d,sentido)){estado('No hay otro muro válido para girar el estrobo en este recinto.');return;}
   propiedadesDisp();dibujar();reverificar();
   estado('Estrobo de pared girado '+(sentido<0?'−':'+')+'90°: ahora cubre desde otro muro. Tecla R gira +90°, Mayús+R −90°; arrástrelo para ajustar su posición a lo largo del muro.');
@@ -1983,7 +1985,7 @@ function exportarDXF(){
       if(/estrobo/.test(d.tipo)){
         if(d.radioVis)circulo('ALARMA-COB-VIS',d.x,d.y,d.radioVis);
         else if(d.lado){const L=d.lado,rc=recGeom(d);
-          if(/cielo/.test(d.tipo)||!rc)poli('ALARMA-COB-VIS',[{x:d.x-L/2,y:d.y-L/2},{x:d.x+L/2,y:d.y-L/2},{x:d.x+L/2,y:d.y+L/2},{x:d.x-L/2,y:d.y+L/2}],true);
+          if(/cielo/.test(d.tipo))poli('ALARMA-COB-VIS',[{x:d.x-L/2,y:d.y-L/2},{x:d.x+L/2,y:d.y-L/2},{x:d.x+L/2,y:d.y+L/2},{x:d.x-L/2,y:d.y+L/2}],true);
           else{const gm=geomPared(d,rc),a={x:gm.base.x-gm.u.x*L/2,y:gm.base.y-gm.u.y*L/2},b={x:gm.base.x+gm.u.x*L/2,y:gm.base.y+gm.u.y*L/2};
             poli('ALARMA-COB-VIS',[a,b,{x:b.x+gm.v.x*L,y:b.y+gm.v.y*L},{x:a.x+gm.v.x*L,y:a.y+gm.v.y*L}],true);}}
       }
