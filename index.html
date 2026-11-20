@@ -37,6 +37,9 @@
   th,td{border:1px solid var(--gb);padding:4px 6px;text-align:left;vertical-align:top} th{background:var(--azc)}
   .tarjeta{border:1px solid var(--gb);border-radius:7px;padding:8px 10px;margin:8px 0;background:#fbfcfd}
   .tarjeta h4{margin:0 0 4px;font-size:.88rem;color:var(--az0)}
+  details.tarjeta>summary{cursor:pointer;list-style-position:inside}
+  details.tarjeta>summary h4{display:inline;margin:0}
+  details.tarjeta[open]>summary{margin-bottom:4px}
   .insignia{display:inline-block;border-radius:10px;padding:1px 8px;font-size:.72rem;font-weight:700}
   .insignia.ok{background:var(--vef)}.insignia.mal{background:var(--rof)}.insignia.rev{background:var(--amf)}
   .leyenda{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:4px;font-size:.78rem}
@@ -1140,7 +1143,8 @@ function dibujarAudible(d,p,recorta){
   recorta(d,()=>{anillos.forEach(a=>{if(a.r*k<AUDIBLE_ANILLO_MIN_PX)return;cx.beginPath();cx.arc(p.x,p.y,a.r*k,0,7);
     if(a.borde){cx.fillStyle=COLOR.cobA;cx.fill();}cx.strokeStyle=a.borde?'rgba(20,70,190,.95)':'rgba(20,70,190,.55)';cx.lineWidth=a.borde?1.8:1.1;cx.stroke();});});
   cx.fillStyle='rgba(20,70,190,.6)';cx.font='10px Arial';cx.textAlign='center';cx.textBaseline='bottom';
-  anillos.forEach(a=>{if(a.r*k>=AUDIBLE_ANILLO_MIN_PX*2)cx.fillText(a.t,p.x,p.y-a.r*k-2);});
+  const rcL=recGeom(d);   // el rótulo solo se escribe si cae dentro del recinto y del área de diseño (si no, queda flotando fuera del edificio)
+  anillos.forEach(a=>{if(a.r*k<AUDIBLE_ANILLO_MIN_PX*2)return;const q={x:d.x,y:d.y-a.r};if(rcL&&!enRecinto(q,rcL.poly))return;if(E.zona&&E.zona.length>2&&!dentro(q,E.zona))return;cx.fillText(a.t,p.x,p.y-a.r*k-2);});
 }
 // Nivel audible requerido en un tipo de recinto: ambiente supuesto + 15 dB (NFPA 72 modo público), no menos que el mínimo del estándar
 // de cadena, y áreas de dormir ≥ 75 dBA. El ambiente por tipo es un criterio de prediseño, no un valor normativo.
@@ -1492,7 +1496,24 @@ function mostrarResultados(){
       m.filas.map(f=>'<tr>'+f.map(v=>'<td>'+esc(v)+'</td>').join('')+'</tr>').join('')+'</table>'+
       bloque(['1 módulo de monitoreo por señal supervisada y 1 de control por equipo controlado (Matriz_Supervision_NFPA72).'],['Referencias de equipos de la hoja de cálculo de Sinergia; solo NFPA 20 10.4.7.2.1–.4 figuran como verificadas en ella. Ajuste por proyecto.'])+'</div>';
   }
-  $('resultados').innerHTML=h;
+  $('resultados').innerHTML=h;plegarTarjetas();
+}
+// Cada tarjeta de resultados (resumen, pulsadores, cada recinto, módulos) se vuelve plegable; lo que el usuario cierra se recuerda al redibujar.
+function plegarTarjetas(){
+  const cont=$('resultados'),cerr=E._plg||(E._plg=new Set());
+  cont.querySelectorAll(':scope > .tarjeta').forEach(t=>{
+    const h4=t.querySelector(':scope > h4');if(!h4)return;
+    const clave=h4.textContent.split('(')[0].split(':')[0].trim(),d=document.createElement('details'),sm=document.createElement('summary');
+    d.className='tarjeta';d.dataset.k=clave;if(!cerr.has(clave))d.open=true;
+    sm.appendChild(h4);d.appendChild(sm);while(t.firstChild)d.appendChild(t.firstChild);t.replaceWith(d);
+    d.addEventListener('toggle',()=>{if(d.open)cerr.delete(clave);else cerr.add(clave);});
+  });
+  if(cont.querySelector('details.tarjeta')){
+    const b=document.createElement('div');b.style.cssText='margin:4px 0;display:flex;gap:6px';
+    b.innerHTML='<button class="sec" data-plg="cerrar">Plegar todo</button><button class="sec" data-plg="abrir">Desplegar todo</button>';
+    b.addEventListener('click',e=>{const x=e.target.closest('[data-plg]');if(!x)return;cont.querySelectorAll('details.tarjeta').forEach(d=>{d.open=x.dataset.plg==='abrir';});});
+    cont.insertBefore(b,cont.querySelector('details.tarjeta'));
+  }
 }
 
 /* ==========================================================================
@@ -1690,7 +1711,7 @@ function dibujarBase(){
   const verDet=!V2&&$('vCobDet').checked,verVis=!V2&&$('vCobVis').checked,verAud=!V2&&$('vCobAud').checked;
   dibujarZona();
   if(!E._modoCable)avisoZona();
-  const recorta=(d,fn)=>{const rc=recGeom(d);cx.save();if(rc){cx.beginPath();[rc.poly].concat(rc.poly.huecos||[]).forEach(pl=>{pl.forEach((q,i)=>{const a=aPant(q);cx[i?'lineTo':'moveTo'](a.x,a.y);});cx.closePath();});cx.clip('evenodd');}fn();cx.restore();};
+  const recorta=(d,fn)=>{const rc=recGeom(d);cx.save();if(rc){cx.beginPath();[rc.poly].concat(rc.poly.huecos||[]).forEach(pl=>{pl.forEach((q,i)=>{const a=aPant(q);cx[i?'lineTo':'moveTo'](a.x,a.y);});cx.closePath();});cx.clip('evenodd');}else if(E.zona&&E.zona.length>2){cx.beginPath();E.zona.forEach((q,i)=>{const a=aPant(q);cx[i?'lineTo':'moveTo'](a.x,a.y);});cx.closePath();cx.clip();}fn();cx.restore();};
   E.disp.forEach(d=>{
     const p=aPant(d);
     const rcO=E.recintos.find(x=>x.id===d.rid);if(rcO&&rcO.ocultaCob)return;   // cobertura oculta en ese recinto (clic derecho)
