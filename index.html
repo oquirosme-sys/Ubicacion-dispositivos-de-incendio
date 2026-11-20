@@ -276,6 +276,11 @@
   <label><input type="checkbox" id="chkImg" style="width:auto"> Incluir imagen del plano en el borrador (archivo grande)</label>
   <button class="sec" id="btnPNG">Exportar plano (PNG)</button>
   <button class="sec" id="btnCSV">Exportar dispositivos (CSV)</button>
+  <button class="sec" id="btnDXF" title="Dibujo a escala real, con capas por sistema y los símbolos como bloques">Exportar a CAD (.dxf)</button>
+  <div style="font-size:.78rem;margin:2px 0 6px">Unidades <select id="dxfUni" style="width:auto"><option value="m">metros</option><option value="mm">milímetros</option></select> ·
+   escala de impresión 1:<input type="number" id="dxfEsc" value="75" min="1" style="width:64px;display:inline"> ·
+   <label style="display:inline;font-weight:600"><input type="checkbox" id="dxfCob" style="width:auto"> incluir coberturas</label></div>
+  <small class="g">El .dxf abre en AutoCAD, Revit y BricsCAD; en AutoCAD use «Guardar como…» .dwg. Se dibuja a tamaño real (1:1); la escala fija el tamaño de los símbolos y rótulos para imprimir a 1:N.</small>
   <button class="sec" id="btnInforme">Informe imprimible / PDF</button>
   <label><input type="checkbox" id="chkAuto" style="width:auto" checked> Recordar mi trabajo en este navegador (se restaura al recargar la página)</label>
   <button class="sec" id="btnOlvidar">Olvidar lo guardado</button> <small class="g" id="autoEstado"></small>
@@ -1757,6 +1762,129 @@ $('btnCabCSV').onclick=()=>{
   descargar('precableado.csv','\ufeff'+L.join('\n'),'text/csv');
 };
 PRE_CAMPOS.forEach(i=>{$(i).addEventListener('change',recalcularCableado);});
+/* ==========================================================================
+   EXPORTAR A CAD (DXF): dibujo a tamaño real (1:1), capas por sistema y símbolos NFPA 170 como bloques con el tamaño que tendrán
+   impresos a la escala 1:N. DXF R12 (ASCII): lo abren AutoCAD, Revit y BricsCAD; el .dwg se obtiene guardándolo desde AutoCAD
+   (el .dwg es un formato binario propietario: no se puede escribir sin librerías, y esta herramienta es un solo archivo sin internet).
+   ========================================================================== */
+// Altura del símbolo en el papel (mm): a escala 1:N el símbolo mide mm·N/1000 m en el modelo (CRITERIO de dibujo).
+const DXF_SIMBOLO_PAPEL_MM = 4;
+// Capas del dibujo: nombre → color ACI
+const DXF_CAPAS = {'ALARMA-RECINTOS':8,'ALARMA-DETECTORES':3,'ALARMA-NOTIFICACION':1,'ALARMA-PULSADORES':6,'ALARMA-MODULOS':5,'ALARMA-EQUIPOS':4,'ALARMA-SALIDAS':3,'ALARMA-FACP':5,
+  'ALARMA-TEXTO':7,'ALARMA-COB-DET':3,'ALARMA-COB-VIS':1,'ALARMA-COB-AUD':5,'ALARMA-SLC':5,'ALARMA-NAC':1,'ALARMA-HOJA':8};
+function capaDeDispositivo(t){
+  if(/^det_/.test(t))return 'ALARMA-DETECTORES';if(t==='pulsador')return 'ALARMA-PULSADORES';if(/^modulo_|^aislador/.test(t))return 'ALARMA-MODULOS';return 'ALARMA-NOTIFICACION';
+}
+// Geometría de cada símbolo en coordenadas unitarias (radio 0.5): entidades L (línea), C (círculo), P (polilínea), T (texto centrado)
+function simboloDXF(t){
+  const hex=()=>({t:'P',c:1,pts:[0,1,2,3,4,5].map(i=>[0.5*Math.cos(Math.PI/3*i+Math.PI/6),0.5*Math.sin(Math.PI/3*i+Math.PI/6)])});
+  const cuad=h=>({t:'P',c:1,pts:[[-h,-h],[h,-h],[h,h],[-h,h]]});
+  const cruz=h=>[{t:'L',a:[-h,-h],b:[h,h]},{t:'L',a:[h,-h],b:[-h,h]}];
+  const tri=(x,y,r)=>({t:'P',c:1,pts:[[x-r,y+r*0.8],[x+r,y+r*0.8],[x,y-r*0.8]]});
+  const tx=(txt,h,x,y)=>({t:'T',x:x||0,y:y||0,h,txt});
+  switch(t){
+    case 'det_humo':return [hex(),tx('S',0.5)];
+    case 'det_calor':return [hex(),tx('H',0.5)];
+    case 'det_co':return [hex(),tx('CO',0.32)];
+    case 'det_ducto':return [hex(),tx('S',0.5),{t:'L',a:[0,0.5],b:[0,0.85]}];
+    case 'pulsador':return [cuad(0.425),tx('F',0.5)];
+    case 'estrobo':return [cuad(0.425)].concat(cruz(0.425));
+    case 'estrobo_cielo':return [{t:'C',x:0,y:0,r:0.45}].concat(cruz(0.45));
+    case 'bocina_estrobo':case 'parl_estrobo':return [cuad(0.425)].concat(cruz(0.425),[tri(-0.25,0.68,0.2)]);
+    case 'bocina_estrobo_cielo':case 'parl_estrobo_cielo':return [{t:'C',x:0,y:0,r:0.45}].concat(cruz(0.45),[tri(-0.25,0.7,0.2)]);
+    case 'bocina':return [cuad(0.35),tx('H',0.4),tri(0,0.62,0.22)];
+    case 'parlante':return [cuad(0.35),tx('S',0.4),tri(0,0.62,0.22)];
+    case 'modulo_mon':return [cuad(0.375),tx('AIM',0.22)];
+    case 'modulo_ctl':return [cuad(0.375),tx('AOM',0.22)];
+    case 'aislador':return [cuad(0.375),tx('IM',0.25)];
+  }
+  return [cuad(0.4),tx('?',0.4)];
+}
+function exportarDXF(){
+  if(!E.recintos.length&&!E.disp.length&&!E.marcas.length){alert('No hay nada que exportar: cree recintos o genere el prediseño.');return;}
+  const K=$('dxfUni').value==='mm'?1000:1,N=Math.max(1,+$('dxfEsc').value||75),SZ=DXF_SIMBOLO_PAPEL_MM/1000*N;   // tamaño del símbolo en el modelo (m)
+  const asc=t=>String(t).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[×·]/g,'x').replace(/[≥]/g,'>=').replace(/[^\x20-\x7e]/g,'?');
+  const f=v=>(+v).toFixed(4),X=x=>f(x*K),Y=y=>f(-y*K);   // eje Y invertido: la pantalla crece hacia abajo, el CAD hacia arriba
+  const out=[];const g=(c,v)=>{out.push(String(c));out.push(String(v));};
+  const linea=(L,a,b,col)=>{g(0,'LINE');g(8,L);g(10,a[0]);g(20,a[1]);g(30,0);g(11,b[0]);g(21,b[1]);g(31,0);};
+  const circulo=(L,x,y,r)=>{g(0,'CIRCLE');g(8,L);g(10,X(x));g(20,Y(y));g(30,0);g(40,f(r*K));};
+  const poli=(L,pts,cerrada,lt)=>{g(0,'POLYLINE');g(8,L);if(lt)g(6,lt);g(66,1);g(70,cerrada?1:0);pts.forEach(p=>{g(0,'VERTEX');g(8,L);g(10,X(p.x));g(20,Y(p.y));g(30,0);});g(0,'SEQEND');g(8,L);};
+  const texto=(L,x,y,h,t,centro)=>{g(0,'TEXT');g(8,L);g(10,X(x));g(20,Y(y));g(30,0);g(40,f(h*K));g(1,asc(t));if(centro){g(72,1);g(11,X(x));g(21,Y(y));g(31,0);g(73,2);}};
+  const inserta=(L,blq,x,y,tam,rot)=>{g(0,'INSERT');g(8,L);g(2,blq);g(10,X(x));g(20,Y(y));g(30,0);g(41,f(tam*K));g(42,f(tam*K));g(43,f(tam*K));g(50,f(rot||0));};
+  // ---- cabecera y tablas
+  g(0,'SECTION');g(2,'HEADER');g(9,'$ACADVER');g(1,'AC1009');g(9,'$INSUNITS');g(70,K===1000?4:6);g(9,'$LTSCALE');g(40,f(K===1000?1000:1));g(0,'ENDSEC');
+  g(0,'SECTION');g(2,'TABLES');
+  g(0,'TABLE');g(2,'LTYPE');g(70,2);
+  g(0,'LTYPE');g(2,'CONTINUOUS');g(70,0);g(3,'Solid line');g(72,65);g(73,0);g(40,0);
+  g(0,'LTYPE');g(2,'DASHED');g(70,0);g(3,'Dashed');g(72,65);g(73,2);g(40,f(SZ*1.5));g(49,f(SZ));g(49,f(-SZ*0.5));g(0,'ENDTAB');
+  const capas=Object.keys(DXF_CAPAS);
+  g(0,'TABLE');g(2,'LAYER');g(70,capas.length+1);
+  g(0,'LAYER');g(2,'0');g(70,0);g(62,7);g(6,'CONTINUOUS');
+  capas.forEach(c=>{g(0,'LAYER');g(2,c);g(70,0);g(62,DXF_CAPAS[c]);g(6,'CONTINUOUS');});g(0,'ENDTAB');
+  g(0,'TABLE');g(2,'STYLE');g(70,1);g(0,'STYLE');g(2,'STANDARD');g(70,0);g(40,0);g(41,1);g(50,0);g(71,0);g(42,f(SZ*0.5*K));g(3,'txt');g(4,'');g(0,'ENDTAB');
+  g(0,'ENDSEC');
+  // ---- bloques de símbolos (una definición por tipo realmente usado)
+  const usados=new Set(E.disp.map(d=>d.tipo));E.marcas.forEach(m=>{const e=equipoDe(m);if(e)dispositivosEquipo(e).forEach(dp=>usados.add(dp.func==='Control'?'modulo_ctl':'modulo_mon'));});
+  g(0,'SECTION');g(2,'BLOCKS');
+  usados.forEach(t=>{const nombre='SIM_'+t.toUpperCase();g(0,'BLOCK');g(8,'0');g(2,nombre);g(70,0);g(10,0);g(20,0);g(30,0);g(3,nombre);
+    simboloDXF(t).forEach(e=>{
+      if(e.t==='L'){g(0,'LINE');g(8,'0');g(10,f(e.a[0]));g(20,f(e.a[1]));g(30,0);g(11,f(e.b[0]));g(21,f(e.b[1]));g(31,0);}
+      else if(e.t==='C'){g(0,'CIRCLE');g(8,'0');g(10,f(e.x));g(20,f(e.y));g(30,0);g(40,f(e.r));}
+      else if(e.t==='P'){g(0,'POLYLINE');g(8,'0');g(66,1);g(70,1);e.pts.forEach(p=>{g(0,'VERTEX');g(8,'0');g(10,f(p[0]));g(20,f(-p[1]));g(30,0);});g(0,'SEQEND');g(8,'0');}
+      else if(e.t==='T'){g(0,'TEXT');g(8,'0');g(10,f(e.x));g(20,f(-e.y));g(30,0);g(40,f(e.h));g(1,e.txt);g(72,1);g(11,f(e.x));g(21,f(-e.y));g(31,0);g(73,2);}
+    });g(0,'ENDBLK');g(8,'0');});
+  g(0,'ENDSEC');
+  // ---- entidades
+  g(0,'SECTION');g(2,'ENTITIES');
+  // cuadro de datos del proyecto y límite de la hoja del plano (para superponer el PDF original con el mismo origen)
+  texto('ALARMA-TEXTO',0,-SZ*3,SZ*0.8,'Prediseno de alarma contra incendio - '+($('pNombre').value||'proyecto')+' - escala de impresion 1:'+N+' - NFPA 72:'+$('ed72').value+' / NFPA 101:'+$('ed101').value);
+  if(E.img){const w=E.img.width*E.imgM,h=E.img.height*E.imgM;poli('ALARMA-HOJA',[{x:E.imgX,y:E.imgY},{x:E.imgX+w,y:E.imgY},{x:E.imgX+w,y:E.imgY+h},{x:E.imgX,y:E.imgY+h}],true);
+    texto('ALARMA-HOJA',E.imgX,E.imgY-SZ*1.5,SZ*0.6,'Limite de la hoja del plano: esquina superior izquierda en ('+E.imgX.toFixed(2)+', '+(-E.imgY).toFixed(2)+')');}
+  E.recintos.forEach(r=>{poli('ALARMA-RECINTOS',r.poly,true);const b=bbox(r.poly);texto('ALARMA-RECINTOS',b.x0+b.w/2,b.y0+b.h/2,SZ*0.7,r.nombre,true);});
+  E.marcas.forEach(m=>{
+    const e=equipoDe(m);
+    if(m.t==='salida'){const w=SZ*1.8,h=SZ*1.1;poli('ALARMA-SALIDAS',[{x:m.x-w/2,y:m.y-h/2},{x:m.x+w/2,y:m.y-h/2},{x:m.x+w/2,y:m.y+h/2},{x:m.x-w/2,y:m.y+h/2}],true);texto('ALARMA-SALIDAS',m.x,m.y,SZ*0.4,'SALIDA',true);}
+    else if(m.t==='facp'){const w=SZ*2,h=SZ*1.4;poli('ALARMA-FACP',[{x:m.x-w/2,y:m.y-h/2},{x:m.x+w/2,y:m.y-h/2},{x:m.x+w/2,y:m.y+h/2},{x:m.x-w/2,y:m.y+h/2}],true);texto('ALARMA-FACP',m.x,m.y,SZ*0.55,'FACP',true);}
+    else if(e){
+      const w=SZ*1.9,h=SZ*1.3;poli('ALARMA-EQUIPOS',[{x:m.x-w/2,y:m.y-h/2},{x:m.x+w/2,y:m.y-h/2},{x:m.x+w/2,y:m.y+h/2},{x:m.x-w/2,y:m.y+h/2}],true);texto('ALARMA-EQUIPOS',m.x,m.y,SZ*0.5,e,true);
+      const dis=dispositivosEquipo(e);let i=0;
+      dis.forEach(dp=>{for(let k=0;k<dp.n;k++,i++)inserta('ALARMA-MODULOS','SIM_'+(dp.func==='Control'?'MODULO_CTL':'MODULO_MON'),m.x+SZ*1.9+(i%8)*SZ*1.75,m.y+Math.floor(i/8)*SZ*1.75,SZ,0);});
+      dis.forEach((dp,j)=>texto('ALARMA-TEXTO',m.x-w/2,m.y+SZ*0.9+j*SZ*0.45,SZ*0.35,dp.n+'x '+dp.pn+' ('+dp.func+') - '+nombreEquipo(e)));
+    }
+  });
+  E.disp.forEach(d=>{
+    inserta(capaDeDispositivo(d.tipo),'SIM_'+d.tipo.toUpperCase(),d.x,d.y,SZ,-(d.giro||0));   // el giro del canvas es horario con Y hacia abajo
+    if(d.cd)texto('ALARMA-TEXTO',d.x+SZ*0.6,d.y-SZ*0.6,SZ*0.3,d.cd+'cd');
+  });
+  // coberturas (opcionales): círculo de detectores y audibles, cuadrados de los estrobos (de pared: desde el muro)
+  if($('dxfCob').checked){
+    E.disp.forEach(d=>{
+      if((d.tipo==='det_humo'||d.tipo==='det_calor')&&d.radio)circulo('ALARMA-COB-DET',d.x,d.y,d.radio);
+      if(/bocina|parl/.test(d.tipo)&&d.radio)circulo('ALARMA-COB-AUD',d.x,d.y,d.radio);
+      if(/estrobo/.test(d.tipo)){
+        if(d.radioVis)circulo('ALARMA-COB-VIS',d.x,d.y,d.radioVis);
+        else if(d.lado){const L=d.lado,rc=E.recintos.find(r=>r.id===d.rid);
+          if(/cielo/.test(d.tipo)||!rc)poli('ALARMA-COB-VIS',[{x:d.x-L/2,y:d.y-L/2},{x:d.x+L/2,y:d.y-L/2},{x:d.x+L/2,y:d.y+L/2},{x:d.x-L/2,y:d.y+L/2}],true);
+          else{const gm=geomPared(d,rc),a={x:gm.pb.x-gm.u.x*L/2,y:gm.pb.y-gm.u.y*L/2},b={x:gm.pb.x+gm.u.x*L/2,y:gm.pb.y+gm.u.y*L/2};
+            poli('ALARMA-COB-VIS',[a,b,{x:b.x+gm.v.x*L,y:b.y+gm.v.y*L},{x:a.x+gm.v.x*L,y:a.y+gm.v.y*L}],true);}}
+      }
+    });
+  }
+  // precableado: recorrido ortogonal de cada circuito; el retorno de la clase A en línea discontinua
+  if(E.cableado){
+    E.cableado.circuitos.forEach(c=>{
+      const capa=c.tipo==='SLC'?'ALARMA-SLC':'ALARMA-NAC',ruta=pts=>{const v=[pts[0]];for(let i=1;i<pts.length;i++){v.push({x:pts[i].x,y:pts[i-1].y});v.push(pts[i]);}return v;};
+      poli(capa,ruta(c.pts),false);
+      if(c.clase==='A'&&c.pts.length>1)poli(capa,ruta([c.pts[c.pts.length-1],c.pts[0]]),false,'DASHED');
+      texto('ALARMA-TEXTO',(c.pts[1]||c.pts[0]).x+SZ*0.5,(c.pts[1]||c.pts[0]).y-SZ*0.5,SZ*0.4,c.id+' clase '+c.clase+' - '+c.L.toFixed(0)+' m - caida '+c.caida.toFixed(2)+' V');
+    });
+  }
+  g(0,'ENDSEC');g(0,'EOF');
+  const nombre='prediseno_alarmas_'+($('pNombre').value||'proyecto').replace(/\W+/g,'_')+'.dxf';
+  descargar(nombre,out.join('\r\n')+'\r\n','application/dxf');
+  estado('Exportado «'+nombre+'»: unidades en '+(K===1000?'milímetros':'metros')+', tamaño real (1:1), símbolos de '+(SZ*1000).toFixed(0)+' mm de modelo para imprimir a 1:'+N+'. Ábralo en AutoCAD y guárdelo como .dwg si lo necesita.');
+}
+$('btnDXF').onclick=exportarDXF;
 function recEdit(){return E.recintos.find(r=>r.id===E.edit);}
 function ocultarMenu(){$('menuCtx').style.display='none';}
 function distBordeIdx(pt,poly){let m=1e18,idx=-1,pr=null;for(let i=0;i<poly.length;i++){const sg=distSeg(pt,poly[i],poly[(i+1)%poly.length]);if(sg.d<m){m=sg.d;idx=i;pr=sg;}}return{d:m,i:idx,p:pr};}
@@ -2181,6 +2309,7 @@ $('filePlano').onchange=async ev=>{const f=ev.target.files[0];if(!f)return;E.img
   if(/\.pdf$/i.test(f.name)){await cargarPDF(f);}else{const url=URL.createObjectURL(f);const im=new Image();im.onload=()=>{ponerImagen(im);};im.src=url;}};
 function ponerImagen(im){E.img=im;E.imgMuros=null;E.imgX=0;E.imgY=0;aplicarEscala();ajustarVista();estado('Plano cargado ('+im.width+'×'+im.height+' px). Verifique la escala con «Calibrar con 2 puntos» sobre una cota conocida.');}
 function aplicarEscala(){if(!E.img)return;const N=+$('escN').value,dpi=+$('escDpi').value;if(N>0&&dpi>0)E.imgM=0.0254/dpi*N;ajustarVista();}
+$('escN').addEventListener('change',()=>{if(+$('escN').value>0)$('dxfEsc').value=$('escN').value;});
 $('btnEscalaAuto').onclick=aplicarEscala;
 $('btnCalibrar').onclick=()=>{if(!E.img){alert('Cargue un plano.');return;}herramienta('cal');};
 /* ==========================================================================

@@ -105,3 +105,8 @@ Un recinto cuyo contorno cae por completo dentro de otro se trata como subrecint
 - Fórmulas de la memoria de cálculo de alarmas (Calc.circuito): R lazo = 2·L/1000·Ω/km; caída = I·R; V disponible = V nominal ×  0.000000in de vida − caída (por defecto 24 V × 85 % = 20.4 V; mínimo 16 V). Corrientes en alarma del catálogo Simplex de la memoria.
 - Se ve en el plano con la capa «Precableado» (línea continua = ida, discontinua = retorno clase A). Exporta CSV (circuito, clase, cable, longitud, corriente, caída, estado, dispositivos). Entra en deshacer y en el borrador .json.
 - No sigue canalizaciones ni evita obstáculos; el límite de dispositivos del lazo depende del panel (verificar la ficha). La integración directa con la memoria de cálculo (baterías y caída por circuito) queda pendiente.
+
+## Exportar a CAD (.dxf)
+- Archivo → «Exportar a CAD (.dxf)»: dibujo a tamaño real (1:1) en metros o milímetros, DXF R12 (ASCII) que abren AutoCAD, Revit y BricsCAD; en AutoCAD se guarda como .dwg. El .dwg no se genera directamente (formato binario propietario; la herramienta es un solo archivo sin librerías ni internet).
+- Capas ALARMA-*: recintos, detectores, notificación, pulsadores, módulos, equipos, salidas, FACP, texto, coberturas (opcional), SLC, NAC y límite de la hoja del plano. Los símbolos NFPA 170 son bloques (SIM_*) con el giro de cada dispositivo; los equipos llevan sus módulos y la nota de P/N; el precableado va como polilíneas (retorno de clase A discontinuo).
+- La escala de impresión 1:N fija el tamaño de símbolos y rótulos (símbolo de 4 mm en papel × N). El eje Y se invierte (CAD crece hacia arriba); el límite de la hoja indica dónde superponer el plano original.
