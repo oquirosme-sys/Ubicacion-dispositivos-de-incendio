@@ -70,3 +70,8 @@ Un recinto cuyo contorno cae por completo dentro de otro se trata como subrecint
 - El trabajo (proyecto, plano, recintos, dispositivos, coberturas ocultas) se guarda solo en IndexedDB de este navegador y se restaura al recargar la página o al publicar una mejora; no usa cookies ni localStorage. Casilla «Recordar mi trabajo en este navegador» (Archivo) para activarlo o desactivarlo y botón «Olvidar lo guardado».
 - Es local a ese equipo y navegador: el borrador .json sigue siendo el medio portátil (ahora también restaura los resultados de cada recinto sin mover dispositivos).
 - Nota para la norma de herramientas Sinergia: esta herramienta se aparta de «no persistir en el navegador» porque el usuario lo pidió expresamente; es opcional y desactivable.
+
+## Análisis del proyecto (supresión, área y ocupación)
+- El módulo 1 pregunta: área agregada de incendio, área de la planta, ocupantes, supresión (rociadores), tubería vertical y riesgo de contenidos.
+- Con eso evalúa contra el Reglamento Nacional de Protección contra Incendios 2023 (§11.1, §11.3, §11.4, §11.6, §11.7, §13.2, §13.3) y las NFPA elegidas. Resultado ordenado en: Obligatorio, Por confirmar, Buena práctica y No exigido, con un resumen de lo obligatorio arriba y la tabla en un panel plegable.
+- En Costa Rica el recorrido máximo a una estación manual es 60 m (§11.1.7); el prediseño lo usa.

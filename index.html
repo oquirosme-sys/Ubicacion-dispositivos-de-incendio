@@ -72,6 +72,10 @@
   #lienzoWrap #capas{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;margin:0 0 6px;padding:4px 8px;background:#f4f7fa;border:1px solid var(--gb);border-radius:6px;font-size:.78rem}
   /* Barra de capas fija arriba: queda a la vista aunque se desplace el área de trabajo */
   #lienzoWrap #capas{position:sticky;top:0;z-index:20;box-shadow:0 2px 6px rgba(0,0,0,.12)}
+  details.nota>summary{cursor:pointer;list-style:none}details.nota>summary::-webkit-details-marker{display:none}details.nota>summary::before{content:'▾ ';color:var(--am)}details.nota:not([open])>summary::before{content:'▸ '}
+  details.panel{border:1px solid var(--gb);border-radius:8px;margin:8px 0;background:#fff}details.panel>summary{cursor:pointer;font-weight:700;color:var(--az0);padding:7px 10px;list-style:none}details.panel>summary::before{content:'▾ '}details.panel:not([open])>summary::before{content:'▸ '}details.panel>div{padding:0 10px 10px;overflow-x:auto}
+  .resumen-obl{background:#eef6ef;border:1px solid #b5d6bb;border-left:4px solid var(--ve);border-radius:6px;padding:8px 12px;margin:8px 0;font-size:.82rem}.resumen-obl ul{margin:4px 0 4px 18px;padding:0}.resumen-obl li{margin:2px 0}
+  .cat{display:inline-block;border-radius:10px;padding:1px 8px;font-size:.7rem;font-weight:700;white-space:nowrap}.cat-obl{background:#fbe9e8;color:#a4231f}.cat-conf{background:#fff4e0;color:#8a5a00}.cat-bp{background:#e8f0f7;color:#1b4a75}.cat-no{background:#eceff2;color:#5a6472}
   .plegar-todo{position:sticky;top:0;z-index:20;background:#f4f6f8;padding:2px 0 6px}
   #lienzoWrap #capas>b{grid-column:auto}
   #lienzoWrap #capas label{display:flex;align-items:center;gap:5px;margin:0;font-weight:600;white-space:nowrap}
@@ -148,7 +152,25 @@
    <div><label>Niveles sobre rasante</label><input type="number" id="pNiveles" value="1" min="1"></div>
    <div><label>Altura piso ocupable más alto (m)</label><input type="number" id="pAlt" value="4" min="0" step="0.5"></div>
    <div><label>Carga mayor salón reunión (personas)</label><input type="number" id="pReunion" value="0" min="0"></div>
-   <div><label>Habitaciones (solo hoteles)</label><input type="number" id="pHab" value="0" min="0"></div>
+   <div><label>Habitaciones / unidades de vivienda</label><input type="number" id="pHab" value="0" min="0"></div>
+  </div>
+  <div class="f2">
+   <div><label>Área agregada de incendio del edificio (m², todos los niveles)</label><input type="number" id="pAreaEdif" value="0" min="0"></div>
+   <div><label>Área de la planta a trabajar (m²)</label><input type="number" id="pAreaPlanta" value="0" min="0"></div>
+   <div><label>Carga total de ocupantes (personas)</label><input type="number" id="pOcupTot" value="0" min="0"></div>
+   <div><label>Máx. ocupantes en un piso sobre o bajo el nivel de descarga</label><input type="number" id="pOcupPiso" value="0" min="0"></div>
+  </div>
+  <small class="g" id="areaAuto"></small>
+  <label>¿El edificio o la planta lleva supresión (rociadores automáticos)?</label>
+  <select id="pSup">
+   <option value="no" selected>No lleva supresión</option>
+   <option value="total">Sí — rociadores automáticos en todo el edificio (NFPA 13)</option>
+   <option value="parcial">Sí — rociadores solo en la planta o áreas a trabajar</option>
+   <option value="otra">Otra supresión (agente limpio, cocina…) en áreas específicas</option>
+  </select>
+  <div class="f2">
+   <div><label>Tubería vertical (NFPA 14)</label><select id="pTV"><option value="no" selected>No lleva</option><option value="c1">Sí — húmeda automática Clase 1</option><option value="otra">Sí — otra clase</option></select></div>
+   <div><label>Riesgo de los contenidos (industrial / almacén)</label><select id="pRiesgo"><option value="leve">Leve</option><option value="ordinario" selected>Ordinario</option><option value="elevado">Elevado</option></select></div>
   </div>
   <label>Cobertura de detección automática</label>
   <select id="cobDet">
@@ -504,8 +526,22 @@ const EDICIONES_101 = ['2015','2018','2021','2024'];
 // al citarse una norma NFPA se refiere a la última versión en español vigente; §2.4.2: NFPA 101 Edición 2021 y
 // NFPA 72 Edición 2019, ambas en español (leído en la copia del reglamento provista). Optativamente se puede usar una versión
 // equivalente más reciente en español o inglés: por eso los años siguen siendo seleccionables.
+// Reglamento Nacional de Protección contra Incendios, Versión 2023 (Bomberos de CR), leído en la copia provista. Umbrales:
+const RNPCI_GRAN_ALTURA_M = 23;                                   // §4.2 definición 38: 23 m o más hasta el último nivel ocupado
+const RNPCI_ROC_REUNION_M2 = 1500, RNPCI_ROC_MERCANTIL_M2 = 2500;  // §13.2.2 b), c): rociadores por área agregada de incendio
+const RNPCI_ROC_RIESGO_ELEVADO_M2 = 1500, RNPCI_ROC_HOTEL_HAB = 16; // §13.2.2 d), e), h)
+const RNPCI_TV_AREA_M2 = 2500;                                    // §13.3.6: tubería vertical clase 1 desde esta área agregada
+const RNPCI_TV_EXC_AREA_M2 = 7000, RNPCI_TV_EXC_ALTURA_M = 15, RNPCI_TV_EXC_PISOS = 3; // §13.3.6.2 a .4: excepción con rociadores completos
+const RNPCI_ZONA_AREA_M2 = 2000, RNPCI_ZONA_LARGO_M = 91;          // §11.6.2: zonificación de alarma por piso
+const RNPCI_REUNION_OCUPANTES = 300;                               // §11.7.1: alarma en reunión pública con más de 300 ocupantes
+const RNPCI_NEG_PISOS = 3, RNPCI_NEG_OCUP_PISO = 50, RNPCI_NEG_OCUP_TOTAL = 300; // §11.7.11: alarma en negocios
+const RNPCI_IND_OCUP_TOTAL = 100, RNPCI_IND_OCUP_PISO = 25;        // §11.7.12: industrial sin alarma bajo estos límites
+const RNPCI_ALM_AREA_M2 = 9300;                                    // §11.7.13 b): almacenamiento sin alarma hasta esta área
+const RNPCI_EDU_AREA_M2 = 300;                                     // §11.7.2.1: educativa sin alarma (además de 4 aulas y 15 m de otro edificio)
+const RNPCI_APART_PISOS = 3, RNPCI_APART_UNIDADES = 11;            // §11.7.6: apartamentos con más de 3 pisos o más de 11 unidades
+const RNPCI_PULSADOR_RECORRIDO_M = 60;                             // §11.1.7: recorrido horizontal máximo a una estación manual
 const JURISDICCIONES = {
-  cr:{nombre:'Costa Rica — Reglamento Nacional de Protección contra Incendios 2023', ed72:'2019', ed101:'2021',
+  cr:{nombre:'Costa Rica — Reglamento Nacional de Protección contra Incendios 2023', ed72:'2019', ed101:'2021', pulsadorM:RNPCI_PULSADOR_RECORRIDO_M,
       nota:'Ediciones fijadas por el §2.4.2 del Reglamento (NFPA 72:2019 y NFPA 101:2021, en español). Puede elegir una más reciente (§2.4.1), pero la numeración de secciones citada solo está verificada para NFPA 72:2022 y NFPA 101:2015.'},
   otra:{nombre:'Otra jurisdicción (elegir años manualmente)', ed72:'2022', ed101:'2015', nota:'Elija las ediciones que adopta su jurisdicción.'}
 };
@@ -850,6 +886,8 @@ function planificarRecinto(r,o){
 // Pulsadores y marcadores globales.
 // Distancia (m) a la que un detector de ducto ya colocado se toma como el de esa manejadora (CRITERIO).
 const DIST_AHU_EXISTENTE_M = 1;
+// Recorrido máximo a una estación manual (m): el del Reglamento en la jurisdicción que lo fija (Costa Rica, 60 m), si no el de NFPA 72 (61 m).
+function limPulsadorM(){return (JURISDICCIONES[$('pais').value]||{}).pulsadorM||PULSADOR_RECORRIDO_MAX_M;}
 function planificarGlobales(o,resRec,prev){
   prev=prev||[];
   const disp=[],notas=[],P=par();
@@ -865,11 +903,11 @@ function planificarGlobales(o,resRec,prev){
     pulsadores.push(pos);disp.push({tipo:'pulsador',x:pos.x,y:pos.y,sala:'Salida',nota:'≤ '+PULSADOR_DIST_SALIDA_M+' m de la salida'});
   });
   if(P.pulsadorRecepcion)E.marcas.filter(m=>m.t==='facp').forEach(m=>{if(prev.some(d=>d.tipo==='pulsador'&&Math.hypot(d.x-m.x,d.y-m.y)<=PULSADOR_DIST_SALIDA_M*2))return;pulsadores.push({x:m.x+PULSADOR_OFFSET_M,y:m.y});disp.push({tipo:'pulsador',x:m.x+PULSADOR_OFFSET_M,y:m.y,sala:'FACP/recepción',nota:'pulsador general (estándar de cadena)'});});
-  const lim=PULSADOR_RECORRIDO_MAX_M/o.facRec;
+  const lim=limPulsadorM()/o.facRec;
   if(!salidas.length)notas.push('No hay salidas marcadas: no se pueden ubicar pulsadores en puertas de salida. Use «+ Salida».');
   else if(todas.length){
     const extra=rellenar(todas,todas,pulsadores,lim);
-    extra.forEach(p=>disp.push({tipo:'pulsador',x:p.x,y:p.y,sala:'Adicional',nota:'recorrido ≤ '+PULSADOR_RECORRIDO_MAX_M+' m (17.15.9.5)'}));
+    extra.forEach(p=>disp.push({tipo:'pulsador',x:p.x,y:p.y,sala:'Adicional',nota:'recorrido ≤ '+limPulsadorM()+' m'}));
   }
   // Ascensores: detector de humo en el vestíbulo si no hay otro a ≤ 3.05 m
   E.marcas.filter(m=>m.t==='asc').forEach(m=>{
@@ -1058,7 +1096,7 @@ const ROT={det_humo:'Detector de humo',det_calor:'Detector de calor',det_co:'Det
  estrobo:'Estrobo pared (solo visual)',estrobo_cielo:'Estrobo cielo (solo visual)',bocina_estrobo:'Bocina/estrobo pared',bocina_estrobo_cielo:'Bocina/estrobo cielo',parl_estrobo:'Parlante/estrobo pared',parl_estrobo_cielo:'Parlante/estrobo cielo',
  bocina:'Bocina (solo audible)',parlante:'Parlante (solo audible)',pulsador:'Estación manual (pulsador)',aislador:'Módulo aislador',modulo_mon:'Módulo de monitoreo',modulo_ctl:'Módulo de control'};
 function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
-function bloque(sup,lim){return '<div class="nota"><b>Supuestos</b><ul>'+sup.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ul><b>Limitaciones</b><ul>'+lim.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ul></div>';}
+function bloque(sup,lim){return '<details class="nota" open><summary><b>Supuestos y limitaciones</b> <small>(clic para plegar)</small></summary><b>Supuestos</b><ul>'+sup.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ul><b>Limitaciones</b><ul>'+lim.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ul></details>';}
 function conteo(){const c={};E.disp.forEach(d=>{c[d.tipo]=(c[d.tipo]||0)+1;});return c;}
 function modulos(o){
   const c=conteo(),cant=Object.assign({},E.eqCant);
@@ -1085,7 +1123,7 @@ function mostrarResultados(){
   h+='<div class="tarjeta"><h4>Estaciones manuales (pulsadores): '+pul+'</h4><div>'+
     (E.globales.notas.map(n=>'<div class="rev">⚠ '+esc(n)+'</div>').join(''))+'</div>'+
     bloque(['Uno a ≤ '+PULSADOR_DIST_SALIDA_M+' m de cada salida marcada ('+citar(CITAS72,'pulsador_salida',ed72,'NFPA 72')+'; '+citar(CITAS101,'pulsador_salida',ed101,'NFPA 101')+').',
-      'Pulsadores adicionales hasta que ningún punto quede a más de '+PULSADOR_RECORRIDO_MAX_M+' m de recorrido ('+citar(CITAS72,'pulsador_recorrido',ed72,'NFPA 72')+'; '+citar(CITAS101,'pulsador_recorrido',ed101,'NFPA 101')+'); distancia recta usada = '+PULSADOR_RECORRIDO_MAX_M+'/'+o.facRec+' = '+E.globales.lim.toFixed(1)+' m.',
+      'Pulsadores adicionales hasta que ningún punto quede a más de '+limPulsadorM()+' m de recorrido ('+citar(CITAS72,'pulsador_recorrido',ed72,'NFPA 72')+'; '+citar(CITAS101,'pulsador_recorrido',ed101,'NFPA 101')+'); distancia recta usada = '+limPulsadorM()+'/'+o.facRec+' = '+E.globales.lim.toFixed(1)+' m.',
       'Altura de montaje '+PULSADOR_ALT_MIN_M+'–'+PULSADOR_ALT_MAX_M+' m ('+citar(CITAS72,'pulsador_altura',ed72,'NFPA 72')+').'],
      ['El recorrido real depende de muros y mobiliario; el factor '+o.facRec+' es criterio propio, no normativo.','Las salidas válidas las define el diseñador de egreso (NFPA 101); aquí solo se usan los marcadores colocados.','Un solo piso por proyecto en esta herramienta.'])+'</div>';
   // Por recinto
@@ -1117,21 +1155,98 @@ function mostrarResultados(){
 /* ==========================================================================
    REQUISITOS OBLIGATORIOS (derivado de «Herramienta_Requisitos_Alarmascontraincendio»)
    ========================================================================== */
-function dictamen(){
-  const ed72=$('ed72').value,ed101=$('ed101').value,oc=OCUPACIONES.find(x=>x.id===$('ocup').value);
-  const alt=+$('pAlt').value,reun=+$('pReunion').value,hab=+$('pHab').value,niv=+$('pNiveles').value;
-  const gran=alt>22,voz=gran||reun>300,anun=(oc.id==='hotel')&&(hab>50||niv>2);
-  const f=[['Detección y alarma de incendios','OBLIGATORIO','Manual art. 3.5 + cap. 4 por ocupación','Requerido para todas las ocupaciones del cap. 4 del Manual (según la hoja de Sinergia).'],
-   ['Notificación audible y visual','OBLIGATORIO (modo público)',citar(CITAS72,'audible',ed72,'NFPA 72'),'Visual en áreas públicas/comunes y de dormir; la exigencia por ocupación (NFPA 101 cap. 9.6.3 y cap. de ocupación) no se transcribió: confirmar con la AHJ.'],
-   ['Estaciones manuales','OBLIGATORIO si hay detección o flujo de agua',citar(CITAS101,'pulsador_recorrido',ed101,'NFPA 101'),'Ver ubicación en resultados.'],
-   ['Alarmas de humo de estación única por unidad',oc.dormir&&oc.id==='apart'?'OBLIGATORIO':'NO APLICA','Manual 4.2.7 / 4.4.7','Solo viviendas; además del sistema del edificio.'],
-   ['Voceo (EVACS)',voz?'OBLIGATORIO':'NO','NFPA 101 gran altura (>22 m) / Manual 4.1 reunión >300 · '+citar(CITAS101,'voz',ed101,'NFPA 101'),'Altura piso ocupable: '+alt+' m; mayor salón: '+reun+' personas.'],
-   ['Teléfonos de dos vías para bomberos',gran?'OBLIGATORIO':'NO REQUERIDO',citar(CITAS101,'telefonos',ed101,'NFPA 101'),'Solo gran altura.'],
-   ['Anunciador remoto',anun?'OBLIGATORIO':(oc.id==='hotel'?'SEGÚN DISEÑO':'NO APLICA'),'Manual 4.4.7.a','Hoteles de más de 2 pisos o más de 50 habitaciones.'],
-   ['Autonomía de baterías',BATERIA_REPOSO_H+' h en reposo + '+BATERIA_ALARMA_MIN+' min en alarma',citar(CITAS72,'bateria',ed72,'NFPA 72'),'Con voz de emergencia verificar el tiempo de alarma en 10.6.7.2.2.']];
-  return '<table><tr><th>Sistema</th><th>Dictamen</th><th>Referencia</th><th>Criterio / límite</th></tr>'+f.map(r=>'<tr>'+r.map(v=>'<td>'+esc(v)+'</td>').join('')+'</tr>').join('')+'</table>'+
-   bloque(['Base: Manual de Disposiciones Técnicas 2013 (CR), NFPA 101 y NFPA 72 seleccionados arriba; lógica tomada de la herramienta de requisitos de Sinergia.'],['Costa Rica: el Reglamento Nacional de Protección contra Incendios 2023 (§2.4) remite a NFPA 72:2019 y NFPA 101:2021 en español. Las citas de sección solo están verificadas para NFPA 72:2022 y NFPA 101:2015 (copias provistas): con otras ediciones los números pueden haber cambiado.','No sustituye la revisión de medios de egreso, rociadores ni normativa local vigente; confirmar con el AHJ.']);
+// Área (m²) de los recintos dibujados que no están dentro de otro (los subrecintos no se suman dos veces).
+function areaRecintosTotal(){
+  return E.recintos.filter(r=>!E.recintos.some(o=>o!==r&&area(o.poly)>area(r.poly)&&r.poly.every(q=>dentro(q,o.poly)))).reduce((t,r)=>t+area(r.poly),0);
 }
+const CAT_ORDEN = {obl:0,conf:1,bp:2,no:3};
+const CAT_ROTULO = {obl:'Obligatorio',conf:'Por confirmar',bp:'Buena práctica',no:'No exigido'};
+// Requisitos del proyecto contra el Reglamento Nacional de Protección contra Incendios 2023 (cada fila cita su sección, leída en la copia
+// provista) y las NFPA seleccionadas. Cada fila lleva su categoría: obl (obligatorio), conf (por confirmar), bp (buena práctica), no (no exigido).
+function requisitos(){
+  const ed72=$('ed72').value,ed101=$('ed101').value,oc=OCUPACIONES.find(x=>x.id===$('ocup').value);
+  const alt=+$('pAlt').value||0,niv=+$('pNiveles').value||1,reun=+$('pReunion').value||0,hab=+$('pHab').value||0;
+  const ocT=+$('pOcupTot').value||0,ocP=+$('pOcupPiso').value||0,sup=$('pSup').value,tv=$('pTV').value,riesgo=$('pRiesgo').value;
+  const auto=areaRecintosTotal(),areaPl=(+$('pAreaPlanta').value)||auto;
+  let areaAg=+$('pAreaEdif').value||0,estimada=false;if(!areaAg&&areaPl){areaAg=areaPl*niv;estimada=true;}
+  $('areaAuto').textContent=(auto?'Recintos dibujados: '+auto.toFixed(0)+' m² (se usa si deja en blanco el área de la planta). ':'')+(estimada?'Área agregada estimada = planta × niveles = '+areaAg.toFixed(0)+' m²: indique la real.':'');
+  const gran=alt>=RNPCI_GRAN_ALTURA_M,F=[],NOTAS=[];
+  const R=(cat,sis,res,ref,txt,cls)=>F.push({cat,sis,res,ref,txt,cls:cls||({obl:'ok',conf:'rev',bp:'',no:''}[cat])});
+  if($('pais').value!=='cr')NOTAS.push('Jurisdicción distinta de Costa Rica: este análisis aplica el Reglamento Nacional de Protección contra Incendios de Costa Rica solo como referencia; confirme la normativa local.');
+  if(!areaAg)NOTAS.push('No hay área: indique el área agregada de incendio (o dibuje los recintos) para evaluar rociadores, tubería vertical y zonificación.');
+  // --- Rociadores automáticos §13.2.2
+  const m=[];
+  if(gran)m.push('edificio de gran altura (§13.2.2 a)');
+  if(oc.id==='reunion'&&areaAg>=RNPCI_ROC_REUNION_M2)m.push('reunión pública con área agregada ≥ '+RNPCI_ROC_REUNION_M2+' m² (§13.2.2 b)');
+  if(oc.id==='mercantil'&&areaAg>=RNPCI_ROC_MERCANTIL_M2)m.push('mercantil con área agregada ≥ '+RNPCI_ROC_MERCANTIL_M2+' m² (§13.2.2 c)');
+  if(oc.id==='industrial'&&riesgo==='elevado'&&areaAg>=RNPCI_ROC_RIESGO_ELEVADO_M2)m.push('industria de riesgo elevado ≥ '+RNPCI_ROC_RIESGO_ELEVADO_M2+' m² (§13.2.2 d)');
+  if(oc.id==='almacen'&&riesgo==='elevado'&&areaAg>=RNPCI_ROC_RIESGO_ELEVADO_M2)m.push('almacenamiento de riesgo elevado ≥ '+RNPCI_ROC_RIESGO_ELEVADO_M2+' m² (§13.2.2 e)');
+  if(oc.id==='salud')m.push('cuidado de la salud (§13.2.2 g)');
+  if(oc.id==='hotel'&&hab>=RNPCI_ROC_HOTEL_HAB)m.push('hotel/dormitorio con '+RNPCI_ROC_HOTEL_HAB+' o más habitaciones (§13.2.2 h)');
+  if(m.length)R('obl','Rociadores automáticos',sup==='total'?'Requeridos — declarados en todo el edificio':(sup==='parcial'?'Requeridos — declarados solo en parte: REVISAR':'Requeridos — NO declarados'),'RNPCI 2023 §13.2.2',m.join('; ')+'. Deben cumplir NFPA 13 (§13.2.1).',sup==='total'?'ok':(sup==='parcial'?'rev':'mal'));
+  else R(sup==='no'?'no':'bp','Rociadores automáticos',sup==='no'?'No exigidos con los datos declarados':'No exigidos; instalados voluntariamente','RNPCI 2023 §13.2.2','Se evaluaron ocupación, área agregada, altura y habitaciones. Pueden exigirse por otra norma específica (§13.2.2 j) u omitirse por §13.2.3 y §13.2.4.'+(sup!=='no'?' Instalados, su flujo de agua debe iniciar la alarma y supervisarse.':''));
+  // --- Tubería vertical §13.3
+  const tvExc=sup==='total'&&areaAg<=RNPCI_TV_EXC_AREA_M2&&alt<=RNPCI_TV_EXC_ALTURA_M&&niv<=RNPCI_TV_EXC_PISOS;
+  const tvReq=gran||(areaAg>=RNPCI_TV_AREA_M2&&!tvExc);
+  R(tvReq?'obl':'no','Tubería vertical (NFPA 14)',tvReq?(tv==='no'?'Requerida — NO declarada':'Requerida — declarada'):'No exigida con los datos declarados','RNPCI 2023 §13.3.5 y §13.3.6',
+    gran?'Gran altura: húmeda automática Clase 1.':(areaAg>=RNPCI_TV_AREA_M2?(tvExc?'Excepción §13.3.6: rociadores completos, ≤ '+RNPCI_TV_EXC_AREA_M2+' m², ≤ '+RNPCI_TV_EXC_ALTURA_M+' m de altura y ≤ '+RNPCI_TV_EXC_PISOS+' pisos.':'Área agregada ≥ '+RNPCI_TV_AREA_M2+' m²: húmeda automática Clase 1 (Clase 3 en industrial/almacenamiento, §13.3.7).'):'Área agregada menor de '+RNPCI_TV_AREA_M2+' m² y sin gran altura.'),tvReq?(tv==='no'?'mal':'ok'):'');
+  // --- Alarma de incendio requerida por ocupación §11.7
+  let al='rev',alRef='',alTxt='';
+  switch(oc.id){
+    case 'negocios':{const c=[];if(niv>=RNPCI_NEG_PISOS)c.push(niv+' pisos');if(ocP>=RNPCI_NEG_OCUP_PISO)c.push(ocP+' ocupantes en un piso');if(ocT>=RNPCI_NEG_OCUP_TOTAL)c.push(ocT+' ocupantes en total');
+      al=c.length?'si':(ocT||ocP?'no':'rev');alRef='§11.7.11';alTxt=c.length?'Se cumple: '+c.join(', ')+'.':'Exige alarma con ≥ '+RNPCI_NEG_PISOS+' pisos sobre el nivel de descarga, ≥ '+RNPCI_NEG_OCUP_PISO+' ocupantes en un piso o ≥ '+RNPCI_NEG_OCUP_TOTAL+' en total.'+((ocT||ocP)?'':' No declaró ocupantes: complételos.');break;}
+    case 'reunion':al=reun>RNPCI_REUNION_OCUPANTES?'si':'no';alRef='§11.7.1';alTxt='Reunión pública con más de '+RNPCI_REUNION_OCUPANTES+' ocupantes (declarado: '+reun+'). Por debajo, confirme NFPA 101 cap. 12/13 (no verificado).';break;
+    case 'educativa':al=areaAg&&areaAg<=RNPCI_EDU_AREA_M2?'rev':'si';alRef='§11.7.2';alTxt='Siempre, salvo edificio con área agregada ≤ '+RNPCI_EDU_AREA_M2+' m², máximo 4 aulas y a 15 m de otro edificio (§11.7.2.1).';break;
+    case 'hotel':al='si';alRef='§11.7.5';alTxt='Hoteles y dormitorios: alarma NFPA 101/72 y alarmas de humo en cada habitación (§11.7.5.2).';break;
+    case 'apart':al=(niv>RNPCI_APART_PISOS||hab>RNPCI_APART_UNIDADES)?'si':'no';alRef='§11.7.6';alTxt='Apartamentos con más de '+RNPCI_APART_PISOS+' pisos o más de '+RNPCI_APART_UNIDADES+' unidades (declarado: '+niv+' pisos, '+hab+' unidades). Siempre alarmas de humo de estación única interconectadas (§11.7.6.1).';break;
+    case 'salud':al='si';alRef='§11.7.3';alTxt='Detección de humo y alarma de incendio (NFPA 101 y 72).';break;
+    case 'mercantil':al='rev';alRef='§11.7.9';alTxt='Clase A requiere alarma; la clase no se pregunta: confirme la clasificación. Centros comerciales: según su ocupación (§11.7.10).';break;
+    case 'industrial':al=(ocT&&ocT<RNPCI_IND_OCUP_TOTAL&&ocP<RNPCI_IND_OCUP_PISO)?'no':'si';alRef='§11.7.12';alTxt='Requerida salvo carga total < '+RNPCI_IND_OCUP_TOTAL+' personas y < '+RNPCI_IND_OCUP_PISO+' sobre o bajo el nivel de descarga.'+(ocT?'':' No declaró ocupantes: se asume requerida.');break;
+    case 'almacen':{const ex=riesgo==='leve'?'riesgo leve (§11.7.13 a)':(areaAg&&areaAg<=RNPCI_ALM_AREA_M2?'área agregada ≤ '+RNPCI_ALM_AREA_M2+' m² (§11.7.13 b)':(sup==='total'?'protegido en su totalidad con rociadores (§11.7.13 c)':''));
+      al=ex?'no':'si';alRef='§11.7.13';alTxt=ex?'No requerida: '+ex+'.':'Requerida: riesgo '+riesgo+', área agregada '+(areaAg||'sin declarar')+' m², sin rociadores completos.';break;}
+  }
+  const AL=al==='si';
+  R(al==='si'?'obl':(al==='no'?'no':'conf'),'Sistema de alarma de incendio',al==='si'?'Requerido':(al==='no'?'No exigido con los datos declarados':'Confirmar'),'RNPCI 2023 '+alRef,alTxt+(al==='no'?' Instalarlo sigue siendo buena práctica: con él aplican la notificación y las estaciones manuales de NFPA 72.':''));
+  if(al==='no')R('bp','Alarma manual y notificación aunque no se exijan','Recomendado','RNPCI 2023 §11.1 y §11.3; NFPA 72','Estaciones manuales en salidas y notificación audible y visible mejoran la evacuación sin ser obligatorias con estos datos.');
+  // --- Efecto de la supresión sobre la alarma
+  if(sup!=='no'){
+    const flj=(E.eqCant.FLJ||0)>0,vct=(E.eqCant.VCT||0)>0,ok=flj&&vct;
+    R('obl','El flujo de agua inicia la alarma',ok?'Equipos declarados':'Faltan equipos en la matriz','RNPCI 2023 §11.1.4 c) y §11.6.4','El funcionamiento del sistema de extinción activa la alarma y se reporta en el panel como una zona única. Declare flujostato y válvulas de control supervisadas en «Equipos supervisados» (NFPA 72 17.12 / 17.16).'+(ok?'':' <button class="sec" id="btnEqSup" type="button">Agregar flujostato y válvula de control a Equipos</button>'),ok?'ok':'rev');
+  }
+  if(oc.id==='hotel')R(sup==='total'?'no':'obl','Detección de humo en corredores del hotel',sup==='total'?'No exigida (rociadores completos y supervisados)':'Requerida','RNPCI 2023 §11.7.5.1','Obligatoria en edificios no protegidos en su totalidad con rociadores aprobados y supervisados.',sup==='total'?'':'ok');
+  // --- Notificación, estaciones manuales y zonificación (siguen a la alarma)
+  R(AL?'obl':'bp','Notificación audible y visual',AL?'Obligatoria (modo público)':'Recomendada si se instala sistema','RNPCI 2023 §11.3 · '+citar(CITAS72,'audible',ed72,'NFPA 72'),'Audible 15 dB sobre el ambiente promedio y visible; la exigencia por ocupación en NFPA 101 (9.6.3 y cap. de ocupación) no se transcribió: confirmar con la autoridad competente.');
+  R(AL?'obl':'bp','Estaciones manuales',limPulsadorM()+' m de recorrido; ≤ 1.5 m de cada salida','RNPCI 2023 §11.1.6 y §11.1.7 · '+citar(CITAS101,'pulsador_recorrido',ed101,'NFPA 101'),'El prediseño usa '+limPulsadorM()+' m en esta jurisdicción. Ver ubicación en resultados.');
+  if(areaPl){const zonas=Math.max(1,Math.ceil(areaPl/RNPCI_ZONA_AREA_M2));
+    R(AL?'obl':'bp','Zonificación de la alarma',areaPl>RNPCI_ZONA_AREA_M2?zonas+' zonas como mínimo en la planta':'1 zona por piso','RNPCI 2023 §11.6.2 y §11.6.3','Cada piso es al menos una zona; sobre '+RNPCI_ZONA_AREA_M2+' m² se zonifica y ninguna zona excede '+RNPCI_ZONA_LARGO_M+' m en cualquier dirección. Con rociadores, la zona puede coincidir con el área del sistema (§11.6.3). Planta de '+areaPl.toFixed(0)+' m².');}
+  R(AL?'obl':'bp','Autonomía de baterías',BATERIA_REPOSO_H+' h en reposo + '+BATERIA_ALARMA_MIN+' min en alarma','NFPA 72 · '+citar(CITAS72,'bateria',ed72,'NFPA 72'),'Con voz de emergencia verificar el tiempo de alarma en 10.6.7.2.2.');
+  if(gran||niv>=4)R(AL?'obl':'bp','Funciones de seguridad y ascensores',niv>=4?'Rellamado programable (4 niveles o más)':'Control de equipos del edificio','RNPCI 2023 §11.4','La alarma activa retenedores, presurización, control de humo, destrabe de puertas y rellamado de ascensores.');
+  // --- Requisitos de NFPA 101 y del Manual
+  const g22=alt>22,voz=g22||reun>300,anun=(oc.id==='hotel')&&(hab>50||niv>2);
+  R(oc.id==='apart'||oc.id==='hotel'?'obl':'no','Alarmas de humo de estación única por unidad',oc.id==='apart'||oc.id==='hotel'?'Obligatorias':'No aplican','RNPCI 2023 §11.7.5.2 y §11.7.6.1','En cada habitación para dormir y fuera del área de dormir; además del sistema del edificio.');
+  R(voz?'obl':'no','Voceo (EVACS)',voz?'Obligatorio':'No exigido','NFPA 101 gran altura (>22 m) / Manual 4.1 reunión >300 · '+citar(CITAS101,'voz',ed101,'NFPA 101'),'Altura piso ocupable: '+alt+' m; mayor salón: '+reun+' personas.');
+  R(g22?'obl':'no','Teléfonos de dos vías para bomberos',g22?'Obligatorios':'No exigidos',citar(CITAS101,'telefonos',ed101,'NFPA 101'),'Solo gran altura.');
+  R(anun?'obl':(oc.id==='hotel'?'bp':'no'),'Anunciador remoto',anun?'Obligatorio':(oc.id==='hotel'?'Según diseño':'No aplica'),'Manual 4.4.7.a','Hoteles de más de 2 pisos o más de 50 habitaciones.');
+  F.sort((x,y)=>CAT_ORDEN[x.cat]-CAT_ORDEN[y.cat]);
+  return {F,NOTAS,areaAg,areaPl,oc,sup};
+}
+function dictamen(){
+  const {F,NOTAS,areaAg,areaPl,oc,sup}=requisitos();
+  const cuenta=c=>F.filter(r=>r.cat===c).length;
+  const obl=F.filter(r=>r.cat==='obl'),conf=F.filter(r=>r.cat==='conf');
+  const supTxt={no:'sin supresión',total:'rociadores en todo el edificio',parcial:'rociadores parciales',otra:'otra supresión'}[sup];
+  const resumen='<div class="resumen-obl"><b>Resumen — lo obligatorio para este proyecto</b> <small class="g">('+esc(oc.n)+' · área agregada '+(areaAg?areaAg.toFixed(0)+' m²':'sin declarar')+' · '+supTxt+')</small>'+
+    (obl.length?'<ul>'+obl.map(r=>'<li><b>'+esc(r.sis)+'</b> — '+esc(r.res)+' <small class="g">('+esc(r.ref.split(' · ')[0])+')</small></li>').join('')+'</ul>':'<div style="margin:4px 0">Con los datos declarados no resulta obligatorio ningún sistema.</div>')+
+    (conf.length?'<div><b>Por confirmar:</b> '+conf.map(r=>esc(r.sis)).join(', ')+'.</div>':'')+
+    '<small class="g">'+cuenta('obl')+' obligatorios · '+cuenta('conf')+' por confirmar · '+cuenta('bp')+' buena práctica · '+cuenta('no')+' no exigidos</small></div>';
+  const tabla='<details class="panel" open><summary>Tabla de requisitos (obligatorio → por confirmar → buena práctica → no exigido)</summary><div><table><tr><th>Tipo</th><th>Tema</th><th>Resultado</th><th>Referencia</th><th>Detalle</th></tr>'+
+    F.map(r=>{const t=r.txt.indexOf('<button')>=0?esc(r.txt.split('<button')[0])+'<button'+r.txt.split('<button')[1]:esc(r.txt);
+      return '<tr><td><span class="cat cat-'+r.cat+'">'+CAT_ROTULO[r.cat]+'</span></td><td>'+esc(r.sis)+'</td><td class="'+r.cls+'">'+esc(r.res)+'</td><td>'+esc(r.ref)+'</td><td>'+t+'</td></tr>';}).join('')+'</table></div></details>';
+  return resumen+NOTAS.map(n=>'<div class="rev">⚠ '+esc(n)+'</div>').join('')+tabla+
+    bloque(['Umbrales del Reglamento Nacional de Protección contra Incendios, Versión 2023 (Bomberos de CR), leídos en la copia provista; el área agregada de incendio suma todos los niveles y sótanos (§4.2 definición 10).','Las exigencias se evalúan con lo declarado arriba; si un dato está en blanco se usa el supuesto indicado en la fila. «Buena práctica» no es exigencia: es lo recomendable aunque el Reglamento no lo imponga con esos datos.'],
+      ['No sustituye el análisis de ocupación mixta (§6.2), la clasificación de riesgo de los contenidos ni la revisión de la autoridad competente.','Las citas del Reglamento se refieren a su numeración 2023; las de NFPA siguen las ediciones seleccionadas y solo están verificadas para NFPA 72:2022 y NFPA 101:2015.']);
+}
+function agregarEquiposSupresion(){E.eqCant.FLJ=Math.max(1,E.eqCant.FLJ||0);E.eqCant.VCT=Math.max(1,E.eqCant.VCT||0);tablaEquipos();actualizarDictamen();if(E.resultados.length)mostrarResultados();}
 
 /* ==========================================================================
    SÍMBOLOS NFPA 170:2018 (Tablas 8.3, 8.4.2) — dibujados con Canvas 2D
@@ -2058,7 +2173,9 @@ $('fileEst').onchange=ev=>{const f=ev.target.files[0];if(!f)return;if(/\.pdf$/i.
   let o=$('cadena').querySelector('option[value=custom]');if(!o){o=document.createElement('option');o.value='custom';$('cadena').appendChild(o);}o.textContent='Cargado: '+(c.nombre||f.name);$('cadena').value='custom';infoCadena();}catch(e){alert('Archivo de estándar inválido: '+e.message);}};fr.readAsText(f);};
 $('btnExpEst').onclick=()=>descargar('plantilla_estandar_cadena.json',JSON.stringify({nombre:'Nueva cadena',parametros:{estroboTodos:true,dormirCd:177,banoDormirCd:15,dbaMin:75,co:true,humoVestAsc:true,pulsadorRecepcion:true,sinHumoHumedo:true,oficina1SinNot:false,corredorCd:15},reglas:[{id:'D-01',tema:'Tema',regla:'Texto de la regla',ref:'Estándar, sección'}]},null,2),'application/json');
 $('cadena').onchange=()=>{E.chain=$('cadena').value;infoCadena();};
-$('btnDict').onclick=()=>{$('dictamen').innerHTML=dictamen();};
+function actualizarDictamen(){$('dictamen').innerHTML=dictamen();const b=$('btnEqSup');if(b)b.onclick=agregarEquiposSupresion;}
+$('btnDict').onclick=actualizarDictamen;
+['pAreaEdif','pAreaPlanta','pOcupTot','pOcupPiso','pSup','pTV','pRiesgo','pAlt','pNiveles','pReunion','pHab','ocup','pais','ed72','ed101'].forEach(i=>{$(i).addEventListener('change',actualizarDictamen);});
 
 /* ==========================================================================
    ARCHIVOS: borrador, PNG, CSV, informe
@@ -2071,7 +2188,7 @@ function dataUrlDe(img,clave){
   E['_i_'+clave]=img;return (E['_u_'+clave]=c.toDataURL('image/png'));
 }
 function recopilar(completo){
-  const o={version:1,proyecto:{nombre:$('pNombre').value,pais:$('pais').value,ed72:$('ed72').value,ed101:$('ed101').value,ocup:$('ocup').value,niveles:$('pNiveles').value,alt:$('pAlt').value,reunion:$('pReunion').value,hab:$('pHab').value,cob:$('cobDet').value},
+  const o={version:1,proyecto:{nombre:$('pNombre').value,pais:$('pais').value,ed72:$('ed72').value,ed101:$('ed101').value,ocup:$('ocup').value,niveles:$('pNiveles').value,alt:$('pAlt').value,reunion:$('pReunion').value,hab:$('pHab').value,cob:$('cobDet').value,areaEdif:$('pAreaEdif').value,areaPlanta:$('pAreaPlanta').value,ocupTot:$('pOcupTot').value,ocupPiso:$('pOcupPiso').value,sup:$('pSup').value,tv:$('pTV').value,riesgo:$('pRiesgo').value},
    cadena:E.chain,cadenaCustom:E.cadenaCustom,
    parametros:{espH:$('pEspH').value,espC:$('pEspC').value,cdMax:$('pCdMax').value,dba:$('pDba').value,aud:$('pAud').value,facRec:$('pFacRec').value,iso:$('pIso').value,co:$('pCO').value},
    recintos:E.recintos,marcas:E.marcas,disp:E.disp,eqCant:E.eqCant,seq:E.seq,
@@ -2082,7 +2199,7 @@ function recopilar(completo){
   return o;
 }
 function aplicar(o){
-  const p=o.proyecto||{};$('pNombre').value=p.nombre||'';['pais','ed72','ed101','ocup'].forEach(k=>{if(p[k])$(k).value=p[k];});$('paisNota').textContent=(JURISDICCIONES[$('pais').value]||{}).nota||'';$('pNiveles').value=p.niveles||1;$('pAlt').value=p.alt||4;$('pReunion').value=p.reunion||0;$('pHab').value=p.hab||0;if(p.cob)$('cobDet').value=p.cob;
+  const p=o.proyecto||{};$('pNombre').value=p.nombre||'';['pais','ed72','ed101','ocup'].forEach(k=>{if(p[k])$(k).value=p[k];});$('paisNota').textContent=(JURISDICCIONES[$('pais').value]||{}).nota||'';$('pNiveles').value=p.niveles||1;$('pAlt').value=p.alt||4;$('pReunion').value=p.reunion||0;$('pHab').value=p.hab||0;if(p.cob)$('cobDet').value=p.cob;[['areaEdif','pAreaEdif'],['areaPlanta','pAreaPlanta'],['ocupTot','pOcupTot'],['ocupPiso','pOcupPiso'],['sup','pSup'],['tv','pTV'],['riesgo','pRiesgo']].forEach(([a,b])=>{if(p[a]!=null)$(b).value=p[a];});
   E.cadenaCustom=o.cadenaCustom||null;E.chain=o.cadena||'ninguna';if(E.chain==='custom'&&E.cadenaCustom){let op=$('cadena').querySelector('option[value=custom]');if(!op){op=document.createElement('option');op.value='custom';$('cadena').appendChild(op);}op.textContent='Cargado: '+(E.cadenaCustom.nombre||'');}
   $('cadena').value=E.chain;infoCadena();
   const q=o.parametros||{};[['espH','pEspH'],['espC','pEspC'],['cdMax','pCdMax'],['dba','pDba'],['aud','pAud'],['facRec','pFacRec'],['iso','pIso'],['co','pCO']].forEach(([a,b])=>{if(q[a]!=null)$(b).value=q[a];});
