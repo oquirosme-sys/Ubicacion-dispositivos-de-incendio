@@ -1074,12 +1074,13 @@ function avisoZona(){
   n.style.display='';
   n.style.cssText='display:block;margin:0 0 6px;padding:6px 10px;border-radius:6px;font-size:.8rem;'+(E.zona?'background:#eef6ff;border:1px solid #9cc3ee':'background:#fff4dd;border:1px solid #e0a800');
   n.innerHTML=E.zona
-   ?'<b>Área de diseño:</b> '+area(E.zona).toFixed(0)+' m². Los mapas del modo «sin recintos asignados» solo se calculan dentro de ella. <button class="sec" data-zona="def">Redefinir</button> <button class="sec" data-zona="quitar">Quitar</button>'
-   :'<b>Delimite el área de la estructura a diseñar.</b> Aún no hay recintos ni área de diseño: sin ellos, las coberturas del modo «sin recintos asignados» se calculan alrededor de todos los dispositivos y pueden salirse del edificio. <button class="sec" data-zona="def">Delimitar área (dos esquinas)</button>';
+   ?'<b>Área de diseño:</b> '+area(E.zona).toFixed(0)+' m². Los mapas del modo «sin recintos asignados» solo se calculan dentro de ella. <button class="sec" data-zona="poli">Redefinir (polígono)</button> <button class="sec" data-zona="def">Redefinir (rectángulo)</button> <button class="sec" data-zona="quitar">Quitar</button>'
+   :'<b>Delimite el área de la estructura a diseñar.</b> Aún no hay recintos ni área de diseño: sin ellos, las coberturas del modo «sin recintos asignados» se calculan alrededor de todos los dispositivos y pueden salirse del edificio. <button class="sec" data-zona="poli">Delimitar área (polígono, sigue el contorno)</button> <button class="sec" data-zona="def">Delimitar área (rectángulo, dos esquinas)</button>';
 }
 $('avisoZona').addEventListener('click',e=>{const b=e.target.closest('[data-zona]');if(!b)return;
   if(b.dataset.zona==='quitar'){E.zona=null;E._spl=null;E._visK=null;dibujar();programarConfirmar();estado('Área de diseño quitada.');return;}
-  E.modoZona=true;herramienta('rect');estado('Área de diseño: haga clic (o arrastre) en dos esquinas opuestas de la estructura a diseñar.');});
+  if(b.dataset.zona==='poli'){herramienta('rec');E.modoZona=true;estado('Área de diseño: haga clic en cada vértice del contorno de la estructura; doble clic o Enter para cerrar; Esc cancela. Clic derecho: agregar o quitar un punto.');return;}
+  herramienta('rect');E.modoZona=true;estado('Área de diseño: haga clic (o arrastre) en dos esquinas opuestas de la estructura a diseñar.');});
 function dibujarZona(){
   if(!E.zona||E.zona.length<3)return;
   cx.save();cx.setLineDash([10,5]);cx.lineWidth=2;cx.strokeStyle='rgba(20,70,160,.85)';cx.beginPath();
@@ -1758,7 +1759,7 @@ function agregarDisp(p,pl){   // pl: dispositivo plantilla (para «agregar simil
   E.selDev=d.id;E._spl=null;propiedadesDisp();dibujar();reverificar();
   estado('Agregado «'+(ROT[t]||t)+'» en '+d.sala+'. Siga haciendo clic para agregar más iguales; Esc o «Seleccionar» para terminar. Se conserva al volver a generar.');
 }
-function herramienta(h){E.herr=h;E.borrador=[];E.calib=[];E.edit=null;E.pegando=null;['tSel','tRec','tRect','tRell','tSal','tFacp','tAhu','tAsc','tEq','tBor','tDev'].forEach(id=>$(id).classList.toggle('act',id==={sel:'tSel',rec:'tRec',rect:'tRect',rell:'tRell',salida:'tSal',facp:'tFacp',ahu:'tAhu',asc:'tAsc',eq:'tEq',bor:'tBor',dev:'tDev'}[h]));
+function herramienta(h){E.herr=h;E.modoZona=false;E.borrador=[];E.calib=[];E.edit=null;E.pegando=null;['tSel','tRec','tRect','tRell','tSal','tFacp','tAhu','tAsc','tEq','tBor','tDev'].forEach(id=>$(id).classList.toggle('act',id==={sel:'tSel',rec:'tRec',rect:'tRect',rell:'tRell',salida:'tSal',facp:'tFacp',ahu:'tAhu',asc:'tAsc',eq:'tEq',bor:'tBor',dev:'tDev'}[h]));
   const m={sel:'Clic sobre un recinto para seleccionarlo.',rec:'Clic para cada vértice; doble clic o Enter para cerrar; Esc cancela.',rect:'Clic en dos esquinas opuestas del recinto.',rell:'Clic dentro de un recinto del plano: se rellena hasta los muros.',salida:'Clic para colocar una salida.',facp:'Clic para colocar el FACP/recepción.',ahu:'Clic para colocar una manejadora de aire.',asc:'Clic para colocar un vestíbulo de ascensor.',bor:'Clic sobre un recinto o marcador para borrarlo.',cal:'Clic en 2 puntos de distancia conocida.'}[h];estado(m||'');dibujar();}
 // Nombre de un recinto a partir de los textos del plano (PDF) que caen dentro de su contorno; '' si no hay plano o no hay texto.
 function nombrePlano(poly){
@@ -2312,7 +2313,12 @@ function crearRect(a,b){
   nuevoRecinto([{x:a.x,y:a.y},{x:b.x,y:a.y},{x:b.x,y:b.y},{x:a.x,y:b.y}]);E.borrador=[];dibujar();
   estado('Recinto rectangular creado'+(E.recintos.length&&E.recintos[E.recintos.length-1].nombre.indexOf('Recinto ')!==0?' con el nombre del plano: «'+E.recintos[E.recintos.length-1].nombre+'»':'')+'. Puede arrastrar de una esquina a la otra o hacer clic en dos esquinas.');
 }
-function cerrarBorrador(){if(E.borrador.length>=3&&area(E.borrador)>=AREA_MIN_RECINTO_M2){nuevoRecinto(E.borrador.slice());}E.borrador=[];dibujar();}
+function cerrarBorrador(){
+  if(E.modoZona){   // área de diseño por polígono: limita los mapas del modo sin recintos; no es un recinto
+    if(E.borrador.length>=3&&area(E.borrador)>=AREA_MIN_RECINTO_M2){E.zona=E.borrador.map(q=>({x:q.x,y:q.y}));E.borrador=[];E._spl=null;E._visK=null;herramienta('sel');
+      estado('Área de diseño definida ('+area(E.zona).toFixed(0)+' m²). Los mapas del modo «sin recintos asignados» solo se calculan dentro de ella.');programarConfirmar();return;}
+    E.borrador=[];dibujar();estado('El área necesita al menos 3 vértices.');return;}
+  if(E.borrador.length>=3&&area(E.borrador)>=AREA_MIN_RECINTO_M2){nuevoRecinto(E.borrador.slice());}E.borrador=[];dibujar();}
 cv.addEventListener('dblclick',e=>{if(E.herr==='rec'){E.borrador.pop();cerrarBorrador();}
   else if(E.herr==='sel'&&!E.edit){const p=mundoDeEvento(e);if(devEn(p))return;const r=recintoMin(p);if(r)renombrarRecinto(r);}});
 cv.addEventListener('click',e=>{
