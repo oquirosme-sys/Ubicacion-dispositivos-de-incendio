@@ -131,3 +131,13 @@ En la barra de capas del módulo 2 hay una casilla **Visual combinada** y un sel
 
 - La geometría de cada estrobo es la del dibujo: cuadrado de la Tabla 18.5.5.7.1 (de cielo centrado, de pared desde el muro) o círculo en corredores.
 - **Supuestos y limitaciones:** la luz no atraviesa muros; el valor 1 es un criterio de prediseño para puertas abiertas, vidrio o vanos, no un valor de NFPA. El plano no trae datos de puertas: se cuentan cambios de recinto, igual que en el modo sonoro combinado. Esta capa no reemplaza la verificación de cada recinto contra NFPA 72 §18.5. Se guarda en el borrador. Probado con dos recintos de prueba; no probado con un plano real.
+
+## Selector único de cobertura sonora y visual (3 modos)
+
+El selector de la barra de capas gobierna a la vez el nivel sonoro (dBA) y el **Mapa de cobertura visual**:
+
+- **Por recinto:** cada recinto se calcula solo con sus propios dispositivos.
+- **Recintos combinados:** también aportan los dispositivos de recintos vecinos; el sonido pierde dB por muro (selector «pérdida por muro») y la luz puede atravesar 0 o 1 muro (selector «muros que atraviesa la luz»). Ambos valores son criterios de prediseño, no de NFPA.
+- **Sin recintos asignados:** usa todos los dispositivos sin contar muros ni recortar por recinto; funciona aunque no haya ningún recinto dibujado. Solo se pintan las zonas cubiertas (el área sin cubrir no se marca en rojo, porque sin recintos no hay límite que comparar). Sin recintos no hay verificación por recinto; los estrobos de pared sin recinto cubren hacia su propia dirección (tecla R la gira 90°) y las bocinas sin recinto toman 15 dBA sobre un ambiente de 0 dBA.
+
+El modo se guarda en el borrador. Probado con recintos de prueba; no probado con un plano real.
