@@ -361,7 +361,13 @@
 <div>
 <section class="card"><h2>Plano con dispositivos y precableado</h2>
  <small class="g">Misma vista del módulo 2, solo con la ubicación de los dispositivos y el cableado. Rueda = zoom · arrastrar = desplazar. Línea continua = ida; discontinua = retorno de clase A.</small>
- <div style="margin:4px 0"><button class="sec" id="btnVista2">Ajustar vista</button></div>
+ <div id="capas2" style="display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;margin:4px 0 6px;padding:4px 8px;background:#f4f7fa;border:1px solid var(--gb);border-radius:6px;font-size:.78rem">
+  <b>Vista:</b>
+  <label style="margin:0"><input type="checkbox" id="c2vPlano" checked style="width:auto"> Plano</label>
+  <label style="margin:0">Opacidad plano <input type="range" id="c2vOp" min="10" max="100" value="55" style="width:90px"></label>
+  <label style="margin:0">Tamaño símbolos <input type="range" id="c2vSim" min="8" max="40" value="16" style="width:90px"></label>
+  <span style="margin-left:auto"><button class="sec" id="btnVista2">Ajustar vista</button></span>
+ </div>
  <canvas id="cv2"></canvas>
 </section>
 <section class="card"><h2>Circuitos de precableado</h2><div id="cabResultados"><small class="g">Coloque dispositivos y un panel (FACP) en el módulo 2 y pulse «Generar precableado».</small></div></section>
@@ -1594,7 +1600,7 @@ function ajustarVista(){
   if(!E._modoCable)E._vista2Ajustada=false;   // un plano o recintos nuevos: la vista del módulo 3 se vuelve a ajustar al abrirla
   let b=null;const add=p=>{if(!b)b={x0:p.x,y0:p.y,x1:p.x,y1:p.y};b.x0=Math.min(b.x0,p.x);b.y0=Math.min(b.y0,p.y);b.x1=Math.max(b.x1,p.x);b.y1=Math.max(b.y1,p.y);};
   E.recintos.forEach(r=>r.poly.forEach(add));
-  if(E.img&&$('vPlano').checked){add({x:E.imgX,y:E.imgY});add({x:E.imgX+E.img.width*E.imgM,y:E.imgY+E.img.height*E.imgM});}
+  if(E.img&&ctlV('vPlano').checked){add({x:E.imgX,y:E.imgY});add({x:E.imgX+E.img.width*E.imgM,y:E.imgY+E.img.height*E.imgM});}
   if(!b){b={x0:0,y0:0,x1:30,y1:20};}
   const r=cv.getBoundingClientRect(),w=Math.max(b.x1-b.x0,1),h=Math.max(b.y1-b.y0,1),k=Math.min(r.width/w,r.height/h)*0.92;
   E.vista.k=k;E.vista.x=(r.width-w*k)/2-b.x0*k;E.vista.y=(r.height-h*k)/2-b.y0*k;dibujar();
@@ -1636,10 +1642,12 @@ function dibujar(){
   dibujarBase();
   if(!E._modoCable&&$('mod4')&&$('mod4').style.display!=='none')dibujar2();
 }
+// Control de la barra de capas que corresponde a la vista que se dibuja (el del módulo 3 tiene los suyos).
+function ctlV(id){return (E._modoCable&&$('c2'+id))||$(id);}
 function dibujarBase(){
   if(!E._modoCable)programarAutoguardado();
   const r=cv.getBoundingClientRect();cx.clearRect(0,0,r.width,r.height);cx.fillStyle='#fff';cx.fillRect(0,0,r.width,r.height);
-  if(E.img&&$('vPlano').checked){const a=aPant({x:E.imgX,y:E.imgY});cx.globalAlpha=$('vOp').value/100;cx.drawImage(E.img,a.x,a.y,E.img.width*E.imgM*E.vista.k,E.img.height*E.imgM*E.vista.k);cx.globalAlpha=1;}
+  if(E.img&&ctlV('vPlano').checked){const a=aPant({x:E.imgX,y:E.imgY});cx.globalAlpha=ctlV('vOp').value/100;cx.drawImage(E.img,a.x,a.y,E.img.width*E.imgM*E.vista.k,E.img.height*E.imgM*E.vista.k);cx.globalAlpha=1;}
   // recintos
   E.recintos.forEach(rc=>{
     cx.beginPath();rc.poly.forEach((p,i)=>{const q=aPant(p);cx[i?'lineTo':'moveTo'](q.x,q.y);});cx.closePath();
@@ -1652,7 +1660,7 @@ function dibujarBase(){
     cx.strokeStyle='#e0a800';cx.fillStyle='#fff';cx.fillRect(a.x-5,a.y-5,10,10);cx.strokeRect(a.x-5,a.y-5,10,10);
     cx.beginPath();cx.arc((a.x+n.x)/2,(a.y+n.y)/2,3,0,7);cx.fillStyle='#e0a800';cx.fill();});}
   if(E.pegando&&E.cursor){cx.setLineDash([6,4]);cx.strokeStyle='#1e7d3c';cx.lineWidth=2;cx.beginPath();E.pegando.rel.forEach((q,i)=>{const a=aPant({x:q.x+E.cursor.x,y:q.y+E.cursor.y});cx[i?'lineTo':'moveTo'](a.x,a.y);});cx.closePath();cx.stroke();cx.setLineDash([]);}
-  const S=+$('vSim').value;
+  const S=+ctlV('vSim').value;
   // coberturas
   // Capas de cobertura seleccionables; las de notificación se recortan al recinto que las contiene.
   const V2=!!E._modoCable;   // vista del precableado: solo plano, recintos, dispositivos y cableado (sin coberturas ni notas)
@@ -3052,6 +3060,7 @@ function iniciar(){
   [['tSel','sel'],['tRec','rec'],['tRect','rect'],['tRell','rell'],['tSal','salida'],['tFacp','facp'],['tAhu','ahu'],['tAsc','asc'],['tEq','eq'],['tBor','bor'],['tDev','dev']].forEach(([i,h])=>$(i).onclick=()=>herramienta(h));
   $('tAjustar').onclick=ajustarVista;
   ['vCobDet','vCobVis','vCobAud','vSPL','vNotas','vModulos','vPlano','vOp','vSim'].forEach(i=>$(i).oninput=dibujar);
+  ['c2vPlano','c2vOp','c2vSim'].forEach(i=>{$(i).oninput=dibujar2;});   // barra de la vista del precableado
   $('btnDict').click();infoCadena();tablaEquipos();
   window.addEventListener('resize',ajustarLienzo);window.addEventListener('resize',ajustarLienzo2);ajustarLienzo();ajustarVista();restaurarGuardado();
 }
