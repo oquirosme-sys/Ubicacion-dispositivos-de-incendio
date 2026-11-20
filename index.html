@@ -315,8 +315,8 @@
    <label style="margin:0">Cierre de huecos de puerta (px) <input type="number" id="rellCierre" value="10" min="0" max="40" style="width:56px"></label>
     <span style="margin-left:auto;display:flex;gap:4px"><button class="sec" id="btnCobOcultarTodas" title="Oculta la cobertura de todos los recintos (los dispositivos se quedan)" style="padding:3px 8px;font-size:.74rem">👁 Ocultar todas</button><button class="sec" id="btnCobMostrarTodas" title="Muestra la cobertura de todos los recintos" style="padding:3px 8px;font-size:.74rem">👁 Mostrar todas</button></span>
 </div>
-  <details class="panel" id="leyendaSPL" open style="display:none"><summary>Leyenda de nivel sonoro</summary><div id="leyendaSPLcuerpo"></div></details>
   <canvas id="cv"></canvas>
+  <details class="panel" id="leyendaSPL" open style="display:none"><summary>Leyenda de nivel sonoro</summary><div id="leyendaSPLcuerpo"></div></details>
   <div id="estado">Cargue un plano o cree un recinto con dimensiones. Rueda = zoom · arrastrar con botón central o Espacio = desplazar · Enter/doble clic = cerrar polígono · Esc = cancelar.</div>
  </div>
  <div id="resultados"></div>
@@ -1020,7 +1020,8 @@ function nivelSonoroComb(p,devs,perd,rr){
     const dist=Math.max(Math.hypot(p.x-d.x,p.y-d.y),AUDIBLE_DIST_MIN_M),base=d.dba3-20*Math.log10(dist/AUDIBLE_DIST_REF_M);
     if(base<AUDIBLE_PISO_DBA)continue;
     let muros=0;
-    if(perd>0&&rr&&!rr.vacio){const n=Math.max(1,Math.ceil(dist/AUDIBLE_RASTER_M));let prev=d.rid!=null?d.rid:idEn(rr,d);
+    const ridD=d.rid!=null?d.rid:(rr&&!rr.vacio?idEn(rr,d):-1);   // en su propio recinto no hay muro de por medio (evita restarse muros por el error de 0.5 m del mapa junto a la pared)
+    if(perd>0&&rr&&!rr.vacio&&!(ridD>=0&&idEn(rr,p)===ridD)){const n=Math.max(1,Math.ceil(dist/AUDIBLE_RASTER_M));let prev=d.rid!=null?d.rid:idEn(rr,d);
       for(let k=1;k<=n;k++){const id=idEn(rr,{x:d.x+(p.x-d.x)*k/n,y:d.y+(p.y-d.y)*k/n});if(id>=0&&id!==prev){muros++;prev=id;}}}   // los huecos entre recintos (grosor del muro) no cuentan aparte
     t+=Math.pow(10,(base-muros*perd)/10);
   }
