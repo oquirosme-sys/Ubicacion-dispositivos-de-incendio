@@ -80,3 +80,7 @@ Un recinto cuyo contorno cae por completo dentro de otro se trata como subrecint
 - La tabla de equipos y señales sale de Matriz_Supervision_NFPA72_2.xlsx (Sinergia). Con «+ Equipo» se coloca en el plano cualquier equipo de la matriz (bomba, generador, ATS, damper, ascensor…); «+ Manejadora» y «+ Ascensor» siguen igual.
 - Clic derecho sobre un bloque: cambiarlo por cualquier equipo de la matriz (o por salida/FACP), ver los dispositivos y señales que pide, mover o borrar. También se arrastra.
 - Cada bloque muestra una nota con los dispositivos requeridos por unidad (cantidad × P/N Simplex y función); casilla «Notas de equipos». Cada bloque suma una unidad a «Equipos supervisados» y a los módulos totales.
+
+## Estrobo de pared (Figura 18.5.5.7.1)
+- El estrobo de pared se coloca a mitad de un muro y se pega al muro: al elegir «Pared» en el panel, al agregarlo o al arrastrarlo siempre queda en el muro más cercano. De ese muro parten los cuadrados anidados de cobertura (6.1, 9.1, 12.2… m).
+- Se prueba cada muro del recinto y se elige el que da el cuadrado más pequeño que lo contiene. La verificación del recinto comprueba que el recinto cabe en el cuadrado que cubren las candelas del aparato.
