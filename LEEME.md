@@ -15,7 +15,10 @@ Archivo único `index.html`, sin librerías ni CDN, funciona sin internet (doble
 `pruebas/A02.00_planta_72dpi.png` (A02.00, 1:75, 72 px/pulgada → escala 1:75 y resolución 72).
 
 ## PDF
-Sin librerías, el navegador no puede dibujar PDF. Opciones: exportar la hoja a PNG (como el de `pruebas/`), o colocar `pdfjs/pdf.min.js` y `pdfjs/pdf.worker.min.js` locales junto al HTML (no se usa CDN). La ruta PDF **no se probó**.
+Lector propio, sin librerías ni internet (usa la descompresión nativa del navegador):
+- **Planos**: dibuja el vector de la hoja (con rotación) y busca «ESCALA 1:N» en el texto para fijar la escala; siempre verifique con «Calibrar con 2 puntos».
+- **Estándares de cadena**: extrae las frases normativas del PDF, sugiere parámetros (cd en dormitorios, dBA mínimo, cd en corredores, CO, pulsador en recepción) y usted elige qué adoptar.
+- No lee PDF escaneados, cifrados ni imágenes incrustadas; en ese caso exporte a PNG/JPG o a .csv/.json. Probado con el plano A02.00 y el Manual de Disposiciones Técnicas 2013 (184 páginas).
 
 ## Verificación normativa
 Verificado contra las copias provistas: NFPA 72:2022 (Handbook) y NFPA 101:2015. Otras ediciones muestran «sección no verificada». Símbolos: NFPA 170:2018, Tablas 8.3 y 8.4.2.

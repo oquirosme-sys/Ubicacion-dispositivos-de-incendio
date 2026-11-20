@@ -7,6 +7,8 @@
 <style>
   :root{--az0:#12314f;--az:#1b4a75;--azc:#e8f0f7;--gb:#ccd6e0;--tx:#2b2f36;--ve:#1e7d3c;--vef:#e6f4ea;--ro:#a4231f;--rof:#fbe9e8;--am:#8a5a00;--amf:#fff4e0;}
   *{box-sizing:border-box}
+  :root{color-scheme:light}
+  input,select,textarea{color:var(--tx)}
   body{margin:0;font-family:"Segoe UI",Arial,sans-serif;color:var(--tx);background:#f4f6f8;font-size:14px;line-height:1.4}
   header{background:var(--az0);color:#fff;padding:10px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
   header h1{margin:0;font-size:1.1rem} header p{margin:0;font-size:.78rem;color:#cfe0ee}
@@ -56,10 +58,10 @@
 <details open><summary>1. Proyecto y normas aplicables</summary><div class="cuerpo">
   <label>Nombre del proyecto</label><input type="text" id="pNombre" value="Proyecto de prueba — oficina">
   <div class="f2">
-   <div><label>Año de NFPA 72 a cumplir</label><select id="ed72"></select></div>
-   <div><label>Año de NFPA 101 a cumplir</label><select id="ed101"></select></div>
+   <div><label>Año de NFPA 72 a cumplir</label><select id="ed72"><option>2016</option><option>2019</option><option selected>2022</option><option>2025</option></select></div>
+   <div><label>Año de NFPA 101 a cumplir</label><select id="ed101"><option selected>2015</option><option>2018</option><option>2021</option><option>2024</option></select></div>
   </div>
-  <label>Ocupación (NFPA 101 / cap. 4 del Manual)</label><select id="ocup"></select>
+  <label>Ocupación (NFPA 101 / cap. 4 del Manual)</label><select id="ocup"><option value="negocios">Negocios / oficinas</option><option value="reunion">Reunión</option><option value="educativa">Educativa</option><option value="hotel">Residencial — hoteles y residencias</option><option value="apart">Residencial — apartamentos</option><option value="salud">Cuidado de la salud</option><option value="mercantil">Mercantil</option><option value="industrial">Industrial</option><option value="almacen">Almacenamiento</option></select>
   <div class="f2">
    <div><label>Niveles sobre rasante</label><input type="number" id="pNiveles" value="1" min="1"></div>
    <div><label>Altura piso ocupable más alto (m)</label><input type="number" id="pAlt" value="4" min="0" step="0.5"></div>
@@ -77,13 +79,14 @@
 </div></details>
 
 <details><summary>2. Estándar de cadena hotelera</summary><div class="cuerpo">
-  <label>Estándar de cadena</label><select id="cadena"></select>
+  <label>Estándar de cadena</label><select id="cadena"><option value="ninguna">Ninguna (solo normas)</option><option value="hyatt">Hyatt (FLS Q1 2024)</option><option value="marriott">Marriott (Módulo 14)</option></select>
   <div class="f2">
-    <button class="sec" id="btnImpEst">Cargar estándar (.json / .csv)</button>
+    <button class="sec" id="btnImpEst">Cargar estándar (.pdf / .json / .csv)</button>
     <button class="sec" id="btnExpEst">Descargar plantilla .json</button>
   </div>
-  <input type="file" id="fileEst" accept=".json,.csv" class="sinoche">
-  <small class="g">Formato CSV: columnas ID, Tema, Regla, Referencia (como las pestañas de la guía de hoteles). JSON: {nombre, parametros, reglas:[{id,tema,regla,ref}]}.</small>
+  <input type="file" id="fileEst" accept=".pdf,.json,.csv" class="sinoche">
+  <small class="g">PDF: se extraen las frases normativas y usted elige. CSV: columnas ID, Tema, Regla, Referencia (como las pestañas de la guía de hoteles). JSON: {nombre, parametros, reglas:[{id,tema,regla,ref}]}.</small>
+  <div id="estPdf"></div>
   <div id="cadenaInfo"></div>
 </div></details>
 
@@ -98,7 +101,7 @@
   <button class="sec" id="btnEscalaAuto">Aplicar escala (N y resolución)</button>
   <button class="sec" id="btnCalibrar">Calibrar con 2 puntos</button>
   <div class="nota"><b>Supuestos y limitaciones (carga de planos):</b><ul>
-   <li>Los PDF requieren el visor pdf.js local (<code>pdfjs/pdf.min.js</code>) junto a este archivo; sin él, exporte la hoja a PNG/JPG (no se usan CDN: la herramienta funciona sin internet).</li>
+   <li>Los PDF se leen con un lector propio (sin internet): dibuja el vector de la hoja y busca «ESCALA 1:N» en el texto. No lee PDF escaneados, cifrados ni imágenes incrustadas: en ese caso exporte a PNG/JPG.</li>
    <li>La escala sale de «1:N + resolución» o de calibrar 2 puntos con una cota conocida; una escala errónea invalida todas las distancias y coberturas.</li>
   </ul></div>
   <hr>
@@ -119,21 +122,21 @@
 
 <details open><summary>4. Parámetros de prediseño</summary><div class="cuerpo">
   <div class="f2">
-   <div><label>Espaciamiento humo (m)</label><input type="number" id="pEspH" step="0.1"></div>
-   <div><label>Espaciamiento calor listado (m)</label><input type="number" id="pEspC" step="0.1"></div>
-   <div><label>cd máx. estrobo de pared</label><select id="pCdMax"></select></div>
-   <div><label>Audible: dBA a 3 m del dispositivo</label><input type="number" id="pDba" step="1"></div>
+   <div><label>Espaciamiento humo (m)</label><select id="pEspH"><option value="9.1" selected>9.1 m (30 ft) — nominal NFPA 72</option><option value="7.6">7.6 m (25 ft) — listado menor</option><option value="6.1">6.1 m (20 ft) — listado menor</option></select></div>
+   <div><label>Espaciamiento calor listado (m)</label><select id="pEspC"><option value="15.2" selected>15.2 m (50 ft) — listado típico</option><option value="12.2">12.2 m (40 ft)</option><option value="9.1">9.1 m (30 ft)</option><option value="6.1">6.1 m (20 ft)</option></select></div>
+   <div><label>cd máx. estrobo de pared</label><select id="pCdMax"><option>15</option><option>30</option><option>45</option><option>60</option><option selected>75</option><option>95</option><option>110</option><option>135</option><option>150</option><option>177</option></select></div>
+   <div><label>Audible: dBA a 3 m del dispositivo</label><select id="pDba"><option value="75">75 dBA</option><option value="80">80 dBA</option><option value="85" selected>85 dBA</option><option value="90">90 dBA</option><option value="95">95 dBA</option></select></div>
    <div><label>Notificación audible</label><select id="pAud"><option value="bocina">Bocina / estrobo</option><option value="parlante">Parlante / estrobo (voz)</option></select></div>
-   <div><label>Factor recorrido real/recto</label><input type="number" id="pFacRec" step="0.05"></div>
-   <div><label>Aislador cada N disp. SLC</label><input type="number" id="pIso" step="1"></div>
+   <div><label>Recorrido real / distancia recta</label><select id="pFacRec"><option value="1" selected>1.0 — NFPA: 61 m tal cual</option><option value="1.2">1.2 (recorrido con pocos giros)</option><option value="1.3">1.3 (oficina con mobiliario)</option><option value="1.5">1.5 (laberinto de muros)</option></select></div>
+   <div><label>Aislador cada N disp. SLC</label><select id="pIso"><option value="10">10</option><option value="15">15</option><option value="20" selected>20</option><option value="25">25</option><option value="30">30</option></select></div>
    <div><label>Incluir CO (según tipo/cadena)</label><select id="pCO"><option value="1">Sí</option><option value="0">No</option></select></div>
   </div>
   <button class="gran" id="btnGenerar">▶ Generar prediseño</button>
   <button class="sec" id="btnLimpiar">Quitar dispositivos</button>
   <div class="nota"><b>Supuestos y limitaciones (parámetros):</b><ul>
-   <li>Los valores por defecto vienen de las constantes declaradas al inicio del código, cada una con su fuente.</li>
+   <li>Valores por defecto = criterio de NFPA 72:2022 (humo 9.1 m según §17.7.4.2.3.1; pulsadores a 61 m según §17.15.9.5, recorrido tal cual). Las demás opciones son selectores.</li>
    <li>El espaciamiento de calor es el <i>listado</i> del detector (ficha UL/FM): 15.2 m es un valor de mercado, no normativo.</li>
-   <li>dBA a 3 m, factor de recorrido y aislador cada N son supuestos de prediseño editables; no son normativos.</li>
+   <li>dBA a 3 m (dato del equipo) y aislador cada N (fabricante) no vienen de NFPA; el factor de recorrido distinto de 1.0 es criterio de Sinergia, más conservador.</li>
   </ul></div>
 </div></details>
 
@@ -268,8 +271,10 @@ const PULSADOR_RECORRIDO_MAX_M = 61;
 const PULSADOR_ALT_MIN_M = 1.07, PULSADOR_ALT_MAX_M = 1.22;
 // Distancia de colocación del pulsador respecto a la puerta (dentro de 1.5 m). CRITERIO: 1.0 m.
 const PULSADOR_OFFSET_M = 1.0;
-// Relación recorrido real / distancia recta (CRITERIO propio; el plano no da el recorrido real).
-const FACTOR_RECORRIDO_REAL = 1.3;
+// Relación recorrido real / distancia recta. NFPA 72:2022 §17.15.9.5 (V22) habla de recorrido
+// medido horizontalmente: 1.0 = usar los 61 m tal cual. Valores > 1.0 son CRITERIO de Sinergia
+// (más conservador) porque el plano no da el recorrido real entre muros y mobiliario.
+const FACTOR_RECORRIDO_REAL = 1.0;
 // Baterías: 24 h en reposo + 5 min en alarma. NFPA 72:2022 §10.6.7.2.1 y .2.2 (V22: «24 hours», «5 minutes»).
 const BATERIA_REPOSO_H = 24, BATERIA_ALARMA_MIN = 5;
 // Aislador de lazo cada N dispositivos SLC (CRITERIO de prediseño; confirmar con el fabricante y Cap. 12).
@@ -290,6 +295,15 @@ const RELLENO_UMBRAL_GRIS = 140;
 const RELLENO_LADO_MAX_PX = 3400;
 // Radio de búsqueda (px de la imagen) de un píxel libre cuando el clic cae sobre una línea/texto. CRITERIO de usabilidad.
 const RELLENO_BUSQUEDA_PX = 20;
+// Lector PDF propio (CRITERIO de rendimiento/legibilidad, no normativas): ampliación máxima de
+// páginas pequeñas, profundidad de formularios anidados, grosor mínimo de trazo en píxeles y
+// ancho medio de carácter (fracción del cuerpo) para estimar el avance del texto.
+const PDF_ESCALA_MAX = 4, PDF_PROF_MAX = 8, PDF_GROSOR_MIN_PX = 0.6, PDF_ANCHO_CARACTER = 0.5;
+// Lectura de estándares en PDF (CRITERIO de procesamiento): páginas máximas, largo de frase y tope de frases listadas.
+const PDF_PAGS_MAX = 400, ESTPDF_LARGO_MIN = 30, ESTPDF_LARGO_MAX = 420, ESTPDF_FRASES_MAX = 300;
+// Palabras clave de tema y de obligación para elegir frases de un estándar de cadena (CRITERIO).
+const ESTPDF_RE_TEMA = /(strobe|horn|speaker|audible|visible|candela|cd|detector|smoke|heat|pull station|manual station|notification|alarm|dBA|estrobo|bocina|parlante|humo|calor|pulsador|notificaci|alarma|sirena)/i;
+const ESTPDF_RE_MODAL = /(shall|must|required|minimum|maximum|at least|no more|not less|debe|deber|requer|m[ií]nimo|m[aá]ximo|obligatori)/i;
 // Tolerancia de simplificación del contorno (px). CRITERIO de procesamiento.
 const RELLENO_SIMPL_PX = 3;
 // Convención geométrica y gráfica (no normativas).
@@ -937,13 +951,298 @@ function ponerImagen(im){E.img=im;E.imgX=0;E.imgY=0;aplicarEscala();ajustarVista
 function aplicarEscala(){if(!E.img)return;const N=+$('escN').value,dpi=+$('escDpi').value;if(N>0&&dpi>0)E.imgM=0.0254/dpi*N;ajustarVista();}
 $('btnEscalaAuto').onclick=aplicarEscala;
 $('btnCalibrar').onclick=()=>{if(!E.img){alert('Cargue un plano.');return;}herramienta('cal');};
-// PDF: solo con pdf.js local opcional (sin CDN). Mejor esfuerzo, no probado en esta versión.
-function cargarPDF(f){return new Promise(res=>{
-  const hacer=async()=>{try{const lib=window.pdfjsLib;lib.GlobalWorkerOptions.workerSrc='pdfjs/pdf.worker.min.js';const buf=await f.arrayBuffer();const doc=await lib.getDocument({data:buf}).promise;const pg=await doc.getPage(1);
-      const vp=pg.getViewport({scale:1});const esc=Math.min(2,RELLENO_LADO_MAX_PX/Math.max(vp.width,vp.height));const v2=pg.getViewport({scale:esc});const c=document.createElement('canvas');c.width=v2.width;c.height=v2.height;await pg.render({canvasContext:c.getContext('2d'),viewport:v2}).promise;
-      const im=new Image();im.onload=()=>{$('escDpi').value=Math.round(72*esc);ponerImagen(im);res();};im.src=c.toDataURL('image/png');}catch(err){alert('No se pudo leer el PDF: '+err.message);res();}};
-  if(window.pdfjsLib)return hacer();
-  const s=document.createElement('script');s.src='pdfjs/pdf.min.js';s.onload=hacer;s.onerror=()=>{alert('Para abrir PDF coloque pdf.js (pdf.min.js y pdf.worker.min.js) en la carpeta «pdfjs» junto a este archivo, o exporte la hoja a PNG/JPG y cárguela como imagen. Esta herramienta no usa CDN ni internet.');res();};document.head.appendChild(s);});}
+/* ==========================================================================
+   LECTOR PDF MÍNIMO (sin librerías ni internet): objetos, flujos Flate (descompresión
+   nativa del navegador), dibujo vectorial de la página y extracción de texto.
+   Límites: no lee PDF cifrados, escaneados (sin capa de texto) ni imágenes incrustadas.
+   ========================================================================== */
+function b2s(u8){let s='';const n=0x8000;for(let i=0;i<u8.length;i+=n)s+=String.fromCharCode.apply(null,u8.subarray(i,i+n));return s;}
+async function inflar(u8){
+  if(typeof DecompressionStream==='undefined')throw new Error('este navegador no soporta DecompressionStream (use un Chrome/Edge actual)');
+  const r=new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate')));
+  return new Uint8Array(await r.arrayBuffer());
+}
+// --- Analizador de sintaxis PDF ---
+function pws(s,i){for(;;){const c=s.charCodeAt(i);if(c===32||c===10||c===13||c===9||c===12||c===0)i++;else if(c===37){while(i<s.length&&s.charCodeAt(i)!==10&&s.charCodeAt(i)!==13)i++;}else return i;}}
+const RE_NUM=/[+-]?(?:\d+\.?\d*|\.\d+)/y, RE_REF=/(\d+)\s+(\d+)\s+R(?![A-Za-z])/y, RE_PAL=/[^\s\/\[\]<>()%]+/y, RE_OP=/[A-Za-z][A-Za-z0-9*]*|['"]/y;
+function pleer(s,i){
+  i=pws(s,i);if(i>=s.length)return [null,i];const c=s[i];
+  if(c==='/'){RE_PAL.lastIndex=i+1;const m=RE_PAL.exec(s);const t=m?m[0]:'';return [{n:t.replace(/#([0-9a-fA-F]{2})/g,(a,h)=>String.fromCharCode(parseInt(h,16)))},i+1+t.length];}
+  if(c==='['){const a=[];i++;for(;;){i=pws(s,i);if(i>=s.length)return [a,i];if(s[i]===']')return [a,i+1];const r=pleer(s,i);a.push(r[0]);if(r[1]<=i)return [a,i+1];i=r[1];}}
+  if(c==='<'&&s[i+1]==='<'){const d={};i+=2;for(;;){i=pws(s,i);if(i>=s.length)return [d,i];if(s[i]==='>'&&s[i+1]==='>')return [d,i+2];
+    const k=pleer(s,i);if(!k[0]||k[0].n===undefined){i=k[1]>i?k[1]:i+1;continue;}const v=pleer(s,k[1]);d[k[0].n]=v[0];i=v[1];}}
+  if(c==='<'){const j=s.indexOf('>',i),e=j<0?s.length:j;return [{h:s.slice(i+1,e).replace(/\s/g,'')},e+1];}
+  if(c==='('){let p=1,j=i+1,o='';
+    while(j<s.length&&p>0){const ch=s[j];
+      if(ch==='\\'){const n=s[j+1];
+        if(n>='0'&&n<='7'){let k=j+1,oc='';while(k<j+4&&s[k]>='0'&&s[k]<='7'){oc+=s[k];k++;}o+=String.fromCharCode(parseInt(oc,8)&255);j=k;continue;}
+        if(n==='\r'||n==='\n'){j+=2;if(n==='\r'&&s[j]==='\n')j++;continue;}
+        const mp={n:'\n',r:'\r',t:'\t',b:'\b',f:'\f'};o+=(mp[n]!==undefined?mp[n]:n);j+=2;continue;}
+      if(ch==='(')p++;else if(ch===')'){p--;if(!p){j++;break;}}
+      o+=ch;j++;}
+    return [{t:o},j];}
+  RE_REF.lastIndex=i;let m=RE_REF.exec(s);if(m)return [{r:+m[1]},i+m[0].length];
+  RE_NUM.lastIndex=i;m=RE_NUM.exec(s);if(m)return [parseFloat(m[0]),i+m[0].length];
+  RE_PAL.lastIndex=i;m=RE_PAL.exec(s);if(m)return [{k:m[0]},i+m[0].length];
+  return [null,i+1];
+}
+// --- Documento ---
+function pdfGet(D,v){let g=0;while(v&&v.r!==undefined&&g++<30)v=D.o[v.r];return v;}
+function pdfNum(D,v){v=pdfGet(D,v);return typeof v==='number'?v:0;}
+async function pdfDatos(D,num){
+  const f=D.f[num];if(!f)return null;const d=D.o[num]||{};const fl=pdfGet(D,d.Filter);
+  const fs=(fl==null?[]:(Array.isArray(fl)?fl:[fl])).map(x=>{const y=pdfGet(D,x);return y&&y.n;});
+  let u=D.b.subarray(f[0],f[1]);
+  for(const x of fs){if(x==='FlateDecode'||x==='Fl'){try{u=await inflar(u);}catch(e){return null;}}else return null;}
+  return u;
+}
+async function pdfAbrir(bytes){
+  const D={s:b2s(bytes),b:bytes,o:{},f:{},cache:{}};
+  if(D.s.indexOf('/Encrypt')>=0&&/\/Encrypt\s+\d+\s+\d+\s+R/.test(D.s))throw new Error('el PDF está cifrado');
+  const re=/(\d+)\s+(\d+)\s+obj\b/g;let m;
+  while((m=re.exec(D.s))){
+    const num=+m[1],r=pleer(D.s,re.lastIndex),v=r[0],j=pws(D.s,r[1]);
+    if(D.s.startsWith('stream',j)){
+      let a=j+6;if(D.s[a]==='\r')a++;if(D.s[a]==='\n')a++;let e=-1;
+      const L=(v&&typeof v.Length==='number')?v.Length:-1;
+      if(L>=0){const t=D.s.indexOf('endstream',a+L);if(t>=0&&t-(a+L)<=4)e=a+L;}
+      if(e<0){let t=D.s.indexOf('endstream',a);if(t<0)t=D.s.length;e=t;if(D.s[e-1]==='\n')e--;if(D.s[e-1]==='\r')e--;}
+      D.f[num]=[a,e];re.lastIndex=e;
+    }
+    D.o[num]=v;
+  }
+  for(const k of Object.keys(D.o)){   // objetos dentro de flujos de objetos (ObjStm)
+    const v=D.o[k];
+    if(v&&v.Type&&v.Type.n==='ObjStm'&&D.f[k]){
+      const u=await pdfDatos(D,+k);if(!u)continue;const t=b2s(u),N=pdfNum(D,v.N),F=pdfNum(D,v.First);
+      const hdr=t.slice(0,F).trim().split(/\s+/).map(Number);
+      for(let q=0;q<N;q++){const on=hdr[2*q],off=hdr[2*q+1];if(D.o[on]===undefined)D.o[on]=pleer(t,F+off)[0];}
+    }
+  }
+  return D;
+}
+function pdfPaginas(D){
+  let cat=null;for(const k in D.o){const v=D.o[k];if(v&&v.Type&&v.Type.n==='Catalog')cat=v;}
+  const out=[];
+  const rec=(nodo,her,g)=>{nodo=pdfGet(D,nodo);if(!nodo||g>30||typeof nodo!=='object')return;
+    const h=Object.assign({},her);['MediaBox','Resources','Rotate'].forEach(k=>{if(nodo[k]!=null)h[k]=nodo[k];});
+    if(!nodo.Kids||(nodo.Type&&nodo.Type.n==='Page')){out.push({nodo,h});return;}
+    (pdfGet(D,nodo.Kids)||[]).forEach(kd=>rec(kd,h,g+1));};
+  if(cat)rec(cat.Pages,{},0);
+  if(!out.length){for(const k in D.o){const v=D.o[k];if(v&&v.Type&&v.Type.n==='Page')out.push({nodo:v,h:{MediaBox:v.MediaBox,Resources:v.Resources}});}}
+  return out;
+}
+async function pdfContenido(D,pag){
+  const c=pdfGet(D,pag.nodo.Contents),lista=Array.isArray(c)?c:[pag.nodo.Contents];let out='';
+  for(const it of lista){if(!it||it.r===undefined)continue;const u=await pdfDatos(D,it.r);if(u)out+=b2s(u)+'\n';}
+  return out;
+}
+// --- Fuentes (ToUnicode) y texto ---
+async function pdfFuente(D,res,nombre){
+  const fonts=pdfGet(D,res&&res.Font);if(!fonts||!fonts[nombre])return null;
+  const ref=fonts[nombre],ck=(ref.r!==undefined)?ref.r:null;if(ck!==null&&D.cache[ck])return D.cache[ck];
+  const f=pdfGet(D,ref)||{},o={map:null,len:(f.Subtype&&f.Subtype.n==='Type0')?2:1};
+  if(f.ToUnicode&&f.ToUnicode.r!==undefined){
+    const u=await pdfDatos(D,f.ToUnicode.r);
+    if(u){const t=b2s(u);o.map={};
+      const cs=/begincodespacerange\s*<([0-9a-fA-F]+)>/.exec(t);if(cs)o.len=cs[1].length/2;
+      const hx=h=>{if(h.length<4)return String.fromCharCode(parseInt(h,16));let s='';for(let i=0;i+4<=h.length;i+=4)s+=String.fromCharCode(parseInt(h.substr(i,4),16));return s;};
+      (t.match(/beginbfchar[\s\S]*?endbfchar/g)||[]).forEach(b=>{b.replace(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/g,(a,c,d)=>{o.map[parseInt(c,16)]=hx(d);return a;});});
+      (t.match(/beginbfrange[\s\S]*?endbfrange/g)||[]).forEach(b=>{b.replace(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>\s*(<[0-9a-fA-F]+>|\[[^\]]*\])/g,(a,lo,hi,d)=>{
+        lo=parseInt(lo,16);hi=parseInt(hi,16);
+        if(d[0]==='['){(d.match(/<([0-9a-fA-F]+)>/g)||[]).forEach((x,i)=>{o.map[lo+i]=hx(x.slice(1,-1));});}
+        else{const base=hx(d.slice(1,-1));for(let c=lo;c<=hi&&c-lo<65536;c++)o.map[c]=base.slice(0,-1)+String.fromCharCode(base.charCodeAt(base.length-1)+(c-lo));}
+        return a;});});}
+  }
+  if(ck!==null)D.cache[ck]=o;return o;
+}
+function pdfDecodificar(o,sv){
+  let bytes='';
+  if(sv&&sv.t!==undefined)bytes=sv.t;
+  else if(sv&&sv.h!==undefined){const h=sv.h.length%2?sv.h+'0':sv.h;for(let i=0;i<h.length;i+=2)bytes+=String.fromCharCode(parseInt(h.substr(i,2),16));}
+  const len=(o&&o.map)?o.len:1;let out='';
+  for(let i=0;i<bytes.length;i+=len){let c=bytes.charCodeAt(i);if(len===2)c=(c<<8)|(bytes.charCodeAt(i+1)||0);
+    out+=(o&&o.map&&o.map[c]!==undefined)?o.map[c]:(len===1?String.fromCharCode(c):'');}
+  return out;
+}
+function mulM(m,n){return [m[0]*n[0]+m[1]*n[2],m[0]*n[1]+m[1]*n[3],m[2]*n[0]+m[3]*n[2],m[2]*n[1]+m[3]*n[3],m[4]*n[0]+m[5]*n[2]+n[4],m[4]*n[1]+m[5]*n[3]+n[5]];}
+function pdfColor(v){const c=n=>Math.max(0,Math.min(255,Math.round(n*255)));
+  if(v.length===1)return 'rgb('+c(v[0])+','+c(v[0])+','+c(v[0])+')';
+  if(v.length===3)return 'rgb('+c(v[0])+','+c(v[1])+','+c(v[2])+')';
+  if(v.length===4){const k=1-v[3];return 'rgb('+c((1-v[0])*k)+','+c((1-v[1])*k)+','+c((1-v[2])*k)+')';}
+  return null;}
+// --- Intérprete de contenido: dibuja (si hay ctx) y recoge texto ---
+async function pdfEjecutar(D,ctx,txt,res,E2,prof){
+  let i=0,pila=[],clip=null,cx0=0,cy0=0,M=E2.M,lw=1;
+  const Mst=[];let tm=[1,0,0,1,0,0],tlm=[1,0,0,1,0,0],fuente=null,tam=1,tl=0;
+  const num=v=>typeof v==='number'?v:0;
+  const pintar=op=>{
+    const rellena=/^(f|F|f\*|B|B\*|b|b\*)$/.test(op),traza=/^(S|s|B|B\*|b|b\*)$/.test(op),cierra=/^(s|b|b\*)$/.test(op),eo=/\*$/.test(op);
+    if(ctx){
+      if(cierra)ctx.closePath();
+      if(rellena)ctx.fill(eo?'evenodd':'nonzero');
+      if(traza){ctx.lineWidth=Math.max(lw,PDF_GROSOR_MIN_PX/((E2.esc*Math.hypot(M[0],M[1]))||1));ctx.stroke();}
+      if(clip)ctx.clip(clip);
+      ctx.beginPath();
+    }
+    clip=null;
+  };
+  const mostrar=sv=>{
+    const t=pdfDecodificar(fuente,sv);if(!t)return;
+    const T=mulM(tm,M),s=Math.abs(tam)*Math.hypot(T[2],T[3]);
+    E2.textos.push({x:T[4],y:T[5],t,s});
+    let adv=t.length*Math.abs(tam)*PDF_ANCHO_CARACTER;
+    if(ctx&&t.trim()&&tam!==0){
+      ctx.save();ctx.transform(tm[0],tm[1],tm[2],tm[3],tm[4],tm[5]);ctx.scale(1,-1);
+      ctx.font=Math.abs(tam)+'px Arial';ctx.textBaseline='alphabetic';adv=ctx.measureText(t).width;ctx.fillText(t,0,0);ctx.restore();
+    }
+    tm=mulM([1,0,0,1,adv,0],tm);
+  };
+  while(true){
+    i=pws(txt,i);if(i>=txt.length)break;
+    const c=txt[i];
+    if(/[0-9+\-.\/\[(<]/.test(c)){const r=pleer(txt,i);pila.push(r[0]);i=r[1]>i?r[1]:i+1;continue;}
+    RE_OP.lastIndex=i;const m=RE_OP.exec(txt);if(!m){i++;continue;}
+    const op=m[0];i+=op.length;const a=pila;
+    if(op==='BI'){const re=/\sEI(?=\s|$)/g;re.lastIndex=i;const q=re.exec(txt);i=q?q.index+q[0].length:txt.length;pila=[];continue;}
+    switch(op){
+      case 'q':if(ctx)ctx.save();Mst.push({M:M.slice(),lw});break;
+      case 'Q':if(ctx)ctx.restore();if(Mst.length){const s=Mst.pop();M=s.M;lw=s.lw;}break;
+      case 'cm':{const mm=a.map(num);if(mm.length===6){M=mulM(mm,M);if(ctx)ctx.transform(mm[0],mm[1],mm[2],mm[3],mm[4],mm[5]);}break;}
+      case 'w':lw=num(a[0]);break;
+      case 'J':if(ctx)ctx.lineCap=['butt','round','square'][num(a[0])]||'butt';break;
+      case 'j':if(ctx)ctx.lineJoin=['miter','round','bevel'][num(a[0])]||'miter';break;
+      case 'd':if(ctx){const arr=(Array.isArray(a[0])?a[0]:[]).map(num);try{ctx.setLineDash(arr.some(x=>x<0)?[]:arr);}catch(e){}}break;
+      case 'm':if(ctx)ctx.moveTo(num(a[0]),num(a[1]));cx0=num(a[0]);cy0=num(a[1]);break;
+      case 'l':if(ctx)ctx.lineTo(num(a[0]),num(a[1]));cx0=num(a[0]);cy0=num(a[1]);break;
+      case 'c':if(ctx)ctx.bezierCurveTo(num(a[0]),num(a[1]),num(a[2]),num(a[3]),num(a[4]),num(a[5]));cx0=num(a[4]);cy0=num(a[5]);break;
+      case 'v':if(ctx)ctx.bezierCurveTo(cx0,cy0,num(a[0]),num(a[1]),num(a[2]),num(a[3]));cx0=num(a[2]);cy0=num(a[3]);break;
+      case 'y':if(ctx)ctx.bezierCurveTo(num(a[0]),num(a[1]),num(a[2]),num(a[3]),num(a[2]),num(a[3]));cx0=num(a[2]);cy0=num(a[3]);break;
+      case 'h':if(ctx)ctx.closePath();break;
+      case 're':if(ctx)ctx.rect(num(a[0]),num(a[1]),num(a[2]),num(a[3]));break;
+      case 'S':case 's':case 'f':case 'F':case 'f*':case 'B':case 'B*':case 'b':case 'b*':case 'n':pintar(op);break;
+      case 'W':clip='nonzero';break;
+      case 'W*':clip='evenodd';break;
+      case 'g':case 'rg':case 'k':case 'sc':case 'scn':{const col=pdfColor(a.filter(x=>typeof x==='number'));if(ctx&&col)ctx.fillStyle=col;break;}
+      case 'G':case 'RG':case 'K':case 'SC':case 'SCN':{const col=pdfColor(a.filter(x=>typeof x==='number'));if(ctx&&col)ctx.strokeStyle=col;break;}
+      case 'Do':{
+        const xo=pdfGet(D,res&&res.XObject),ref=xo&&a[0]&&xo[a[0].n];
+        if(ref&&ref.r!==undefined&&prof<PDF_PROF_MAX){
+          const d=D.o[ref.r];
+          if(d&&d.Subtype&&d.Subtype.n==='Form'){
+            const u=await pdfDatos(D,ref.r);
+            if(u){
+              const mat=(pdfGet(D,d.Matrix)||[1,0,0,1,0,0]).map(x=>pdfNum(D,x));
+              if(ctx){ctx.save();ctx.transform(mat[0],mat[1],mat[2],mat[3],mat[4],mat[5]);
+                const bb=pdfGet(D,d.BBox);if(bb){const b=bb.map(x=>pdfNum(D,x));ctx.beginPath();ctx.rect(b[0],b[1],b[2]-b[0],b[3]-b[1]);ctx.clip();ctx.beginPath();}}
+              await pdfEjecutar(D,ctx,b2s(u),pdfGet(D,d.Resources)||res,{M:mulM(mat,M),esc:E2.esc,textos:E2.textos},prof+1);
+              if(ctx)ctx.restore();
+            }
+          }
+        }
+        break;}
+      case 'BT':tm=[1,0,0,1,0,0];tlm=[1,0,0,1,0,0];break;
+      case 'Tf':fuente=await pdfFuente(D,res,a[0]&&a[0].n);tam=num(a[1]);break;
+      case 'TL':tl=num(a[0]);break;
+      case 'Td':tlm=mulM([1,0,0,1,num(a[0]),num(a[1])],tlm);tm=tlm.slice();break;
+      case 'TD':tl=-num(a[1]);tlm=mulM([1,0,0,1,num(a[0]),num(a[1])],tlm);tm=tlm.slice();break;
+      case 'Tm':tlm=a.map(num);if(tlm.length!==6)tlm=[1,0,0,1,0,0];tm=tlm.slice();break;
+      case 'T*':tlm=mulM([1,0,0,1,0,-tl],tlm);tm=tlm.slice();break;
+      case 'Tj':mostrar(a[0]);break;
+      case "'":tlm=mulM([1,0,0,1,0,-tl],tlm);tm=tlm.slice();mostrar(a[0]);break;
+      case '"':tlm=mulM([1,0,0,1,0,-tl],tlm);tm=tlm.slice();mostrar(a[2]);break;
+      case 'TJ':(Array.isArray(a[0])?a[0]:[]).forEach(it=>{if(typeof it==='number')tm=mulM([1,0,0,1,-it/1000*tam,0],tm);else mostrar(it);});break;
+      default:break;
+    }
+    pila=[];
+  }
+}
+async function pdfRenderizar(D,pag){
+  const mb=(pdfGet(D,pag.h.MediaBox)||[0,0,612,792]).map(x=>pdfNum(D,x));
+  const x0=Math.min(mb[0],mb[2]),y0=Math.min(mb[1],mb[3]),x1=Math.max(mb[0],mb[2]),y1=Math.max(mb[1],mb[3]);
+  const w=x1-x0,h=y1-y0,esc=Math.min(PDF_ESCALA_MAX,RELLENO_LADO_MAX_PX/Math.max(w,h));
+  const rot=((pdfNum(D,pag.h.Rotate)%360)+360)%360,gira=(rot===90||rot===270);
+  const cvp=document.createElement('canvas');cvp.width=Math.round((gira?h:w)*esc);cvp.height=Math.round((gira?w:h)*esc);
+  const c=cvp.getContext('2d');c.fillStyle='#fff';c.fillRect(0,0,cvp.width,cvp.height);
+  // Matriz página→lienzo según /Rotate (0, 90, 180, 270 grados en sentido horario)
+  const MT={0:[esc,0,0,-esc,-x0*esc,y1*esc],90:[0,esc,esc,0,-y0*esc,-x0*esc],180:[-esc,0,0,esc,x1*esc,-y0*esc],270:[0,-esc,-esc,0,y1*esc,x1*esc]}[rot]||[esc,0,0,-esc,-x0*esc,y1*esc];
+  c.setTransform(MT[0],MT[1],MT[2],MT[3],MT[4],MT[5]);c.strokeStyle='#000';c.fillStyle='#000';c.beginPath();
+  const textos=[];
+  await pdfEjecutar(D,c,await pdfContenido(D,pag),pdfGet(D,pag.h.Resources),{M:[1,0,0,1,0,0],esc,textos},0);
+  return {canvas:cvp,esc,textos,rot};
+}
+function pdfLineas(textos,rot){
+  // Pasa las posiciones al sentido de lectura de la página según /Rotate (y hacia arriba).
+  const R={90:(x,y)=>[y,-x],180:(x,y)=>[-x,-y],270:(x,y)=>[-y,x]}[rot||0];
+  if(R)textos=textos.map(p=>{const q=R(p.x,p.y);return {x:q[0],y:q[1],t:p.t,s:p.s};});
+  const t=textos.filter(x=>x.t&&x.t.trim()).sort((a,b)=>(b.y-a.y)||(a.x-b.x)),L=[];
+  for(const p of t){const l=L[L.length-1];if(l&&Math.abs(l.y-p.y)<=Math.max(1,p.s*0.4))l.p.push(p);else L.push({y:p.y,p:[p]});}
+  return L.map(l=>{l.p.sort((a,b)=>a.x-b.x);let s='',ult=null;
+    for(const p of l.p){if(ult!==null&&p.x-ult>p.s*0.2&&!/\s$/.test(s)&&!/^\s/.test(p.t))s+=' ';s+=p.t;ult=p.x+p.t.length*p.s*PDF_ANCHO_CARACTER;}
+    return s.trim();}).filter(Boolean);
+}
+
+/* --- Cargar plano en PDF: dibuja la primera página (o la elegida) y deduce 1:N del texto --- */
+async function cargarPDF(f){
+  try{
+    estado('Leyendo PDF… (planos grandes pueden tardar unos segundos)');
+    const D=await pdfAbrir(new Uint8Array(await f.arrayBuffer())),pgs=pdfPaginas(D);
+    if(!pgs.length)throw new Error('no se encontraron páginas');
+    let n=1;if(pgs.length>1){n=parseInt(prompt('El PDF tiene '+pgs.length+' páginas. ¿Cuál cargar?','1'),10)||1;n=Math.max(1,Math.min(pgs.length,n));}
+    const r=await pdfRenderizar(D,pgs[n-1]);
+    const todo=pdfLineas(r.textos,r.rot).join(' '),mE=/escala\s*:?\s*1\s*:\s*(\d{2,4})/i.exec(todo);
+    await new Promise(res=>r.canvas.toBlob(b=>{const im=new Image();im.onload=()=>{
+      $('escDpi').value=(72*r.esc).toFixed(2);if(mE)$('escN').value=mE[1];ponerImagen(im);
+      estado('PDF cargado ('+im.width+'×'+im.height+' px). '+(mE?'Escala detectada en el plano: 1:'+mE[1]+'. ':'No se detectó «ESCALA 1:N» en el texto: ingrésela y pulse «Aplicar escala». ')+'Verifique con «Calibrar con 2 puntos».');res();};im.src=URL.createObjectURL(b);}));
+  }catch(err){alert('No se pudo leer el PDF: '+err.message+'. Si es un PDF escaneado o protegido, expórtelo a PNG/JPG y cárguelo como imagen.');estado('');}
+}
+
+/* --- Estándar de cadena desde PDF: extrae frases normativas y deja elegir qué se adopta --- */
+async function procesarPDFEstandar(f){
+  const info=$('estPdf');
+  try{
+    info.innerHTML='<small class="g">Leyendo «'+esc(f.name)+'»…</small>';
+    const D=await pdfAbrir(new Uint8Array(await f.arrayBuffer())),pgs=pdfPaginas(D),frases=[];
+    const N=Math.min(pgs.length,PDF_PAGS_MAX);
+    for(let p=0;p<N;p++){
+      info.innerHTML='<small class="g">Leyendo página '+(p+1)+' de '+N+'…</small>';await new Promise(r=>setTimeout(r));
+      const textos=[];await pdfEjecutar(D,null,await pdfContenido(D,pgs[p]),pdfGet(D,pgs[p].h.Resources),{M:[1,0,0,1,0,0],esc:1,textos},0);
+      pdfLineas(textos).join(' ').replace(/([.;:])\s+/g,'$1\n').split('\n').forEach(s=>{s=s.replace(/\s+/g,' ').trim();
+        if(s.length>=ESTPDF_LARGO_MIN&&s.length<=ESTPDF_LARGO_MAX&&ESTPDF_RE_TEMA.test(s)&&ESTPDF_RE_MODAL.test(s))frases.push({t:s,p:p+1});});
+    }
+    if(!frases.length){info.innerHTML='<div class="nota"><b>No se encontró texto normativo.</b> El PDF puede ser escaneado (sin capa de texto), estar protegido o usar fuentes sin tabla de caracteres. Exporte el estándar a .csv o .json (use la plantilla).</div>';return;}
+    const T=frases.map(x=>x.t);
+    const num=(filtro,re,mn,mx)=>{for(const s of T){if(!filtro.test(s))continue;const m=re.exec(s);if(m&&+m[1]>=mn&&+m[1]<=mx)return m[1];}return '';};
+    const det={dormirCd:num(/sleep|guest ?room|bedroom|dormir|habitaci/i,/(\d{2,3})\s*cd/i,15,200),
+      dbaMin:num(/minimum|at least|m[ií]nimo/i,/(\d{2,3})\s*dBA/i,60,90),
+      corredorCd:num(/corridor|corredor|hallway/i,/(\d{2,3})\s*cd/i,15,200)};
+    const flag=re=>re.test(T.join('\n'));
+    const sel=(id,vals,v)=>'<select id="'+id+'"><option value="">— sin cambio —</option>'+vals.map(x=>'<option value="'+x+'"'+(String(x)===String(v)?' selected':'')+'>'+x+'</option>').join('')+'</select>';
+    const chk=(id,t,v)=>'<label style="font-weight:400"><input type="checkbox" id="'+id+'" style="width:auto"'+(v?' checked':'')+'> '+t+'</label>';
+    info.innerHTML='<div class="tarjeta"><h4>Estándar leído de «'+esc(f.name)+'»</h4><small class="g">'+pgs.length+' páginas, '+frases.length+' frases candidatas. Los valores detectados son sugerencias: confírmelos o cámbielos.</small>'+
+      '<label>Nombre del estándar</label><input type="text" id="epNombre" value="'+esc(f.name.replace(/\.pdf$/i,''))+'">'+
+      '<div class="f2"><div><label>cd en dormitorios (mín.)</label>'+sel('epDormir',[110,177],det.dormirCd)+'</div><div><label>cd en baño de habitación</label>'+sel('epBano',[15,110,177],'')+'</div>'+
+      '<div><label>Audible mínimo (dBA)</label>'+sel('epDba',[60,65,70,75,80,85],det.dbaMin)+'</div><div><label>cd en corredores (mín.)</label>'+sel('epCorr',[15,30,60,75],det.corredorCd)+'</div></div>'+
+      chk('epCO','CO con base sonora (cocinas, equipos a combustión)',flag(/carbon monoxide|mon[oó]xido/i))+'<br>'+
+      chk('epRec','Pulsador general en recepción/FACP',flag(/(manual|pull)[^.]{0,120}(reception|front desk|recepci)/i))+'<br>'+
+      chk('epHum','Sin detector de humo en zonas con vapor (usar calor)',flag(/(steam|vapor|shower|ducha)[^.]{0,120}(smoke|humo)|(smoke|humo)[^.]{0,120}(steam|vapor|shower|ducha)/i))+'<br>'+
+      chk('epOf1','Sin notificación en oficinas de una persona',false)+'<br>'+
+      '<label>Frases a conservar como reglas (marcadas = con cifras o unidades)</label><div style="max-height:260px;overflow:auto;border:1px solid var(--gb);padding:4px">'+
+      frases.slice(0,ESTPDF_FRASES_MAX).map((x,k)=>'<label style="font-weight:400;margin:2px 0"><input type="checkbox" class="epFr" data-k="'+k+'" style="width:auto"'+(/\d+\s*(cd|dBA|ft|feet|m\b|mm|%|pies|metros)/i.test(x.t)?' checked':'')+'> '+esc(x.t)+' <small class="g">(p. '+x.p+')</small></label>').join('')+'</div>'+
+      '<button id="epUsar">Usar este estándar</button>'+
+      bloque(['El texto se extrae de la capa de texto del PDF; las frases se eligen por palabras clave y verbos de obligación (shall, must, debe, mínimo…).'],['No interpreta tablas ni figuras, ni PDF escaneados; una frase puede perder su contexto. Los parámetros que usa el motor son solo los de los selectores de arriba: el resto de las frases queda como referencia y debe revisarse a mano.','El estándar de la cadena nunca reemplaza a NFPA: solo agrega exigencias más estrictas.'])+'</div>';
+    $('epUsar').onclick=()=>{
+      const p={},v=id=>$(id).value,nn=id=>v(id)===''?null:+v(id);
+      if(nn('epDormir')!=null)p.dormirCd=nn('epDormir');if(nn('epBano')!=null)p.banoDormirCd=nn('epBano');if(nn('epDba')!=null)p.dbaMin=nn('epDba');if(nn('epCorr')!=null)p.corredorCd=nn('epCorr');
+      if($('epCO').checked)p.co=true;if($('epRec').checked)p.pulsadorRecepcion=true;if($('epHum').checked)p.sinHumoHumedo=true;if($('epOf1').checked)p.oficina1SinNot=true;p.estroboTodos=true;
+      const reglas=[];document.querySelectorAll('.epFr').forEach(c=>{if(c.checked){const x=frases[+c.dataset.k];reglas.push({id:'PDF-'+(reglas.length+1),tema:'',regla:x.t,ref:f.name+', p. '+x.p});}});
+      E.cadenaCustom={nombre:v('epNombre')||f.name,parametros:p,reglas};E.chain='custom';
+      let o=$('cadena').querySelector('option[value=custom]');if(!o){o=document.createElement('option');o.value='custom';$('cadena').appendChild(o);}
+      o.textContent='Cargado: '+E.cadenaCustom.nombre;$('cadena').value='custom';infoCadena();estado('Estándar «'+E.cadenaCustom.nombre+'» activo con '+reglas.length+' reglas.');
+    };
+  }catch(err){info.innerHTML='<div class="nota"><b>No se pudo leer el PDF:</b> '+esc(err.message)+'. Exporte el estándar a .csv/.json.</div>';}
+}
+
 
 /* ==========================================================================
    PANELES: propiedades de recinto, equipos, estándar, requisitos
@@ -979,7 +1278,7 @@ function infoCadena(){
 function csvAReglas(t){const L=t.split(/\r?\n/).filter(x=>x.trim());const sep=L[0].includes(';')?';':',';const cols=L.shift().split(sep).map(s=>s.trim().toLowerCase());
   return L.map(l=>{const v=l.split(sep);const o={};cols.forEach((c,i)=>o[c]=(v[i]||'').trim());return{id:o.id||'',tema:o.tema||'',regla:o.regla||o['regla de diseño']||'',ref:o.referencia||o.ref||''};});}
 $('btnImpEst').onclick=()=>$('fileEst').click();
-$('fileEst').onchange=ev=>{const f=ev.target.files[0];if(!f)return;const fr=new FileReader();fr.onload=()=>{try{let c;
+$('fileEst').onchange=ev=>{const f=ev.target.files[0];if(!f)return;if(/\.pdf$/i.test(f.name)){procesarPDFEstandar(f);return;}const fr=new FileReader();fr.onload=()=>{try{let c;
   if(/\.csv$/i.test(f.name))c={nombre:f.name.replace(/\.csv$/i,''),parametros:{},reglas:csvAReglas(fr.result)};else c=JSON.parse(fr.result);
   c.parametros=c.parametros||{};c.reglas=c.reglas||[];E.cadenaCustom=c;E.chain='custom';
   let o=$('cadena').querySelector('option[value=custom]');if(!o){o=document.createElement('option');o.value='custom';$('cadena').appendChild(o);}o.textContent='Cargado: '+(c.nombre||f.name);$('cadena').value='custom';infoCadena();}catch(e){alert('Archivo de estándar inválido: '+e.message);}};fr.readAsText(f);};
