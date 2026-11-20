@@ -68,6 +68,16 @@
   @media(max-width:1000px){.cols2{grid-template-columns:1fr}}
   .aviso-mod{font-size:.8rem;color:#5a6472}
   #app{padding:0}
+  .tabla-eq{overflow-x:auto}.tabla-eq table{table-layout:fixed;min-width:300px}.tabla-eq th,.tabla-eq td{word-wrap:break-word;overflow-wrap:anywhere;text-align:left}.tabla-eq th:not(:first-child),.tabla-eq td:not(:first-child){text-align:center}
+  /* Desplazamiento fijo en Ejecución: barras vertical y horizontal siempre visibles en el panel y en el área de trabajo */
+  #mod2 #lateral,#mod2 #app>div:last-child{max-height:calc(100vh - 130px);overflow:scroll;scrollbar-width:auto;scrollbar-color:#7d8fa3 #e3e9ef}
+  #mod2 #lateral{padding:0 4px 4px 0}
+  #mod2 #app>div:last-child{min-width:0;padding:0 4px 4px 0}
+  #mod2 ::-webkit-scrollbar{width:14px;height:14px}
+  #mod2 ::-webkit-scrollbar-track{background:#e3e9ef;border-radius:7px}
+  #mod2 ::-webkit-scrollbar-thumb{background:#7d8fa3;border-radius:7px;border:2px solid #e3e9ef}
+  #mod2 ::-webkit-scrollbar-thumb:hover{background:var(--az)}
+  #mod2 ::-webkit-scrollbar-corner{background:#e3e9ef}
   .glos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
   .glos-item{display:flex;gap:12px;border:1px solid var(--gb);border-radius:8px;padding:8px 10px;background:#fbfcfd}
   .glos-item canvas{width:72px;height:72px;min-height:0;flex:none;border:1px solid var(--gb);border-radius:6px;cursor:default}
@@ -81,7 +91,7 @@
   <div class="barra-in">
     <div class="app-id"><span class="tesela">🔥</span>
       <div><div class="app-nombre">Prediseño de alarmas contra incendio</div>
-      <div class="app-lema">NFPA 72 · NFPA 101 · NFPA 170 · Manual de Disposiciones Técnicas CR 2013</div></div></div>
+      <div class="app-lema">NFPA 72 · NFPA 101 · NFPA 170 · Reglamento Nacional de Protección contra Incendios CR 2023</div></div></div>
     <span class="sesion-correo">Sinergia Ingeniería</span>
   </div>
 </header>
@@ -98,6 +108,7 @@
 <div><section class="card"><h2>Información del proyecto y normas</h2>
   <label>Nombre del proyecto</label><input type="text" id="pNombre" value="Proyecto de prueba — oficina">
   <div class="f2">
+   <div style="grid-column:1/-1"><label>Jurisdicción (define las ediciones NFPA vigentes)</label><select id="pais"></select><small class="g" id="paisNota"></small></div>
    <div><label>Año de NFPA 72 a cumplir</label><select id="ed72"><option>2016</option><option>2019</option><option selected>2022</option><option>2025</option></select></div>
    <div><label>Año de NFPA 101 a cumplir</label><select id="ed101"><option selected>2015</option><option>2018</option><option>2021</option><option>2024</option></select></div>
   </div>
@@ -163,7 +174,7 @@
   <button class="sec" id="btnEscalaAuto">Aplicar escala (N y resolución)</button>
   <button class="sec" id="btnCalibrar">Calibrar con 2 puntos</button>
   <button id="btnAuto">Detectar recintos automáticamente</button>
-  <select id="autoModo" title="Método de detección"><option value="huella" selected>Huella del edificio, sin seccionar (recomendado)</option><option value="ambos">Rótulos + espacios sin rótulo</option><option value="rotulos">Solo por rótulos de área (estricto)</option><option value="geom">Solo geometría (sin rótulos)</option></select>
+  <select id="autoModo" title="Método de detección"><option value="huella" selected>Huella del edificio, sin seccionar (recomendado)</option><option value="huellasub">Huella + subrecintos por rótulos (los subrecintos se descuentan de la huella)</option><option value="ambos">Rótulos + espacios sin rótulo</option><option value="rotulos">Solo por rótulos de área (estricto)</option><option value="geom">Solo geometría (sin rótulos)</option></select>
   <div class="nota"><b>Supuestos y limitaciones (carga de planos):</b><ul>
    <li>Los PDF se leen con un lector propio (sin internet): dibuja el vector de la hoja y busca «ESCALA 1:N» en el texto. No lee PDF escaneados, cifrados ni imágenes incrustadas: en ese caso exporte a PNG/JPG.</li>
    <li>La escala sale de «1:N + resolución» o de calibrar 2 puntos con una cota conocida; una escala errónea invalida todas las distancias y coberturas.</li>
@@ -182,7 +193,8 @@
   <hr>
   <b>Recinto seleccionado</b>
   <div id="propRec"><small class="g">Seleccione un recinto en el lienzo.</small></div>
-</section><section class="card"><h2>Prediseño</h2><small class="g">Los criterios se definen en el módulo 1. Cree o cargue los recintos y genere.</small><br>  <button class="gran" id="btnGenerar">▶ Generar prediseño</button>
+</section><section class="card"><h2>Dispositivo seleccionado</h2><div id="propDisp"></div></section>
+<section class="card"><h2>Prediseño</h2><small class="g">Los criterios se definen en el módulo 1. Cree o cargue los recintos y genere.</small><br>  <button class="gran" id="btnGenerar">▶ Generar prediseño</button>
   <button class="sec" id="btnLimpiar">Quitar dispositivos</button>
 </section><section class="card"><h2>Archivo</h2>
   <button class="sec" id="btnGuardar">Guardar borrador (.json)</button>
@@ -216,6 +228,7 @@
    <label style="margin:0"><input type="checkbox" id="vCobDet" checked style="width:auto"> Detectores</label>
    <label style="margin:0"><input type="checkbox" id="vCobVis" style="width:auto"> Notificación visual</label>
    <label style="margin:0"><input type="checkbox" id="vCobAud" style="width:auto"> Notificación auditiva</label>
+   <label style="margin:0" title="Rojo: por debajo del nivel requerido; verde: cumple; naranja: sobre 110 dBA"><input type="checkbox" id="vSPL" style="width:auto"> Nivel sonoro (dBA)</label>
    <label style="margin:0"><input type="checkbox" id="vPlano" checked style="width:auto"> Plano</label>
    <label style="margin:0">Opacidad plano <input type="range" id="vOp" min="10" max="100" value="55" style="width:90px"></label>
    <label style="margin:0">Tamaño símbolos <input type="range" id="vSim" min="8" max="40" value="16" style="width:90px"></label>
@@ -259,7 +272,7 @@
   <footer class="pie"><b>Sinergia Ingeniería Latinoamérica</b><span>Costa Rica</span><span>Panamá</span><span>República Dominicana</span><span>Guatemala</span></footer>
 </div>
 
-<div id="menuCtx"><div class="titulo" id="menuTit"></div><button id="mAjustar">✎ Ajustar polígono</button><button id="mCopiar">⧉ Copiar</button><button id="mBorrar" style="color:var(--ro)">🗑 Borrar</button></div>
+<div id="menuCtx"><div class="titulo" id="menuTit"></div><button id="mDevAud">🔊 Agregar bocina</button><button id="mDevBor" style="color:var(--ro)">🗑 Borrar dispositivo</button><button id="mAgregar">＋ Agregar punto aquí</button><button id="mQuitar">− Eliminar punto</button><button id="mUltimo">↶ Quitar último punto</button><button id="mCerrar">✔ Cerrar polígono</button><button id="mCancelar">✖ Cancelar dibujo</button><button id="mAjustar">✎ Ajustar polígono</button><button id="mCopiar">⧉ Copiar</button><button id="mBorrar" style="color:var(--ro)">🗑 Borrar</button></div>
 
 <script>
 "use strict";
@@ -334,6 +347,18 @@ const BOCINA_DBA_3M = 85;
 const PARLANTE_DBA_3M = 80;
 // Radio audible mínimo útil (m): por debajo se declara «no resoluble con este nivel».
 const AUDIBLE_RADIO_MIN_M = 2;
+// Distancia mínima al dispositivo para evaluar el nivel sonoro (m): evita valores infinitos junto a la fuente (CRITERIO).
+const AUDIBLE_DIST_MIN_M = 1;
+// Caída del nivel sonoro al duplicar la distancia en campo libre: 6 dB (ley del cuadrado inverso, 20·log10(2)).
+const AUDIBLE_DB_POR_DUPLICAR = 6;
+// Radio mínimo en pantalla (px) para dibujar un anillo de nivel sonoro (CRITERIO de legibilidad).
+const AUDIBLE_ANILLO_MIN_PX = 6;
+// Mapa de nivel sonoro: tamaño mínimo de celda (m) y número máximo de celdas por recinto (CRITERIOS de rendimiento/legibilidad).
+const AUDIBLE_MAPA_PASO_MIN_M = 1, AUDIBLE_MAPA_CELDAS_MAX = 4000;
+// Ancho de celda (px de pantalla) a partir del cual se escribe el valor en dBA dentro de la celda (CRITERIO de legibilidad).
+const AUDIBLE_MAPA_ETIQUETA_PX = 34;
+// Niveles dBA a 3 m ofrecidos al editar un dispositivo (dato de catálogo del equipo, CRITERIO).
+const CATALOGO_DBA = [75, 80, 85, 90, 95];
 // Pulsadores: dentro de 1.5 m (5 ft) de cada salida. NFPA 72:2022 §17.15.9.4 (V22);
 // NFPA 101:2015 9.6.2.x (V15).
 const PULSADOR_DIST_SALIDA_M = 1.5;
@@ -423,6 +448,16 @@ const OCUPACIONES = [
 ];
 const EDICIONES_72 = ['2016','2019','2022','2025'];
 const EDICIONES_101 = ['2015','2018','2021','2024'];
+// Jurisdicciones. Costa Rica: Reglamento Nacional de Protección contra Incendios, Versión 2023 (Bomberos de CR), §2.4.1:
+// al citarse una norma NFPA se refiere a la última versión en español vigente; §2.4.2: NFPA 101 Edición 2021 y
+// NFPA 72 Edición 2019, ambas en español (leído en la copia del reglamento provista). Optativamente se puede usar una versión
+// equivalente más reciente en español o inglés: por eso los años siguen siendo seleccionables.
+const JURISDICCIONES = {
+  cr:{nombre:'Costa Rica — Reglamento Nacional de Protección contra Incendios 2023', ed72:'2019', ed101:'2021',
+      nota:'Ediciones fijadas por el §2.4.2 del Reglamento (NFPA 72:2019 y NFPA 101:2021, en español). Puede elegir una más reciente (§2.4.1), pero la numeración de secciones citada solo está verificada para NFPA 72:2022 y NFPA 101:2015.'},
+  otra:{nombre:'Otra jurisdicción (elegir años manualmente)', ed72:'2022', ed101:'2015', nota:'Elija las ediciones que adopta su jurisdicción.'}
+};
+const JURISDICCION_DEFECTO = 'cr';
 // Citas verificadas por edición. Solo 2022 (NFPA 72) y 2015 (NFPA 101) se verificaron
 // contra las copias provistas; el resto queda «null» (no inventar números de sección).
 const CITAS72 = {
@@ -553,8 +588,16 @@ function giro(p,th){const c=Math.cos(th),s=Math.sin(th);return{x:p.x*c+p.y*s,y:-
 function desgiro(p,th){const c=Math.cos(th),s=Math.sin(th);return{x:p.x*c-p.y*s,y:p.x*s+p.y*c};}
 // Ángulo que minimiza el área del rectángulo envolvente (orienta la malla con el recinto).
 function anguloOptimo(p){let mejor=0,am=1e18;for(let i=0;i<p.length;i++){const q=p[(i+1)%p.length];const th=Math.atan2(q.y-p[i].y,q.x-p[i].x);const b=bbox(p.map(z=>giro(z,th)));const a=b.w*b.h;if(a<am-1e-9){am=a;mejor=th;}}return mejor;}
-// Muestras interiores del recinto (en coordenadas de mundo).
-function muestras(poly,paso,margen){const b=bbox(poly),r=[];for(let x=b.x0+paso/2;x<b.x1;x+=paso)for(let y=b.y0+paso/2;y<b.y1;y+=paso){const pt={x,y};if(dentro(pt,poly)&&(!margen||distBorde(pt,poly)>=margen))r.push(pt);}return r;}
+// Subrecintos: un recinto cuyo contorno cae por completo dentro de otro es un «hueco» del contenedor
+// (el contenedor no recibe dispositivos allí; el subrecinto se prediseña por separado). Los huecos se guardan en poly.huecos.
+function asignarHuecos(){
+  E.recintos.forEach(r=>{r.poly.huecos=E.recintos.filter(h=>h!==r&&area(h.poly)<area(r.poly)&&h.poly.every(q=>dentro(q,r.poly))).map(h=>h.poly);});
+}
+function enRecinto(pt,poly){return dentro(pt,poly)&&!(poly.huecos||[]).some(h=>dentro(pt,h));}
+function distBordeR(pt,poly){let m=distBorde(pt,poly);(poly.huecos||[]).forEach(h=>{m=Math.min(m,distBorde(pt,h));});return m;}
+function areaNeta(r){return area(r.poly)-(r.poly.huecos||[]).reduce((t,h)=>t+area(h),0);}
+// Muestras interiores del recinto (en coordenadas de mundo), sin las de sus subrecintos.
+function muestras(poly,paso,margen){const b=bbox(poly),r=[];for(let x=b.x0+paso/2;x<b.x1;x+=paso)for(let y=b.y0+paso/2;y<b.y1;y+=paso){const pt={x,y};if(enRecinto(pt,poly)&&(!margen||distBordeR(pt,poly)>=margen))r.push(pt);}return r;}
 function masCercano(pt,lista){let m=1e18,r=null;lista.forEach(q=>{const d=Math.hypot(q.x-pt.x,q.y-pt.y);if(d<m){m=d;r=q;}});return{d:m,p:r};}
 function dmin(pt,disps){let m=1e18;for(const q of disps){const d=Math.hypot(q.x-pt.x,q.y-pt.y);if(d<m)m=d;}return m;}
 
@@ -589,7 +632,7 @@ function detectoresRecinto(r,esp){
   for(let i=0;i<nx;i++)for(let j=0;j<ny;j++){
     const c=desgiro({x:b.x0+(i+.5)*b.w/nx,y:b.y0+(j+.5)*b.h/ny},th);
     // sólo celdas con algo de recinto: se ancla al candidato más cercano si el centro cae fuera
-    const q=(dentro(c,r.poly)&&distBorde(c,r.poly)>=DIST_MIN_PARED_M)?c:masCercano(c,cand).p;
+    const q=(enRecinto(c,r.poly)&&distBordeR(c,r.poly)>=DIST_MIN_PARED_M)?c:masCercano(c,cand).p;
     if(q&&Math.hypot(q.x-c.x,q.y-c.y)<=lado*0.75+0.01)ini.push({x:q.x,y:q.y});
   }
   const P=muestras(r.poly,PASO_MUESTRA_M,0);
@@ -652,7 +695,7 @@ function estrobosRecinto(r,tipo,o){
         if(cdF>Math.max(o.cdMax,dormir?DORMIR_CD_CERCA:0))continue;
         const devs=[];
         for(let i=0;i<kx;i++)for(let j=0;j<ky;j++){const c=desgiro({x:b.x0+(i+.5)*b.w/kx,y:b.y0+(j+.5)*b.h/ky},th);
-          let q=null;if(dentro(c,r.poly))q=c;else{const mc=masCercano(c,candS());if(mc.p&&mc.d<=lado*ESTROBO_CELDA_FUERA)q=mc.p;}
+          let q=null;if(enRecinto(c,r.poly))q=c;else{const mc=masCercano(c,candS());if(mc.p&&mc.d<=lado*ESTROBO_CELDA_FUERA)q=mc.p;}
           if(q&&!devs.some(z=>Math.hypot(z.x-q.x,z.y-q.y)<lado*0.5))devs.push({tipo:'estrobo_cielo',x:q.x,y:q.y,cd:cdF,lado});}
         if(devs.length&&(!sol||devs.length<sol.devs.length))sol={devs,cd:cdF,lado};
       }
@@ -678,7 +721,7 @@ function planificarRecinto(r,o){
   const tipo=Object.assign({id:r.tipo},TIPOS[r.tipo]||TIPOS.oficina);
   const P=par(),cad=cadenaActual(),out={r,tipo,disp:[],notas:[],sup:[],lim:[],det:{},not:{},aud:{}};
   const mp=muestras(r.poly,PASO_MUESTRA_M,0),cand=muestras(r.poly,PASO_CANDIDATOS_M,DIST_MIN_PARED_M);
-  out.area=area(r.poly);
+  out.area=areaNeta(r);
   // --- Detección ---
   let det=tipo.det;
   if(det==='humo'&&P.sinHumoHumedo&&tipo.humedo)det='calor';
@@ -716,14 +759,29 @@ function planificarRecinto(r,o){
     if(dormir)req=Math.max(req,AUDIBLE_DORMIR_MIN_DBA);
     const radio=radioAudible(dba3,req);
     out.aud={req,radio,dba3,parl,ok:true};
-    const combos=e.devs.map(d=>({x:d.x,y:d.y}));
-    if(radio<AUDIBLE_RADIO_MIN_M){out.aud.ok=false;out.notas.push('Nivel audible requerido '+req.toFixed(0)+' dBA no alcanzable con un dispositivo de '+dba3+' dBA a 3 m (radio '+radio.toFixed(1)+' m). Requiere análisis específico (ambiente alto, ≤ 110 dBA).');}
-    else{
-      const extra=rellenar(mp,cand,combos,radio);
-      extra.forEach(p=>out.disp.push({tipo:parl?'parlante':'bocina',x:p.x,y:p.y,sala:r.nombre,radio}));
+    // Primero se elige cuáles estrobos llevan también bocina (los que cubren más puntos aún sin nivel); el resto queda solo visual.
+    const conAud=new Set();
+    if(radio>=AUDIBLE_RADIO_MIN_M){
+      const posAud=()=>e.devs.filter((d,i)=>conAud.has(i));
+      let guardia=0;
+      while(guardia++<MAX_AGREGADOS){
+        const sin=mp.filter(p=>dmin(p,posAud())>radio);if(!sin.length)break;
+        let mejor=-1,mc=0;
+        e.devs.forEach((d,i)=>{if(conAud.has(i))return;let n=0;for(const p of sin){if(Math.hypot(p.x-d.x,p.y-d.y)<=radio)n++;}if(n>mc){mc=n;mejor=i;}});
+        if(mejor<0)break;conAud.add(mejor);
+      }
+    }
+    else{out.aud.ok=false;out.notas.push('Nivel audible requerido '+req.toFixed(0)+' dBA no alcanzable con un dispositivo de '+dba3+' dBA a 3 m (radio '+radio.toFixed(1)+' m). Requiere análisis específico (ambiente alto, ≤ 110 dBA).');}
+    const mk=(d,i)=>{const aud=conAud.has(i),cielo=d.tipo==='estrobo_cielo';
+      const t=aud?(parl?(cielo?'parl_estrobo_cielo':'parl_estrobo'):(cielo?'bocina_estrobo_cielo':'bocina_estrobo')):(cielo?'estrobo_cielo':'estrobo');
+      return {tipo:t,x:d.x,y:d.y,cd:d.cd,sala:r.nombre,lado:d.lado,radioVis:d.radioVis,radio:aud?radio:undefined,dba3:aud?dba3:undefined,req,pared:!cielo};};
+    e.devs.forEach((d,i)=>out.disp.push(mk(d,i)));
+    out.aud.combo=conAud.size;out.aud.visSolo=e.devs.length-conAud.size;
+    if(radio>=AUDIBLE_RADIO_MIN_M){
+      const extra=rellenar(mp,cand,e.devs.filter((d,i)=>conAud.has(i)),radio);
+      extra.forEach(p=>out.disp.push({tipo:parl?'parlante':'bocina',x:p.x,y:p.y,sala:r.nombre,radio,dba3,req}));
       out.aud.extra=extra.length;
     }
-    e.devs.forEach(d=>out.disp.push({tipo:parl?(d.tipo==='estrobo_cielo'?'parl_estrobo_cielo':'parl_estrobo'):(d.tipo==='estrobo_cielo'?'bocina_estrobo_cielo':'bocina_estrobo'),x:d.x,y:d.y,cd:d.cd,sala:r.nombre,lado:d.lado,radioVis:d.radioVis,radio,pared:d.tipo==='estrobo_pared'}));
   }else{out.notas.push('Este recinto no lleva dispositivos de notificación según su tipo/estándar de cadena.');}
   // --- Supuestos y limitaciones del recinto (todo resultado lleva los suyos) ---
   out.sup=['Cielo liso, plano y horizontal de '+r.h+' m, sin vigas, ni obstrucciones, ni flujo de aire que distorsione el humo.',
@@ -769,6 +827,80 @@ function planificarGlobales(o,resRec){
 /* ==========================================================================
    VERIFICACIÓN INDEPENDIENTE (muestreo más fino que el de generación)
    ========================================================================== */
+// Nivel sonoro combinado (dBA) en campo libre: suma de potencias de los dispositivos audibles, −6 dB por duplicar distancia.
+function splSuma(p,devs){let t=0;for(const d of devs){const dist=Math.max(Math.hypot(p.x-d.x,p.y-d.y),AUDIBLE_DIST_MIN_M);t+=Math.pow(10,(d.dba3-20*Math.log10(dist/AUDIBLE_DIST_REF_M))/10);}return t>0?10*Math.log10(t):-Infinity;}
+function audibles(rid){return E.disp.filter(d=>d.rid===rid&&d.dba3&&/bocina|parl/.test(d.tipo));}
+function recintoMin(p){let m=null;E.recintos.forEach(r=>{if(enRecinto(p,r.poly)&&(!m||area(r.poly)<area(m.poly)))m=r;});return m;}
+function mapaSPL(){
+  if(E._spl)return E._spl;
+  const celdas=[];
+  E.recintos.forEach(r=>{const A=E.audPorRec&&E.audPorRec[r.id];if(!A)return;const ds=audibles(r.id),b=bbox(r.poly),paso=Math.max(AUDIBLE_MAPA_PASO_MIN_M,Math.sqrt(b.w*b.h/AUDIBLE_MAPA_CELDAS_MAX));
+    for(let x=b.x0+paso/2;x<b.x1;x+=paso)for(let y=b.y0+paso/2;y<b.y1;y+=paso){const p={x,y};if(!enRecinto(p,r.poly))continue;celdas.push({x,y,paso,v:splSuma(p,ds),req:A.req});}});
+  return (E._spl=celdas);
+}
+// Cobertura auditiva por criterio de audio: anillos de igual nivel (dBA) cada vez que se duplica la distancia (−6 dB, campo libre),
+// desde la salida a 3 m del equipo hasta el anillo del nivel requerido, que es el borde de la cobertura.
+function dibujarAudible(d,p,recorta){
+  const k=E.vista.k,req=d.req,rMax=d.radio,anillos=[];
+  if(d.dba3&&req){for(let i=0;;i++){const dist=AUDIBLE_DIST_REF_M*Math.pow(2,i),nivel=d.dba3-AUDIBLE_DB_POR_DUPLICAR*i;if(nivel<=req||dist>=rMax)break;anillos.push({r:dist,t:Math.round(nivel)+' dBA'});}}
+  anillos.push({r:rMax,t:(req?Math.round(req):'')+' dBA',borde:true});
+  recorta(d,()=>{anillos.forEach(a=>{if(a.r*k<AUDIBLE_ANILLO_MIN_PX)return;cx.beginPath();cx.arc(p.x,p.y,a.r*k,0,7);
+    if(a.borde){cx.fillStyle=COLOR.cobA;cx.fill();}cx.strokeStyle=a.borde?'rgba(20,70,190,.95)':'rgba(20,70,190,.55)';cx.lineWidth=a.borde?1.8:1.1;cx.stroke();});});
+  cx.fillStyle='rgba(20,70,190,.95)';cx.font='10px Arial';cx.textAlign='center';cx.textBaseline='bottom';
+  anillos.forEach(a=>{if(a.r*k>=AUDIBLE_ANILLO_MIN_PX*2)cx.fillText(a.t,p.x,p.y-a.r*k-2);});
+}
+function dibujarSPL(){
+  const k=E.vista.k;
+  mapaSPL().forEach(c=>{const a=aPant({x:c.x-c.paso/2,y:c.y-c.paso/2}),w=c.paso*k+0.6;
+    cx.fillStyle=c.v<c.req-1e-6?'rgba(220,30,30,.50)':(c.v>AUDIBLE_MAX_DBA?'rgba(240,140,0,.55)':'rgba(30,150,70,'+(0.16+0.30*Math.min(1,(c.v-c.req)/20)).toFixed(2)+')');
+    cx.fillRect(a.x,a.y,w,w);
+    if(w>=AUDIBLE_MAPA_ETIQUETA_PX){cx.fillStyle='#12314f';cx.font='10px Arial';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(isFinite(c.v)?Math.round(c.v):'—',a.x+w/2,a.y+w/2);}});
+}
+// Lado máximo de habitación (m) que cubre un estrobo de cierta intensidad según la tabla [lado, cd]: el mayor lado cuya candela exigida ≤ cd.
+function ladoParaCd(tabla,cd){let l=0;tabla.forEach(([lado,c])=>{if(c<=cd&&lado>l)l=lado;});return l;}
+function devSel(){return E.disp.find(d=>d.id===E.selDev)||null;}
+function propiedadesDisp(){
+  const c=$('propDisp');if(!c)return;const d=devSel();
+  if(!d){c.innerHTML='<small class="g">Haga clic en un dispositivo del plano para cambiar su tipo, candelas, montaje (pared/cielo) o nivel sonoro. Arrástrelo para moverlo; clic derecho para más opciones.</small>';return;}
+  const opt=(lista,val,fmt)=>lista.map(v=>'<option value="'+v[0]+'"'+(String(v[0])===String(val)?' selected':'')+'>'+(fmt?fmt(v):v[1])+'</option>').join('');
+  const grupoDet=/^det_/.test(d.tipo),grupoNot=/estrobo|^bocina$|^parlante$/.test(d.tipo);
+  let h='<b>'+esc(ROT[d.tipo]||d.tipo)+'</b> <small class="g">('+esc(d.sala||'')+' · x '+d.x.toFixed(1)+' m, y '+d.y.toFixed(1)+' m'+(d.manual?' · editado a mano':'')+')</small>';
+  if(grupoDet){
+    h+='<label>Tipo de detector</label><select id="pdTipo">'+opt([['det_humo','Humo'],['det_calor','Calor'],['det_co','CO'],['det_ducto','Humo para ducto']],d.tipo)+'</select>';
+  }else if(grupoNot){
+    const fun=/^estrobo/.test(d.tipo)?'vis':(/^bocina_estrobo/.test(d.tipo)?'bocina_vis':(/^parl_estrobo/.test(d.tipo)?'parl_vis':d.tipo)),esEstr=/estrobo/.test(d.tipo),mon=/cielo/.test(d.tipo)?'cielo':'pared';
+    const cds=CATALOGO_CD.concat(d.cd&&!CATALOGO_CD.includes(d.cd)?[d.cd]:[]).sort((a,b)=>a-b),dbs=CATALOGO_DBA.concat(d.dba3&&!CATALOGO_DBA.includes(d.dba3)?[d.dba3]:[]).sort((a,b)=>a-b);
+    h+='<label>Función</label><select id="pdFun">'+opt([['vis','Solo visual (estrobo)'],['bocina_vis','Visual + auditivo (bocina/estrobo)'],['parl_vis','Visual + voz (parlante/estrobo)'],['bocina','Solo audible (bocina)'],['parlante','Solo audible (parlante)']],fun)+'</select>';
+    h+='<div class="f2"><div><label>Montaje</label><select id="pdMon"'+(esEstr?'':' disabled')+'>'+opt([['pared','Pared'],['cielo','Cielo']],mon)+'</select></div>'+
+       '<div><label>Candelas (cd)</label><select id="pdCd"'+(esEstr?'':' disabled')+'>'+opt(cds.map(v=>[v,v+' cd']),d.cd)+'</select></div></div>';
+    h+='<label>Salida sonora a 3 m (dBA)</label><select id="pdDba"'+(/bocina|parl/.test(d.tipo)?'':' disabled')+'>'+opt(dbs.map(v=>[v,v+' dBA']),d.dba3)+'</select>';
+    if(esEstr&&d.cd){const rc=E.recintos.find(r=>r.id===d.rid),alt=rc?rc.h:2.7,k=alt<=3.05?3.05:(alt<=6.1?6.10:9.14);
+      const lw=ladoParaCd(TABLA_ESTROBO_PARED,d.cd),lc=ladoParaCd(TABLA_ESTROBO_CIELO[k],d.cd);
+      h+='<small class="g">Con '+d.cd+' cd: pared, habitación de hasta '+(lw?lw.toFixed(1)+' × '+lw.toFixed(1)+' m':'— (menor que la tabla)')+'; cielo (cielo ≤ '+k+' m), hasta '+(lc?lc.toFixed(1)+' × '+lc.toFixed(1)+' m':'—')+'. NFPA 72:2022 Tabla 18.5.5.7.1(a)/(b); el cambio no se vuelve a validar contra el recinto.</small>';}
+  }else h+='<small class="g">Este dispositivo no tiene opciones editables (se puede mover y borrar).</small>';
+  h+='<br><button class="peligro" id="pdBorrar">Borrar dispositivo</button>';
+  c.innerHTML=h;
+  const ap=()=>aplicarDisp();['pdTipo','pdFun','pdMon','pdCd','pdDba'].forEach(i=>{if($(i))$(i).onchange=ap;});
+  $('pdBorrar').onclick=()=>borrarDisp(d);
+}
+function borrarDisp(d){E.disp=E.disp.filter(q=>q!==d);E.resultados.forEach(x=>{x.disp=x.disp.filter(q=>q!==d);});if(E.selDev===d.id)E.selDev=null;E._spl=null;propiedadesDisp();dibujar();reverificar();}
+function aplicarDisp(){
+  const d=devSel();if(!d)return;const o=opciones();
+  if($('pdTipo')){d.tipo=$('pdTipo').value;if(d.tipo==='det_humo'||d.tipo==='det_calor')d.radio=(d.tipo==='det_humo'?o.espH:o.espC)*FACTOR_RADIO_COBERTURA;else d.radio=undefined;}
+  else if($('pdFun')){
+    const f=$('pdFun').value,cielo=$('pdMon').value==='cielo',sfx=cielo?'_cielo':'';
+    d.tipo=f==='vis'?'estrobo'+sfx:(f==='bocina_vis'?'bocina_estrobo'+sfx:(f==='parl_vis'?'parl_estrobo'+sfx:f));
+    if(/estrobo/.test(d.tipo)){
+      d.cd=+$('pdCd').value||d.cd||CATALOGO_CD[0];d.pared=!cielo;
+      const rc=E.recintos.find(r=>r.id===d.rid),alt=rc?rc.h:2.7,k=alt<=3.05?3.05:(alt<=6.1?6.10:9.14),l=cielo?ladoParaCd(TABLA_ESTROBO_CIELO[k],d.cd):0;
+      d.lado=l||undefined;d.radioVis=undefined;
+    }else{delete d.cd;d.lado=undefined;d.radioVis=undefined;}
+    if(/bocina|parl/.test(d.tipo)){d.dba3=+($('pdDba')&&$('pdDba').value)||d.dba3||BOCINA_DBA_3M;const A=(E.audPorRec||{})[d.rid]||{req:AUDIBLE_DORMIR_MIN_DBA};d.req=A.req;d.radio=radioAudible(d.dba3,d.req);}
+    else{delete d.dba3;d.radio=undefined;}
+  }
+  d.manual=true;E._spl=null;propiedadesDisp();dibujar();reverificar();
+}
+function reverificar(){if(!E.resultados.length)return;verificar(E.resultados,opciones());mostrarResultados();}
 function verificar(res,o){
   res.forEach(x=>{
     const r=x.r,ch=[],mf=muestras(r.poly,PASO_MUESTRA_M/2,0);
@@ -784,11 +916,12 @@ function verificar(res,o){
       const cdOk=est.every(d=>d.cd>=15);
       ch.push({ok:cdOk&&est.length>0,txt:'Estrobos: '+est.length+' × '+(est[0]?est[0].cd:'-')+' cd (tablas citadas)'});
       if(x.aud&&x.aud.radio){
-        const aud=mine.filter(d=>/bocina|parl/.test(d.tipo));
-        if(aud.length){const peor=Math.max(...mf.map(p=>dmin(p,aud)));const spl=(x.aud.dba3)-20*Math.log10(Math.max(peor,0.1)/AUDIBLE_DIST_REF_M);
-          ch.push({ok:spl>=x.aud.req-1e-6,txt:'Audible en el punto más lejano: '+spl.toFixed(0)+' dBA ≥ '+x.aud.req.toFixed(0)+' dBA requeridos'});
-          const cerca=(x.aud.dba3)-20*Math.log10(1/AUDIBLE_DIST_REF_M);
-          ch.push({ok:cerca<=AUDIBLE_MAX_DBA,txt:'A 1 m del dispositivo: '+cerca.toFixed(0)+' dBA ≤ '+AUDIBLE_MAX_DBA+' dBA (18.4.1.2)'});}
+        const aud=mine.filter(d=>d.dba3&&/bocina|parl/.test(d.tipo));
+        if(aud.length&&mf.length){const peor=Math.min(...mf.map(p=>splSuma(p,aud)));
+          ch.push({ok:peor>=x.aud.req-1e-6,txt:'Audible: nivel mínimo en el recinto '+peor.toFixed(0)+' dBA ≥ '+x.aud.req.toFixed(0)+' dBA requeridos (suma de dispositivos, campo libre)'});
+          const cerca=Math.max(...aud.map(d=>d.dba3))-20*Math.log10(AUDIBLE_DIST_MIN_M/AUDIBLE_DIST_REF_M);
+          ch.push({ok:cerca<=AUDIBLE_MAX_DBA,txt:'A '+AUDIBLE_DIST_MIN_M+' m del dispositivo: '+cerca.toFixed(0)+' dBA ≤ '+AUDIBLE_MAX_DBA+' dBA (18.4.1.2)'});}
+        else ch.push({ok:false,txt:'Sin dispositivos audibles en el recinto'});
       }
     }
     x.checks=ch;
@@ -799,23 +932,25 @@ function verificar(res,o){
    GENERACIÓN
    ========================================================================== */
 function generar(){
+  asignarHuecos();
   if(!E.recintos.length){alert('No hay recintos. Cargue un PDF/plano y pulse «Detectar recintos automáticamente», o cree uno con dimensiones.');return;}
   const o=opciones();
   const res=E.recintos.map(r=>planificarRecinto(r,o));
   res.forEach(x=>x.disp.forEach(d=>{d.rid=x.r.id;}));
   const g=planificarGlobales(o,res);
   verificar(res,o);
-  E.disp=[];res.forEach(x=>x.disp.forEach(d=>E.disp.push(Object.assign({id:E.seq++},d))));
-  g.disp.forEach(d=>E.disp.push(Object.assign({id:E.seq++},d)));
+  E.disp=[];res.forEach(x=>x.disp.forEach(d=>{d.id=E.seq++;E.disp.push(d);}));
+  g.disp.forEach(d=>{d.id=E.seq++;E.disp.push(d);});
+  E.audPorRec={};res.forEach(x=>{if(x.aud&&x.aud.req)E.audPorRec[x.r.id]={req:x.aud.req,dba3:x.aud.dba3,parl:x.aud.parl};});E._spl=null;E.selDev=null;
   E.resultados=res;E.globales=g;
-  mostrarResultados();dibujar();
+  mostrarResultados();propiedadesDisp();dibujar();
 }
 
 /* ==========================================================================
    RESULTADOS EN PANTALLA (cada número con sus supuestos y limitaciones)
    ========================================================================== */
 const ROT={det_humo:'Detector de humo',det_calor:'Detector de calor',det_co:'Detector de CO',det_ducto:'Detector de humo para ducto',
- bocina_estrobo:'Bocina/estrobo pared',bocina_estrobo_cielo:'Bocina/estrobo cielo',parl_estrobo:'Parlante/estrobo pared',parl_estrobo_cielo:'Parlante/estrobo cielo',
+ estrobo:'Estrobo pared (solo visual)',estrobo_cielo:'Estrobo cielo (solo visual)',bocina_estrobo:'Bocina/estrobo pared',bocina_estrobo_cielo:'Bocina/estrobo cielo',parl_estrobo:'Parlante/estrobo pared',parl_estrobo_cielo:'Parlante/estrobo cielo',
  bocina:'Bocina (solo audible)',parlante:'Parlante (solo audible)',pulsador:'Estación manual (pulsador)',aislador:'Módulo aislador',modulo_mon:'Módulo de monitoreo',modulo_ctl:'Módulo de control'};
 function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 function bloque(sup,lim){return '<div class="nota"><b>Supuestos</b><ul>'+sup.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ul><b>Limitaciones</b><ul>'+lim.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ul></div>';}
@@ -858,7 +993,7 @@ function mostrarResultados(){
     else h+='• Sin detección automática en este recinto (tipo/cobertura/estándar).<br>';
     if(x.det.co)h+='• Detector de CO: <b>1</b> (con base sonora si lo exige el estándar de cadena).<br>';
     if(x.not.aplica)h+='• Notificación visual: <b>'+x.not.n+'</b> estrobo(s) — '+esc(x.not.modo)+', cita '+esc(citar(CITAS72,x.not.modo.indexOf('Corredor')===0?'corredor':'estrobo_pared',ed72,'NFPA 72'))+'.<br>'+
-       '• Notificación audible: nivel requerido <b>'+x.aud.req.toFixed(0)+' dBA</b>, radio efectivo '+(x.aud.radio?x.aud.radio.toFixed(1):'—')+' m'+(x.aud.extra?', '+x.aud.extra+' dispositivo(s) audibles adicionales':'')+', cita '+esc(citar(CITAS72,x.tipo.dormir?'audible_dormir':'audible',ed72,'NFPA 72'))+'.<br>';
+       '• Notificación audible: nivel requerido <b>'+x.aud.req.toFixed(0)+' dBA</b>, radio efectivo '+(x.aud.radio?x.aud.radio.toFixed(1):'—')+' m'+', '+x.aud.combo+' de los '+x.not.n+' estrobos llevan también bocina ('+x.aud.visSolo+' solo visual)'+(x.aud.extra?', '+x.aud.extra+' dispositivo(s) audibles adicionales':'')+', cita '+esc(citar(CITAS72,x.tipo.dormir?'audible_dormir':'audible',ed72,'NFPA 72'))+'.<br>';
     else h+='• Sin notificación en este recinto.<br>';
     h+='</div>';
     if(x.checks)h+='<table><tr><th>Verificación independiente</th><th></th></tr>'+x.checks.map(k=>'<tr><td>'+esc(k.txt)+'</td><td class="'+(k.ok?'ok':'mal')+'">'+(k.ok?'CUMPLE':'REVISAR')+'</td></tr>').join('')+'</table>';
@@ -890,7 +1025,7 @@ function dictamen(){
    ['Anunciador remoto',anun?'OBLIGATORIO':(oc.id==='hotel'?'SEGÚN DISEÑO':'NO APLICA'),'Manual 4.4.7.a','Hoteles de más de 2 pisos o más de 50 habitaciones.'],
    ['Autonomía de baterías',BATERIA_REPOSO_H+' h en reposo + '+BATERIA_ALARMA_MIN+' min en alarma',citar(CITAS72,'bateria',ed72,'NFPA 72'),'Con voz de emergencia verificar el tiempo de alarma en 10.6.7.2.2.']];
   return '<table><tr><th>Sistema</th><th>Dictamen</th><th>Referencia</th><th>Criterio / límite</th></tr>'+f.map(r=>'<tr>'+r.map(v=>'<td>'+esc(v)+'</td>').join('')+'</tr>').join('')+'</table>'+
-   bloque(['Base: Manual de Disposiciones Técnicas 2013 (CR), NFPA 101 y NFPA 72 seleccionados arriba; lógica tomada de la herramienta de requisitos de Sinergia.'],['Edición distinta de NFPA 72:2022 / NFPA 101:2015: los números de sección no se verificaron y pueden haber cambiado.','No sustituye la revisión de medios de egreso, rociadores ni normativa local vigente; confirmar con el AHJ.']);
+   bloque(['Base: Manual de Disposiciones Técnicas 2013 (CR), NFPA 101 y NFPA 72 seleccionados arriba; lógica tomada de la herramienta de requisitos de Sinergia.'],['Costa Rica: el Reglamento Nacional de Protección contra Incendios 2023 (§2.4) remite a NFPA 72:2019 y NFPA 101:2021 en español. Las citas de sección solo están verificadas para NFPA 72:2022 y NFPA 101:2015 (copias provistas): con otras ediciones los números pueden haber cambiado.','No sustituye la revisión de medios de egreso, rociadores ni normativa local vigente; confirmar con el AHJ.']);
 }
 
 /* ==========================================================================
@@ -909,6 +1044,8 @@ function sim(ctx,tipo,x,y,s,extra){
     case 'det_ducto':hex(ctx,x,y,s);ctx.fill();ctx.stroke();txt('S');ctx.setLineDash([2,2]);ctx.beginPath();ctx.moveTo(x,y-s);ctx.lineTo(x,y-s*1.6);ctx.stroke();break;
     case 'det_co':hex(ctx,x,y,s);ctx.fillStyle='#111';ctx.fill();ctx.stroke();ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(x-s*.5,y+s*.4);ctx.lineTo(x+s*.5,y+s*.4);ctx.lineTo(x,y-s*.5);ctx.closePath();ctx.fill();txt('CO',s*.2,s*1.45,s*.55);break;
     case 'pulsador':cuad(s*0.85);txt('F');break;
+    case 'estrobo':{cuad(s*0.85);ctx.beginPath();ctx.moveTo(x-s*.85,y-s*.85);ctx.lineTo(x+s*.85,y+s*.85);ctx.moveTo(x+s*.85,y-s*.85);ctx.lineTo(x-s*.85,y+s*.85);ctx.stroke();cd(extra&&extra.cd,0,-s*1.3);break;}
+    case 'estrobo_cielo':{ctx.beginPath();ctx.arc(x,y,s*.9,0,7);ctx.fill();ctx.stroke();ctx.beginPath();ctx.moveTo(x-s*.9,y-s*.9);ctx.lineTo(x+s*.9,y+s*.9);ctx.moveTo(x+s*.9,y-s*.9);ctx.lineTo(x-s*.9,y+s*.9);ctx.stroke();cd(extra&&extra.cd,0,-s*1.35);break;}
     case 'bocina_estrobo':case 'parl_estrobo':{cuad(s*0.85);ctx.beginPath();ctx.moveTo(x-s*.85,y-s*.85);ctx.lineTo(x+s*.85,y+s*.85);ctx.moveTo(x+s*.85,y-s*.85);ctx.lineTo(x-s*.85,y+s*.85);ctx.stroke();
       tri(x-s*.5,y-s*1.35,s*.4,tipo==='parl_estrobo');cd(extra&&extra.cd,s*.55,-s*1.35);break;}
     case 'bocina_estrobo_cielo':case 'parl_estrobo_cielo':{ctx.beginPath();ctx.arc(x,y,s*.9,0,7);ctx.fill();ctx.stroke();ctx.beginPath();ctx.moveTo(x-s*.9,y-s*.9);ctx.lineTo(x+s*.9,y+s*.9);ctx.moveTo(x+s*.9,y-s*.9);ctx.lineTo(x-s*.9,y+s*.9);ctx.stroke();
@@ -959,15 +1096,17 @@ function dibujar(){
   // coberturas
   // Capas de cobertura seleccionables; las de notificación se recortan al recinto que las contiene.
   const verDet=$('vCobDet').checked,verVis=$('vCobVis').checked,verAud=$('vCobAud').checked;
-  const recorta=(d,fn)=>{const rc=E.recintos.find(x=>x.id===d.rid);cx.save();if(rc){cx.beginPath();rc.poly.forEach((q,i)=>{const a=aPant(q);cx[i?'lineTo':'moveTo'](a.x,a.y);});cx.closePath();cx.clip();}fn();cx.restore();};
+  const recorta=(d,fn)=>{const rc=E.recintos.find(x=>x.id===d.rid);cx.save();if(rc){cx.beginPath();[rc.poly].concat(rc.poly.huecos||[]).forEach(pl=>{pl.forEach((q,i)=>{const a=aPant(q);cx[i?'lineTo':'moveTo'](a.x,a.y);});cx.closePath();});cx.clip('evenodd');}fn();cx.restore();};
   E.disp.forEach(d=>{
     const p=aPant(d);
     if(verDet&&(d.tipo==='det_humo'||d.tipo==='det_calor')){cx.beginPath();cx.arc(p.x,p.y,d.radio*E.vista.k,0,7);cx.fillStyle=d.tipo==='det_humo'?COLOR.cob:'rgba(192,90,0,0.08)';cx.fill();cx.strokeStyle=d.tipo==='det_humo'?'rgba(30,125,60,.8)':'rgba(192,90,0,.8)';cx.lineWidth=1.5;cx.stroke();}
-    if(verVis&&d.lado&&d.tipo.indexOf('estrobo')>0){const l=d.lado*E.vista.k;recorta(d,()=>{cx.fillStyle=COLOR.cobE;cx.fillRect(p.x-l/2,p.y-l/2,l,l);cx.strokeStyle='rgba(200,30,30,.9)';cx.setLineDash([6,4]);cx.lineWidth=1.5;cx.strokeRect(p.x-l/2,p.y-l/2,l,l);cx.setLineDash([]);});}
+    if(verVis&&d.lado&&/estrobo/.test(d.tipo)){const l=d.lado*E.vista.k;recorta(d,()=>{cx.fillStyle=COLOR.cobE;cx.fillRect(p.x-l/2,p.y-l/2,l,l);cx.strokeStyle='rgba(200,30,30,.9)';cx.setLineDash([6,4]);cx.lineWidth=1.5;cx.strokeRect(p.x-l/2,p.y-l/2,l,l);cx.setLineDash([]);});}
     if(verVis&&d.radioVis){recorta(d,()=>{cx.beginPath();cx.arc(p.x,p.y,d.radioVis*E.vista.k,0,7);cx.fillStyle=COLOR.cobE;cx.fill();cx.strokeStyle='rgba(200,30,30,.9)';cx.setLineDash([6,4]);cx.lineWidth=1.5;cx.stroke();cx.setLineDash([]);});}
-    if(verAud&&/bocina|parl/.test(d.tipo)&&d.radio){recorta(d,()=>{cx.beginPath();cx.arc(p.x,p.y,d.radio*E.vista.k,0,7);cx.fillStyle=COLOR.cobA;cx.fill();cx.strokeStyle='rgba(20,70,190,.9)';cx.lineWidth=1.5;cx.stroke();});}
+    if(verAud&&/bocina|parl/.test(d.tipo)&&d.radio)dibujarAudible(d,p,recorta);
   });
-  E.disp.forEach(d=>{const p=aPant(d);sim(cx,d.tipo,p.x,p.y,S,{cd:d.cd});});
+  if($('vSPL').checked)dibujarSPL();
+  E.disp.forEach(d=>{const p=aPant(d);sim(cx,d.tipo,p.x,p.y,S,{cd:d.cd});if(d.manual){cx.beginPath();cx.arc(p.x,p.y,S*1.15,0,7);cx.strokeStyle='rgba(224,168,0,.9)';cx.lineWidth=2;cx.setLineDash([3,3]);cx.stroke();cx.setLineDash([]);}
+    if(d.id===E.selDev){cx.beginPath();cx.arc(p.x,p.y,S*1.45,0,7);cx.strokeStyle='#0a5ad4';cx.lineWidth=2.5;cx.stroke();}});
   E.marcas.forEach(m=>{const p=aPant(m);sim(cx,m.t==='salida'?'salida':m.t,p.x,p.y,S);});
   // borrador
   if(E.borrador.length){cx.strokeStyle='#e0a800';cx.lineWidth=2;cx.beginPath();E.borrador.forEach((p,i)=>{const q=aPant(p);cx[i?'lineTo':'moveTo'](q.x,q.y);});if(E.cursor){const q=aPant(E.cursor);cx.lineTo(q.x,q.y);}cx.stroke();E.borrador.forEach(p=>{const q=aPant(p);cx.fillStyle='#e0a800';cx.fillRect(q.x-3,q.y-3,6,6);});}
@@ -982,14 +1121,18 @@ function nuevoRecinto(poly,nombre,tipo,h){const id=E.seq++;E.recintos.push({id,n
 function guessTipo(n){n=n.toLowerCase();if(/corredor|pasillo|hall|corridor/.test(n))return 'corredor';if(/ba[ñn]o|shower|wc|sshh/.test(n))return 'bano';if(/kitchen|cocina/.test(n))return 'cocina';if(/elect|comms|data|tele/.test(n))return 'tecnico';if(/store|bodega|storage/.test(n))return 'bodega';if(/stair|escal/.test(n))return 'escalera';if(/lobby|lounge|recep/.test(n))return 'lobby';return $('mTipo').value||'oficina';}
 function mundoDeEvento(e){const r=cv.getBoundingClientRect();return aMundo(e.clientX-r.left,e.clientY-r.top);}
 function recintoEn(p){for(let i=E.recintos.length-1;i>=0;i--)if(dentro(p,E.recintos[i].poly))return E.recintos[i];return null;}
-let arr=null,espacio=false,arrV=null,movio=false,suprimir=false;
-function invalidar(){E.disp=[];E.resultados=[];$('resultados').innerHTML='';}
+let arr=null,espacio=false,arrV=null,arrD=null,movio=false,suprimir=false;
+function invalidar(){E.disp=[];E.resultados=[];E._spl=null;E.selDev=null;$('resultados').innerHTML='';if(typeof propiedadesDisp==='function')propiedadesDisp();}
+// Dispositivo bajo el cursor (tolerancia en px de pantalla: el mayor entre HIT_PX y el tamaño del símbolo).
+function devEn(p,tolPx){const k=E.vista.k,t=Math.max(tolPx||HIT_PX,+$('vSim').value);let m=null,dm=1e18;
+  E.disp.forEach(d=>{const dd=Math.hypot(d.x-p.x,d.y-p.y)*k;if(dd<=t&&dd<dm){dm=dd;m=d;}});return m;}
 function recEdit(){return E.recintos.find(r=>r.id===E.edit);}
 function ocultarMenu(){$('menuCtx').style.display='none';}
 function distBordeIdx(pt,poly){let m=1e18,idx=-1,pr=null;for(let i=0;i<poly.length;i++){const sg=distSeg(pt,poly[i],poly[(i+1)%poly.length]);if(sg.d<m){m=sg.d;idx=i;pr=sg;}}return{d:m,i:idx,p:pr};}
 cv.addEventListener('mousedown',e=>{
   ocultarMenu();
   if(e.button===1||espacio||e.button===2){arr={x:e.clientX,y:e.clientY,vx:E.vista.x,vy:E.vista.y,mov:false,btn:e.button};e.preventDefault();return;}
+  if(e.button===0&&E.herr==='sel'&&!E.edit&&!E.pegando){const d=devEn(mundoDeEvento(e));if(d){arrD={d};movio=false;e.preventDefault();return;}}
   if(e.button===0&&E.edit){const r=recEdit();if(r){const p=mundoDeEvento(e),k=E.vista.k;
     const iv=r.poly.findIndex(q=>Math.hypot(q.x-p.x,q.y-p.y)*k<=HIT_PX);
     if(iv>=0&&!e.shiftKey)arrV={tipo:'v',i:iv};
@@ -1000,8 +1143,10 @@ window.addEventListener('mouseup',e=>{
   if(arr&&arr.btn===2&&!arr.mov&&e.target===cv)menuContextual(e);
   arr=null;
   if(arrV){if(movio){invalidar();suprimir=true;}arrV=null;}
+  if(arrD){if(movio){suprimir=true;E.selDev=arrD.d.id;propiedadesDisp();reverificar();}arrD=null;}
 });
 window.addEventListener('mousemove',e=>{
+  if(arrD){const p=mundoDeEvento(e);arrD.d.x=p.x;arrD.d.y=p.y;arrD.d.manual=true;movio=true;E._spl=null;dibujar();return;}
   if(arr){if(Math.hypot(e.clientX-arr.x,e.clientY-arr.y)>4)arr.mov=true;if(arr.mov){E.vista.x=arr.vx+e.clientX-arr.x;E.vista.y=arr.vy+e.clientY-arr.y;dibujar();}}
   if(arrV){const r=recEdit();if(r){const p=mundoDeEvento(e);movio=true;
     if(arrV.tipo==='v')r.poly[arrV.i]={x:p.x,y:p.y};
@@ -1010,14 +1155,46 @@ window.addEventListener('mousemove',e=>{
 });
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 /* --- Menú contextual (clic derecho sobre un recinto): ajustar polígono, copiar, borrar --- */
+// Tolerancia (en píxeles de pantalla) para que el clic derecho se tome como «sobre un lado» o «sobre un vértice»: múltiplo de HIT_PX (CRITERIO de usabilidad).
+const MENU_TOL_FACTOR = 2;
 function menuContextual(e){
-  const r=recintoEn(mundoDeEvento(e));if(!r){ocultarMenu();return;}
-  E.sel=r.id;propiedades();dibujar();
-  const m=$('menuCtx');$('menuTit').textContent=r.nombre;m.style.display='block';
-  m.style.left=Math.min(e.clientX,window.innerWidth-190)+'px';m.style.top=Math.min(e.clientY,window.innerHeight-130)+'px';
+  const p=mundoDeEvento(e),k=E.vista.k,tol=HIT_PX*MENU_TOL_FACTOR,m=$('menuCtx');
+  const mostrar=(ids,tit)=>{['mDevAud','mDevBor','mAgregar','mQuitar','mUltimo','mCerrar','mCancelar','mAjustar','mCopiar','mBorrar'].forEach(id=>{$(id).style.display=ids.includes(id)?'block':'none';});
+    $('menuTit').textContent=tit;m.style.display='block';
+    m.style.left=Math.min(e.clientX,window.innerWidth-200)+'px';m.style.top=Math.min(e.clientY,window.innerHeight-60-ids.length*34)+'px';};
+  // Sobre un dispositivo: alternar bocina (visual+auditivo / solo visual) o borrarlo; se selecciona para editarlo en el panel
+  const dv=devEn(p,tol);
+  if(dv&&!(E.herr==='rec'&&E.borrador.length)){E.ctxDev=dv;E.selDev=dv.id;propiedadesDisp();dibujar();const esEstrobo=/estrobo/.test(dv.tipo),conBocina=/bocina|parl/.test(dv.tipo);
+    $('mDevAud').textContent=conBocina?'🔇 Quitar bocina (solo visual)':'🔊 Agregar bocina (visual + auditivo)';
+    mostrar((esEstrobo?['mDevAud']:[]).concat(['mDevBor']),ROT[dv.tipo]||dv.tipo);return;}
+  // Dibujando un polígono: quitar el último punto, cerrarlo o cancelarlo
+  if(E.herr==='rec'&&E.borrador.length){E.ctxP=p;mostrar(['mUltimo'].concat(E.borrador.length>=3?['mCerrar']:[],['mCancelar']),'Dibujando polígono ('+E.borrador.length+' puntos)');return;}
+  // Recinto bajo el cursor, o el más cercano cuyo lado o vértice esté dentro de la tolerancia
+  let r=recintoEn(p),iv=-1,bd=null;
+  if(!r){let mejor=1e18;E.recintos.forEach(q=>{const b=distBordeIdx(p,q.poly);if(b.d*k<=tol&&b.d<mejor){mejor=b.d;r=q;}});}
+  if(!r){ocultarMenu();return;}
+  iv=r.poly.findIndex(q=>Math.hypot(q.x-p.x,q.y-p.y)*k<=tol);
+  bd=distBordeIdx(p,r.poly);
+  E.sel=r.id;E.ctxP=p;E.ctxIv=iv;E.ctxBd=bd;propiedades();dibujar();
+  const ids=[];
+  if(iv>=0&&r.poly.length>3)ids.push('mQuitar');
+  else if(iv<0&&bd.d*k<=tol)ids.push('mAgregar');
+  ids.push('mAjustar','mCopiar','mBorrar');
+  mostrar(ids,r.nombre);
 }
+$('mDevAud').onclick=()=>{ocultarMenu();const d=E.ctxDev;if(!d)return;const A=(E.audPorRec||{})[d.rid];
+  if(/estrobo/.test(d.tipo)&&!/bocina|parl/.test(d.tipo)){if(!A){estado('No hay datos audibles del recinto: genere el prediseño primero.');return;}
+    d.tipo=(A.parl?'parl_':'bocina_')+d.tipo;d.dba3=A.dba3;d.req=A.req;d.radio=radioAudible(A.dba3,A.req);}
+  else{d.tipo=d.tipo.replace(/^(bocina_|parl_)/,'');delete d.dba3;d.radio=undefined;}
+  d.manual=true;E._spl=null;propiedadesDisp();dibujar();reverificar();};
+$('mDevBor').onclick=()=>{ocultarMenu();if(E.ctxDev)borrarDisp(E.ctxDev);};
+$('mAgregar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel);if(!r||!E.ctxBd)return;r.poly.splice(E.ctxBd.i+1,0,{x:E.ctxBd.p.x,y:E.ctxBd.p.y});invalidar();dibujar();estado('Punto agregado en «'+r.nombre+'» ('+r.poly.length+' vértices). Use «Ajustar polígono» para arrastrarlo.');};
+$('mQuitar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel);if(!r||E.ctxIv==null||E.ctxIv<0||r.poly.length<=3)return;r.poly.splice(E.ctxIv,1);invalidar();dibujar();estado('Punto eliminado de «'+r.nombre+'» ('+r.poly.length+' vértices).');};
+$('mUltimo').onclick=()=>{ocultarMenu();E.borrador.pop();dibujar();estado('Último punto quitado ('+E.borrador.length+' puntos).');};
+$('mCerrar').onclick=()=>{ocultarMenu();cerrarBorrador();};
+$('mCancelar').onclick=()=>{ocultarMenu();E.borrador=[];dibujar();estado('Dibujo cancelado.');};
 function terminarAjuste(){E.edit=null;E.pegando=null;dibujar();}
-$('mAjustar').onclick=()=>{ocultarMenu();E.edit=E.sel;E.pegando=null;E.borrador=[];dibujar();estado('Ajuste de polígono: arrastre un vértice para moverlo, haga clic en un lado para agregar un vértice, Mayús+clic en un vértice para quitarlo, arrastre dentro para mover el recinto. Enter o Esc termina.');};
+$('mAjustar').onclick=()=>{ocultarMenu();E.edit=E.sel;E.pegando=null;E.borrador=[];dibujar();estado('Ajuste de polígono: arrastre un vértice para moverlo, haga clic en un lado (o clic derecho → Agregar punto) para agregar un vértice, Mayús+clic (o clic derecho → Eliminar punto) en un vértice para quitarlo, arrastre dentro para mover el recinto. Enter o Esc termina.');};
 $('mCopiar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel);if(!r)return;const b=bbox(r.poly),cx0=b.x0+b.w/2,cy0=b.y0+b.h/2;
   E.edit=null;E.pegando={rel:r.poly.map(q=>({x:q.x-cx0,y:q.y-cy0})),nombre:r.nombre+' (copia)',tipo:r.tipo,h:r.h,det:r.det,not:r.not,co:r.co};
   estado('Copiado «'+r.nombre+'»: mueva el cursor y haga clic para pegar (puede pegar varias veces). Esc termina.');dibujar();};
@@ -1025,7 +1202,10 @@ $('mBorrar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel)
 cv.addEventListener('wheel',e=>{e.preventDefault();const r=cv.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top,w=aMundo(px,py),f=e.deltaY<0?1.15:1/1.15;E.vista.k*=f;E.vista.x=px-w.x*E.vista.k;E.vista.y=py-w.y*E.vista.k;dibujar();},{passive:false});
 window.addEventListener('keydown',e=>{if(e.code==='Space'&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){espacio=true;e.preventDefault();}if(e.key==='Escape'){E.borrador=[];E.calib=[];ocultarMenu();terminarAjuste();}if(e.key==='Enter'){if(E.edit)terminarAjuste();else if(E.herr==='rec')cerrarBorrador();}});
 window.addEventListener('keyup',e=>{if(e.code==='Space')espacio=false;});
-cv.addEventListener('mousemove',e=>{E.cursor=mundoDeEvento(e);if(E.borrador.length||E.pegando)dibujar();});
+cv.addEventListener('mousemove',e=>{E.cursor=mundoDeEvento(e);if(E.borrador.length||E.pegando)dibujar();
+  if(!arrD){cv.style.cursor=(E.herr==='sel'&&!E.edit&&!E.pegando&&devEn(E.cursor))?'move':'crosshair';}
+  if($('vSPL').checked&&E.audPorRec&&!E.borrador.length&&!arrD){const rr=recintoMin(E.cursor),A=rr&&E.audPorRec[rr.id];
+    if(A){const v=splSuma(E.cursor,audibles(rr.id));estado('Nivel sonoro aquí: '+(isFinite(v)?v.toFixed(0):'—')+' dBA · requerido '+A.req.toFixed(0)+' dBA en «'+rr.nombre+'» · máx. permitido '+AUDIBLE_MAX_DBA+' dBA (NFPA 72 §18.4)');}}});
 function cerrarBorrador(){if(E.borrador.length>=3&&area(E.borrador)>=AREA_MIN_RECINTO_M2){nuevoRecinto(E.borrador.slice());}E.borrador=[];dibujar();}
 cv.addEventListener('dblclick',e=>{if(E.herr==='rec'){E.borrador.pop();cerrarBorrador();}});
 cv.addEventListener('click',e=>{
@@ -1037,7 +1217,7 @@ cv.addEventListener('click',e=>{
     if(iv>=0){if(e.shiftKey&&r.poly.length>3){r.poly.splice(iv,1);invalidar();dibujar();}}
     else{const bd=distBordeIdx(p,r.poly);if(bd.d*k<=HIT_PX){r.poly.splice(bd.i+1,0,{x:bd.p.x,y:bd.p.y});invalidar();dibujar();}}}
     return;}
-  if(E.herr==='sel'){const r=recintoEn(p);E.sel=r?r.id:null;propiedades();dibujar();}
+  if(E.herr==='sel'){const dv=devEn(p);if(dv){E.selDev=dv.id;E.sel=null;propiedades();propiedadesDisp();dibujar();return;}E.selDev=null;propiedadesDisp();const r=recintoEn(p);E.sel=r?r.id:null;propiedades();dibujar();}
   else if(E.herr==='rec'){E.borrador.push(p);dibujar();}
   else if(E.herr==='rect'){E.borrador.push(p);if(E.borrador.length===2){const a=E.borrador[0],b=E.borrador[1];nuevoRecinto([{x:a.x,y:a.y},{x:b.x,y:a.y},{x:b.x,y:b.y},{x:a.x,y:b.y}]);E.borrador=[];}dibujar();}
   else if(E.herr==='rell'){rellenar_clic(p);}
@@ -1146,7 +1326,7 @@ async function detectarRecintos(){
      while(ini<fin){const i=q[ini++],x=i%W,y=(i/W)|0;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;
        for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=W||ny>=H)continue;const j=ny*W+nx;if(oscuro[j]&&!vis0[j]){vis0[j]=1;q[fin++]=j;}}}
      if(Math.hypot(x1-x0,y1-y0)<lim)for(let k=0;k<fin;k++)oscuro[q[k]]=0;}}
-  if(modo==='huella')return detectarHuella(oscuro,W,H,f,mpx);
+  if(modo==='huella'||modo==='huellasub'){const nh=detectarHuella(oscuro,W,H,f,mpx);if(modo==='huella'||!nh)return nh;modo='rotulos';}
   const muro=oscuro;
   // 2) Cierres de puertas con varios radios (se elige el que mejor reproduce el área rotulada)
   const radios=AUTO_RADIOS_M.map(rm=>{const rpx=Math.max(2,Math.round(rm/mpx));return{rpx,cerr:dilatar(muro,W,H,rpx)};});
@@ -1607,9 +1787,9 @@ function propiedades(){
 }
 function tablaEquipos(){
   const mA=E.marcas.filter(m=>m.t==='ahu').length,mS=E.marcas.filter(m=>m.t==='asc').length;
-  $('equiposTabla').innerHTML='<table><tr><th>Equipo</th><th>Cant.</th><th>M</th><th>C</th></tr>'+EQUIPOS.map(q=>{
+  $('equiposTabla').innerHTML='<div class="tabla-eq" translate="no"><table><colgroup><col style="width:52%"><col style="width:16%"><col style="width:16%"><col style="width:16%"></colgroup><tr><th>Equipo</th><th>Cant.</th><th title="Módulos de monitoreo (AIM) por unidad">Monit.</th><th title="Módulos de control (AOM) por unidad">Ctrl.</th></tr>'+EQUIPOS.map(q=>{
     const auto=q[0]==='AHU'?mA:(q[0]==='ASC'?mS:0);
-    return '<tr><td>'+q[1]+(auto?' <small class="g">(+'+auto+' en plano)</small>':'')+'</td><td><input type="number" min="0" style="width:60px" data-eq="'+q[0]+'" value="'+(E.eqCant[q[0]]||0)+'"></td><td>'+q[2]+'</td><td>'+q[3]+'</td></tr>';}).join('')+'</table>';
+    return '<tr><td>'+q[1]+(auto?' <small class="g">(+'+auto+' en plano)</small>':'')+'</td><td><input type="number" min="0" style="width:100%;min-width:52px" data-eq="'+q[0]+'" value="'+(E.eqCant[q[0]]||0)+'"></td><td>'+q[2]+'</td><td>'+q[3]+'</td></tr>';}).join('')+'</table></div><small class="g">Monit. = módulos de monitoreo (AIM) y Ctrl. = módulos de control (AOM) que se agregan por cada unidad del equipo.</small>';
   document.querySelectorAll('[data-eq]').forEach(i=>i.onchange=()=>{E.eqCant[i.dataset.eq]=+i.value||0;if(E.resultados.length)mostrarResultados();});
 }
 function infoCadena(){
@@ -1633,7 +1813,7 @@ $('btnDict').onclick=()=>{$('dictamen').innerHTML=dictamen();};
    ========================================================================== */
 function descargar(n,t,m){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:m||'text/plain'}));a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);}
 function recopilar(){
-  const o={version:1,proyecto:{nombre:$('pNombre').value,ed72:$('ed72').value,ed101:$('ed101').value,ocup:$('ocup').value,niveles:$('pNiveles').value,alt:$('pAlt').value,reunion:$('pReunion').value,hab:$('pHab').value,cob:$('cobDet').value},
+  const o={version:1,proyecto:{nombre:$('pNombre').value,pais:$('pais').value,ed72:$('ed72').value,ed101:$('ed101').value,ocup:$('ocup').value,niveles:$('pNiveles').value,alt:$('pAlt').value,reunion:$('pReunion').value,hab:$('pHab').value,cob:$('cobDet').value},
    cadena:E.chain,cadenaCustom:E.cadenaCustom,
    parametros:{espH:$('pEspH').value,espC:$('pEspC').value,cdMax:$('pCdMax').value,dba:$('pDba').value,aud:$('pAud').value,facRec:$('pFacRec').value,iso:$('pIso').value,co:$('pCO').value},
    recintos:E.recintos,marcas:E.marcas,disp:E.disp,eqCant:E.eqCant,seq:E.seq,
@@ -1642,7 +1822,7 @@ function recopilar(){
   return o;
 }
 function aplicar(o){
-  const p=o.proyecto||{};$('pNombre').value=p.nombre||'';['ed72','ed101','ocup'].forEach(k=>{if(p[k])$(k).value=p[k];});$('pNiveles').value=p.niveles||1;$('pAlt').value=p.alt||4;$('pReunion').value=p.reunion||0;$('pHab').value=p.hab||0;if(p.cob)$('cobDet').value=p.cob;
+  const p=o.proyecto||{};$('pNombre').value=p.nombre||'';['pais','ed72','ed101','ocup'].forEach(k=>{if(p[k])$(k).value=p[k];});$('paisNota').textContent=(JURISDICCIONES[$('pais').value]||{}).nota||'';$('pNiveles').value=p.niveles||1;$('pAlt').value=p.alt||4;$('pReunion').value=p.reunion||0;$('pHab').value=p.hab||0;if(p.cob)$('cobDet').value=p.cob;
   E.cadenaCustom=o.cadenaCustom||null;E.chain=o.cadena||'ninguna';if(E.chain==='custom'&&E.cadenaCustom){let op=$('cadena').querySelector('option[value=custom]');if(!op){op=document.createElement('option');op.value='custom';$('cadena').appendChild(op);}op.textContent='Cargado: '+(E.cadenaCustom.nombre||'');}
   $('cadena').value=E.chain;infoCadena();
   const q=o.parametros||{};[['espH','pEspH'],['espC','pEspC'],['cdMax','pCdMax'],['dba','pDba'],['aud','pAud'],['facRec','pFacRec'],['iso','pIso'],['co','pCO']].forEach(([a,b])=>{if(q[a]!=null)$(b).value=q[a];});
@@ -1658,7 +1838,7 @@ $('btnCSV').onclick=()=>{const L=['id;tipo;descripcion;recinto;x_m;y_m;cd;nota']
 $('btnInforme').onclick=()=>{
   if(!E.resultados.length){alert('Genere el prediseño primero.');return;}
   const o=opciones(),png=cv.toDataURL('image/png'),ed72=$('ed72').value,ed101=$('ed101').value;
-  const leyenda=['det_humo','det_calor','det_co','det_ducto','pulsador','bocina_estrobo','bocina_estrobo_cielo','parl_estrobo','bocina','parlante'].map(t=>{const c=document.createElement('canvas');c.width=60;c.height=60;const g=c.getContext('2d');sim(g,t,30,34,14,{});return '<tr><td><img src="'+c.toDataURL()+'"></td><td>'+ROT[t]+'</td></tr>';}).join('');
+  const leyenda=['det_humo','det_calor','det_co','det_ducto','pulsador','estrobo','estrobo_cielo','bocina_estrobo','bocina_estrobo_cielo','parl_estrobo','bocina','parlante'].map(t=>{const c=document.createElement('canvas');c.width=60;c.height=60;const g=c.getContext('2d');sim(g,t,30,34,14,{});return '<tr><td><img src="'+c.toDataURL()+'"></td><td>'+ROT[t]+'</td></tr>';}).join('');
   const w=window.open('','_blank');
   w.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Informe de prediseño</title><style>body{font-family:Arial;font-size:11px;margin:18px}h1{font-size:16px}h2{font-size:13px;border-bottom:2px solid #1b4a75}table{border-collapse:collapse;width:100%}td,th{border:1px solid #bbb;padding:3px 5px;text-align:left}.nota{background:#fff4e0;border:1px solid #e0b768;padding:5px 8px;margin:6px 0}img.p{width:100%}</style></head><body>'+
    '<h1>Prediseño de ubicación de dispositivos de alarma contra incendio</h1><p><b>Proyecto:</b> '+esc($('pNombre').value)+' · NFPA 72:'+ed72+' · NFPA 101:'+ed101+' · Estándar: '+esc(cadenaActual().nombre)+' · '+new Date().toLocaleDateString('es-CR')+'</p>'+
@@ -1684,9 +1864,14 @@ $('btnCrear').onclick=()=>{
 /* ==========================================================================
    ARRANQUE
    ========================================================================== */
+function aplicarJurisdiccion(){
+  const j=JURISDICCIONES[$('pais').value];$('ed72').value=j.ed72;$('ed101').value=j.ed101;$('paisNota').textContent=j.nota;
+}
 function iniciar(){
-  $('ed72').innerHTML=EDICIONES_72.map(e=>'<option'+(e==='2022'?' selected':'')+'>'+e+'</option>').join('');
-  $('ed101').innerHTML=EDICIONES_101.map(e=>'<option'+(e==='2015'?' selected':'')+'>'+e+'</option>').join('');
+  $('pais').innerHTML=Object.keys(JURISDICCIONES).map(k=>'<option value="'+k+'"'+(k===JURISDICCION_DEFECTO?' selected':'')+'>'+JURISDICCIONES[k].nombre+'</option>').join('');
+  $('pais').onchange=aplicarJurisdiccion;
+  $('ed72').innerHTML=EDICIONES_72.map(e=>'<option>'+e+'</option>').join('');
+  $('ed101').innerHTML=EDICIONES_101.map(e=>'<option>'+e+'</option>').join('');aplicarJurisdiccion();
   $('ocup').innerHTML=OCUPACIONES.map(o=>'<option value="'+o.id+'">'+o.n+'</option>').join('');
   $('cadena').innerHTML=Object.keys(CADENAS).map(k=>'<option value="'+k+'">'+CADENAS[k].nombre+'</option>').join('');
   $('mTipo').innerHTML=opcionesTipos('oficina');
@@ -1697,7 +1882,7 @@ function iniciar(){
   $('btnLimpiar').onclick=()=>{E.disp=[];E.resultados=[];$('resultados').innerHTML='';dibujar();};
   [['tSel','sel'],['tRec','rec'],['tRect','rect'],['tRell','rell'],['tSal','salida'],['tFacp','facp'],['tAhu','ahu'],['tAsc','asc'],['tBor','bor']].forEach(([i,h])=>$(i).onclick=()=>herramienta(h));
   $('tAjustar').onclick=ajustarVista;
-  ['vCobDet','vCobVis','vCobAud','vPlano','vOp','vSim'].forEach(i=>$(i).oninput=dibujar);
+  ['vCobDet','vCobVis','vCobAud','vSPL','vPlano','vOp','vSim'].forEach(i=>$(i).oninput=dibujar);
   $('btnDict').click();infoCadena();tablaEquipos();
   window.addEventListener('resize',ajustarLienzo);ajustarLienzo();ajustarVista();
 }
@@ -1712,6 +1897,8 @@ const GLOSARIO = [
  ['det_ducto','Detector de humo para ducto','Hexágono con «S» y toma de muestra. En manejadoras de aire (AHU). NFPA 170:2018 Tabla 8.3.'],
  ['det_co','Detector de CO','Hexágono negro con «CO». Solo si lo exige el tipo de ocupación o la cadena. NFPA 170:2018 Tabla 8.3.'],
  ['pulsador','Estación manual (pulsador)','Cuadrado con «F». A 1.5 m de cada salida y con recorrido máximo de 61 m. NFPA 170:2018 Tabla 8.3.'],
+ ['estrobo','Estrobo de pared (solo visual)','Cuadrado con X sin triángulo: notificación visual sin bocina. Rótulo de la herramienta, no verificado en NFPA 170.'],
+ ['estrobo_cielo','Estrobo de cielo (solo visual)','Círculo con X sin triángulo. Rótulo de la herramienta, no verificado en NFPA 170.'],
  ['bocina_estrobo','Bocina/estrobo de pared','Cuadrado con X y triángulo; el número rojo son las candelas. NFPA 170:2018 Tabla 8.4.2.'],
  ['bocina_estrobo_cielo','Bocina/estrobo de cielo','Círculo con X y triángulo. Se ubica en retícula de cobertura (NFPA 72, tabla de cielo). NFPA 170:2018 Tabla 8.4.2.'],
  ['parl_estrobo','Parlante/estrobo de pared','Igual al de bocina pero con triángulo relleno: notificación por voz. NFPA 170:2018 Tabla 8.4.2.'],
@@ -1736,7 +1923,8 @@ function glosario(){
   const C=$('glosCob');C.innerHTML='';
   [['rgba(30,125,60,.30)','rgba(30,125,60,.9)','Cobertura de detectores','Círculo verde: radio de 0.7 × espaciamiento alrededor de cada detector de humo o calor.',0],
    ['rgba(214,40,40,.28)','rgba(200,30,30,.9)','Cobertura de notificación visual','Cuadro o círculo rojo: área que cubre cada estrobo, recortada al recinto que lo contiene.',1],
-   ['rgba(30,90,200,.26)','rgba(20,70,190,.9)','Cobertura de notificación auditiva','Círculo azul: distancia a la que se mantiene el nivel sonoro requerido (dBA).',0]
+   ['rgba(30,90,200,.26)','rgba(20,70,190,.9)','Cobertura de notificación auditiva','Anillos azules de igual nivel (dBA), uno por cada vez que se duplica la distancia (−6 dB). El anillo exterior es el nivel requerido: el borde de la cobertura.',0],
+   ['rgba(30,150,70,.4)','rgba(30,150,70,.9)','Nivel sonoro (dBA)','Mapa por celdas con el valor combinado de todos los dispositivos: rojo = bajo el nivel requerido, verde = cumple, naranja = sobre 110 dBA.',1]
   ].forEach(([fi,tr,tit,txt,cuad])=>C.appendChild(celda(g=>{g.fillStyle=fi;g.strokeStyle=tr;g.lineWidth=2;g.beginPath();
     if(cuad)g.rect(10,10,52,52);else g.arc(36,36,27,0,7);g.fill();g.stroke();},tit,txt)));
 }
@@ -1748,7 +1936,7 @@ function irModulo(id){
   window.scrollTo(0,0);
 }
 document.querySelectorAll('#tabs .seccion').forEach(b=>{b.onclick=()=>irModulo(b.dataset.mod);});
-glosario();
+glosario();propiedadesDisp();
 </script>
 </body>
 </html>

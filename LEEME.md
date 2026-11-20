@@ -36,3 +36,13 @@ Base de datos Supabase (proyectos, recintos, dispositivos, estándares de cadena
 1. **Proyecto y criterios de diseño:** datos del proyecto, normas, estándar de cadena, parámetros NFPA y equipos.
 2. **Ejecución:** planta o recintos, generar prediseño, coberturas, resultados y archivo (borrador .json, PNG, CSV, informe).
 3. **Glosario de simbología:** imagen y explicación de cada símbolo, capas de cobertura y siglas.
+
+## Jurisdicción
+Por defecto Costa Rica: Reglamento Nacional de Protección contra Incendios 2023, §2.4.2 → NFPA 72:2019 y NFPA 101:2021 en español (se pueden elegir ediciones más recientes, §2.4.1). Las citas de sección solo están verificadas para NFPA 72:2022 y NFPA 101:2015; con otras ediciones se muestran como "no verificado".
+
+## Subrecintos
+Un recinto cuyo contorno cae por completo dentro de otro se trata como subrecinto: el contenedor no recibe dispositivos ahí, y el subrecinto se prediseña por separado con su propio tipo. Método «Huella + subrecintos por rótulos» los crea automáticamente.
+
+## Notificación audible y edición de dispositivos
+- Solo los estrobos necesarios llevan bocina (visual + auditivo); el resto queda solo visual. El nivel sonoro combinado (dBA) se verifica en todo el recinto y se ve en la capa «Nivel sonoro (dBA)» (rojo: bajo el requerido; verde: cumple; naranja: >110 dBA); con la capa activa, el valor bajo el cursor aparece en la barra de estado.
+- Cada dispositivo se puede arrastrar (se marca con anillo amarillo), seleccionar con clic para cambiar función, montaje pared/cielo, candelas y dBA en el panel «Dispositivo seleccionado», o con clic derecho agregar/quitar bocina o borrar. Cada cambio vuelve a verificar el recinto.
