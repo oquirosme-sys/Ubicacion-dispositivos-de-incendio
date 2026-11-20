@@ -70,6 +70,9 @@
   #app{padding:0}
   /* Barra de capas sobre el lienzo: una fila compacta, no una columna del panel */
   #lienzoWrap #capas{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;margin:0 0 6px;padding:4px 8px;background:#f4f7fa;border:1px solid var(--gb);border-radius:6px;font-size:.78rem}
+  /* Barra de capas fija arriba: queda a la vista aunque se desplace el área de trabajo */
+  #lienzoWrap #capas{position:sticky;top:0;z-index:20;box-shadow:0 2px 6px rgba(0,0,0,.12)}
+  .plegar-todo{position:sticky;top:0;z-index:20;background:#f4f6f8;padding:2px 0 6px}
   #lienzoWrap #capas>b{grid-column:auto}
   #lienzoWrap #capas label{display:flex;align-items:center;gap:5px;margin:0;font-weight:600;white-space:nowrap}
   #lienzoWrap #capas label:has(input[type=range]),#lienzoWrap #capas label:has(input[type=number]){grid-column:auto;justify-content:flex-start}
@@ -210,7 +213,7 @@
    <select id="devTipo" title="Tipo de dispositivo a agregar" style="width:auto;max-width:100%"></select>
    <button id="tAjustar" class="sec">Ajustar vista</button>
   </div>
-</section><section class="card"><h2>Planta y recintos</h2>
+</section><section class="card" id="cardRec"><h2>Recinto seleccionado</h2><div id="propRec"><small class="g">Seleccione un recinto en el lienzo (o doble clic sobre él) para cambiar su nombre, tipo y altura.</small></div></section><section class="card"><h2>Planta y recintos</h2>
   <b>Modo A — cargar plano</b>
   <button id="btnPlano">Cargar plano (imagen / PDF)</button>
   <input type="file" id="filePlano" accept="image/*,.pdf" class="sinoche">
@@ -237,9 +240,6 @@
    <div><label>Puerta de salida en muro</label><select id="mPuerta"><option value="S">Sur</option><option value="N">Norte</option><option value="E">Este</option><option value="O">Oeste</option><option value="">Sin salida</option></select></div>
   </div>
   <button id="btnCrear">Crear recinto</button>
-  <hr>
-  <b>Recinto seleccionado</b>
-  <div id="propRec"><small class="g">Seleccione un recinto en el lienzo.</small></div>
 </section><section class="card"><h2>Dispositivo seleccionado</h2><div id="propDisp"></div></section>
 <section class="card"><h2>Prediseño</h2><small class="g">Los criterios se definen en el módulo 1. Cree o cargue los recintos y genere.</small><br>  <button class="gran" id="btnGenerar">▶ Generar prediseño</button>
   <button class="sec" id="btnLimpiar">Quitar dispositivos</button>
@@ -312,7 +312,7 @@
   <div id="dlgLista"></div>
   <div style="margin-top:10px;text-align:right"><button class="sec" id="dlgCancelar">Cancelar</button><button class="peligro" id="dlgBorrarSel">Borrar seleccionados</button></div>
 </dialog>
-<div id="menuCtx"><div class="titulo" id="menuTit"></div><button id="mDevMover">✥ Mover (clic en el nuevo lugar)</button><button id="mDevClon">⧉ Agregar similares</button><button id="mDevCambiar">✎ Cambiar tipo / propiedades</button><button id="mDevAud">🔊 Agregar bocina</button><button id="mDevBor" style="color:var(--ro)">🗑 Borrar dispositivo</button><button id="mAgregar">＋ Agregar punto aquí</button><button id="mQuitar">− Eliminar punto</button><button id="mUltimo">↶ Quitar último punto</button><button id="mCerrar">✔ Cerrar polígono</button><button id="mCancelar">✖ Cancelar dibujo</button><button id="mAjustar">✎ Ajustar polígono</button><button id="mCopiar">⧉ Copiar</button><button id="mBorrar" style="color:var(--ro)">🗑 Borrar</button></div>
+<div id="menuCtx"><div class="titulo" id="menuTit"></div><button id="mDevMover">✥ Mover (clic en el nuevo lugar)</button><button id="mDevClon">⧉ Agregar similares</button><button id="mDevCambiar">✎ Cambiar tipo / propiedades</button><button id="mDevAud">🔊 Agregar bocina</button><button id="mDevBor" style="color:var(--ro)">🗑 Borrar dispositivo</button><button id="mAgregar">＋ Agregar punto aquí</button><button id="mQuitar">− Eliminar punto</button><button id="mUltimo">↶ Quitar último punto</button><button id="mCerrar">✔ Cerrar polígono</button><button id="mCancelar">✖ Cancelar dibujo</button><button id="mRenombrar">✎ Cambiar nombre…</button><button id="mAjustar">✎ Ajustar polígono</button><button id="mCopiar">⧉ Copiar</button><button id="mBorrar" style="color:var(--ro)">🗑 Borrar</button></div>
 
 <script>
 "use strict";
@@ -935,8 +935,10 @@ function aplicarDisp(){
     d.tipo=f==='vis'?'estrobo'+sfx:(f==='bocina_vis'?'bocina_estrobo'+sfx:(f==='parl_vis'?'parl_estrobo'+sfx:f));
     if(/estrobo/.test(d.tipo)){
       d.cd=+$('pdCd').value||d.cd||CATALOGO_CD[0];d.pared=!cielo;
-      const rc=E.recintos.find(r=>r.id===d.rid),alt=rc?rc.h:2.7,k=alt<=3.05?3.05:(alt<=6.1?6.10:9.14),l=cielo?ladoParaCd(TABLA_ESTROBO_CIELO[k],d.cd):0;
-      d.lado=l||undefined;d.radioVis=undefined;
+      const rc=E.recintos.find(r=>r.id===d.rid),alt=rc?rc.h:2.7,k=alt<=3.05?3.05:(alt<=6.1?6.10:9.14);
+      // La cobertura visual sigue a las candelas: lado de la habitación que cubre ese cd (tabla de cielo o de pared). Un estrobo de corredor conserva su círculo.
+      const l=d.radioVis?0:ladoParaCd(cielo?TABLA_ESTROBO_CIELO[k]:TABLA_ESTROBO_PARED,d.cd);
+      d.lado=l||undefined;
     }else{delete d.cd;d.lado=undefined;d.radioVis=undefined;}
     if(/bocina|parl/.test(d.tipo)){d.dba3=+($('pdDba')&&$('pdDba').value)||d.dba3||BOCINA_DBA_3M;const A=(E.audPorRec||{})[d.rid]||{req:AUDIBLE_DORMIR_MIN_DBA};d.req=A.req;d.radio=radioAudible(d.dba3,d.req);}
     else{delete d.dba3;d.radio=undefined;}
@@ -1168,7 +1170,7 @@ function agregarDisp(p,pl){   // pl: dispositivo plantilla (para «agregar simil
   const d={id:E.seq++,tipo:t,x:p.x,y:p.y,sala:rc?rc.nombre:'Manual',rid:rc?rc.id:undefined,manual:true,agregado:true};
   if(/estrobo/.test(t)){
     const cielo=/cielo/.test(t),alt=rc?rc.h:2.7,k=alt<=3.05?3.05:(alt<=6.1?6.10:9.14);
-    d.cd=(pl&&pl.cd)||+$('pCdMax').value||CATALOGO_CD[0];d.pared=!cielo;d.lado=cielo?(ladoParaCd(TABLA_ESTROBO_CIELO[k],d.cd)||undefined):undefined;
+    d.cd=(pl&&pl.cd)||+$('pCdMax').value||CATALOGO_CD[0];d.pared=!cielo;d.lado=ladoParaCd(cielo?TABLA_ESTROBO_CIELO[k]:TABLA_ESTROBO_PARED,d.cd)||undefined;
   }
   if(/bocina|parl/.test(t)){
     const parl=/parl/.test(t);d.dba3=(pl&&pl.dba3)||(o.dba>0?o.dba:(parl?PARLANTE_DBA_3M:BOCINA_DBA_3M));
@@ -1237,7 +1239,7 @@ cv.addEventListener('contextmenu',e=>e.preventDefault());
 const MENU_TOL_FACTOR = 2;
 function menuContextual(e){
   const p=mundoDeEvento(e),k=E.vista.k,tol=HIT_PX*MENU_TOL_FACTOR,m=$('menuCtx');
-  const mostrar=(ids,tit)=>{['mDevMover','mDevClon','mDevCambiar','mDevAud','mDevBor','mAgregar','mQuitar','mUltimo','mCerrar','mCancelar','mAjustar','mCopiar','mBorrar'].forEach(id=>{$(id).style.display=ids.includes(id)?'block':'none';});
+  const mostrar=(ids,tit)=>{['mRenombrar','mDevMover','mDevClon','mDevCambiar','mDevAud','mDevBor','mAgregar','mQuitar','mUltimo','mCerrar','mCancelar','mAjustar','mCopiar','mBorrar'].forEach(id=>{$(id).style.display=ids.includes(id)?'block':'none';});
     $('menuTit').textContent=tit;m.style.display='block';
     m.style.left=Math.min(e.clientX,window.innerWidth-200)+'px';m.style.top=Math.min(e.clientY,window.innerHeight-60-ids.length*34)+'px';};
   // Sobre un dispositivo: alternar bocina (visual+auditivo / solo visual) o borrarlo; se selecciona para editarlo en el panel
@@ -1257,7 +1259,7 @@ function menuContextual(e){
   const ids=[];
   if(iv>=0&&r.poly.length>3)ids.push('mQuitar');
   else if(iv<0&&bd.d*k<=tol)ids.push('mAgregar');
-  ids.push('mAjustar','mCopiar','mBorrar');
+  ids.push('mRenombrar','mAjustar','mCopiar','mBorrar');
   mostrar(ids,r.nombre);
 }
 $('mDevAud').onclick=()=>{ocultarMenu();const d=E.ctxDev;if(!d)return;const A=(E.audPorRec||{})[d.rid];
@@ -1295,6 +1297,12 @@ $('dlgBorrarSel').onclick=()=>{
   const n=ids.size;E.recintos=E.recintos.filter(r=>!ids.has(r.id));if(ids.has(E.sel))E.sel=null;E.edit=null;E.pegando=null;
   invalidar();propiedades();dibujar();$('dlgBorrar').close();estado(n+' recinto(s) borrado(s). Quedan '+E.recintos.length+'.');
 };
+function renombrarRecinto(r){
+  const n=prompt('Nombre del recinto:',r.nombre);if(n===null||!n.trim())return;
+  r.nombre=n.trim();E.disp.forEach(d=>{if(d.rid===r.id)d.sala=r.nombre;});E.sel=r.id;propiedades();dibujar();if(E.resultados.length)mostrarResultados();
+  estado('Recinto renombrado: «'+r.nombre+'».');
+}
+$('mRenombrar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel);if(r)renombrarRecinto(r);};
 function terminarAjuste(){E.edit=null;E.pegando=null;dibujar();}
 $('mAjustar').onclick=()=>{ocultarMenu();E.edit=E.sel;E.pegando=null;E.borrador=[];dibujar();estado('Ajuste de polígono: arrastre un vértice para moverlo, haga clic en un lado (o clic derecho → Agregar punto) para agregar un vértice, Mayús+clic (o clic derecho → Eliminar punto) en un vértice para quitarlo, arrastre dentro para mover el recinto. Enter o Esc termina.');};
 $('mCopiar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel);if(!r)return;const b=bbox(r.poly),cx0=b.x0+b.w/2,cy0=b.y0+b.h/2;
@@ -1316,7 +1324,8 @@ function crearRect(a,b){
   estado('Recinto rectangular creado'+(E.recintos.length&&E.recintos[E.recintos.length-1].nombre.indexOf('Recinto ')!==0?' con el nombre del plano: «'+E.recintos[E.recintos.length-1].nombre+'»':'')+'. Puede arrastrar de una esquina a la otra o hacer clic en dos esquinas.');
 }
 function cerrarBorrador(){if(E.borrador.length>=3&&area(E.borrador)>=AREA_MIN_RECINTO_M2){nuevoRecinto(E.borrador.slice());}E.borrador=[];dibujar();}
-cv.addEventListener('dblclick',e=>{if(E.herr==='rec'){E.borrador.pop();cerrarBorrador();}});
+cv.addEventListener('dblclick',e=>{if(E.herr==='rec'){E.borrador.pop();cerrarBorrador();}
+  else if(E.herr==='sel'&&!E.edit){const p=mundoDeEvento(e);if(devEn(p))return;const r=recintoMin(p);if(r)renombrarRecinto(r);}});
 cv.addEventListener('click',e=>{
   if(arr||espacio)return;
   if(suprimir){suprimir=false;return;}
@@ -1898,7 +1907,7 @@ function opcionesTipos(sel){return Object.keys(TIPOS).map(k=>'<option value="'+k
 function propiedades(){
   const r=E.recintos.find(x=>x.id===E.sel);
   if(!r){$('propRec').innerHTML='<small class="g">Seleccione un recinto en el lienzo.</small>';return;}
-  const b=bbox(r.poly);
+  const b=bbox(r.poly);const tc=$('propRec').closest('.card');if(tc)tc.classList.remove('cerrada');
   $('propRec').innerHTML='<label>Nombre</label><input type="text" id="rNom" value="'+esc(r.nombre)+'">'+
    '<label>Tipo</label><select id="rTipo">'+opcionesTipos(r.tipo)+'</select>'+
    '<div class="f2"><div><label>Altura de cielo (m)</label><input type="number" id="rAlt" value="'+r.h+'" step="0.1"></div>'+
@@ -1909,6 +1918,7 @@ function propiedades(){
   $('rDet').value=r.det;$('rNot').value=r.not;$('rCo').value=r.co?'1':'0';
   const g=()=>{r.nombre=$('rNom').value;r.tipo=$('rTipo').value;r.h=+$('rAlt').value||2.7;r.det=$('rDet').value;r.not=$('rNot').value;r.co=$('rCo').value==='1';dibujar();};
   ['rNom','rTipo','rAlt','rDet','rNot','rCo'].forEach(i=>$(i).onchange=g);
+  $('rNom').oninput=()=>{r.nombre=$('rNom').value;E.disp.forEach(d=>{if(d.rid===r.id)d.sala=r.nombre;});dibujar();};
 }
 function tablaEquipos(){
   const mA=E.marcas.filter(m=>m.t==='ahu').length,mS=E.marcas.filter(m=>m.t==='asc').length;
