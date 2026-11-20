@@ -46,3 +46,8 @@ Un recinto cuyo contorno cae por completo dentro de otro se trata como subrecint
 ## Notificación audible y edición de dispositivos
 - Solo los estrobos necesarios llevan bocina (visual + auditivo); el resto queda solo visual. El nivel sonoro combinado (dBA) se verifica en todo el recinto y se ve en la capa «Nivel sonoro (dBA)» (rojo: bajo el requerido; verde: cumple; naranja: >110 dBA); con la capa activa, el valor bajo el cursor aparece en la barra de estado.
 - Cada dispositivo se puede arrastrar (se marca con anillo amarillo), seleccionar con clic para cambiar función, montaje pared/cielo, candelas y dBA en el panel «Dispositivo seleccionado», o con clic derecho agregar/quitar bocina o borrar. Cada cambio vuelve a verificar el recinto.
+
+## Dispositivos manuales y borrado de recintos
+- «＋ Dispositivo» (con el selector de tipo) agrega dispositivos a mano en el plano, además de los automáticos; se conservan al volver a generar y entran en la verificación del recinto.
+- «Borrar recintos…» abre una lista con casillas para elegir cuáles borrar.
+- Las herramientas y las capas están en el panel izquierdo del módulo 2.

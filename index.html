@@ -68,6 +68,20 @@
   @media(max-width:1000px){.cols2{grid-template-columns:1fr}}
   .aviso-mod{font-size:.8rem;color:#5a6472}
   #app{padding:0}
+  #dlgBorrar{border:1px solid var(--gb);border-radius:10px;padding:16px;max-width:520px;width:92vw;color:var(--tx)}
+  #dlgBorrar::backdrop{background:rgba(0,0,0,.35)}
+  #dlgLista{max-height:46vh;overflow:auto;border:1px solid var(--gb);border-radius:6px;padding:4px 8px}
+  #dlgLista label{display:flex;align-items:center;gap:8px;margin:0;padding:5px 2px;font-weight:600;border-bottom:1px solid #eef1f4}
+  #dlgLista input{width:auto}
+
+  /* Herramientas y capas en el panel izquierdo: el lienzo aprovecha todo el ancho de la hoja de diseño */
+  #cardHerr #barra{margin-bottom:8px}#cardHerr #barra .sep{display:none}
+  #cardHerr #barra button{margin:2px 3px 2px 0;padding:6px 9px;font-size:.78rem}
+  #capas{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;font-size:.78rem;align-items:center}
+  #capas>b{grid-column:1/-1}
+  #capas label{margin:0;display:flex;align-items:center;gap:5px;font-weight:600}
+  #capas label:has(input[type=range]),#capas label:has(input[type=number]){grid-column:1/-1;justify-content:space-between}
+  #mod2 canvas#cv{height:calc(100vh - 220px);min-height:520px}
   .tabla-eq{overflow-x:auto}.tabla-eq table{table-layout:fixed;min-width:300px}.tabla-eq th,.tabla-eq td{word-wrap:break-word;overflow-wrap:anywhere;text-align:left}.tabla-eq th:not(:first-child),.tabla-eq td:not(:first-child){text-align:center}
   /* Desplazamiento fijo en Ejecución: barras vertical y horizontal siempre visibles en el panel y en el área de trabajo */
   #mod2 #lateral,#mod2 #app>div:last-child{max-height:calc(100vh - 130px);overflow:scroll;scrollbar-width:auto;scrollbar-color:#7d8fa3 #e3e9ef}
@@ -163,7 +177,37 @@
 </div>
 <div id="mod2" class="modulo" style="display:none">
 <div id="app">
-<div id="lateral"><section class="card"><h2>Planta y recintos</h2>
+<div id="lateral"><section class="card" id="cardHerr"><h2>Herramientas y capas</h2>
+  <div id="barra">
+   <button id="tSel" class="act">Seleccionar</button>
+   <button id="tRec" class="sec">Dibujar recinto</button>
+   <button id="tRect" class="sec">Recinto rectangular</button>
+   <button id="tRell" class="sec">Recinto por clic (plano)</button>
+   <span class="sep"></span>
+   <button id="tSal" class="sec">+ Salida</button>
+   <button id="tFacp" class="sec">+ FACP/recepción</button>
+   <button id="tAhu" class="sec">+ Manejadora (AHU)</button>
+   <button id="tAsc" class="sec">+ Ascensor</button>
+   <span class="sep"></span>
+   <button id="tBor" class="peligro">Borrar</button>
+   <button id="tBorTodos" class="peligro" title="Elegir con casillas qué recintos borrar">Borrar recintos…</button>
+   <span class="sep"></span>
+   <button id="tDev" class="sec" title="Agregar dispositivos a mano, además de los automáticos">＋ Dispositivo</button>
+   <select id="devTipo" title="Tipo de dispositivo a agregar" style="width:auto;max-width:100%"></select>
+   <button id="tAjustar" class="sec">Ajustar vista</button>
+  </div>
+  <div id="capas">
+   <b>Cobertura:</b>
+   <label style="margin:0"><input type="checkbox" id="vCobDet" checked style="width:auto"> Detectores</label>
+   <label style="margin:0"><input type="checkbox" id="vCobVis" style="width:auto"> Notificación visual</label>
+   <label style="margin:0"><input type="checkbox" id="vCobAud" style="width:auto"> Notificación auditiva</label>
+   <label style="margin:0" title="Rojo: por debajo del nivel requerido; verde: cumple; naranja: sobre 110 dBA"><input type="checkbox" id="vSPL" style="width:auto"> Nivel sonoro (dBA)</label>
+   <label style="margin:0"><input type="checkbox" id="vPlano" checked style="width:auto"> Plano</label>
+   <label style="margin:0">Opacidad plano <input type="range" id="vOp" min="10" max="100" value="55" style="width:90px"></label>
+   <label style="margin:0">Tamaño símbolos <input type="range" id="vSim" min="8" max="40" value="16" style="width:90px"></label>
+   <label style="margin:0">Cierre de huecos de puerta (px) <input type="number" id="rellCierre" value="10" min="0" max="40" style="width:56px"></label>
+  </div>
+</section><section class="card"><h2>Planta y recintos</h2>
   <b>Modo A — cargar plano</b>
   <button id="btnPlano">Cargar plano (imagen / PDF)</button>
   <input type="file" id="filePlano" accept="image/*,.pdf" class="sinoche">
@@ -209,31 +253,6 @@
 
 <div>
  <div id="lienzoWrap">
-  <div id="barra">
-   <button id="tSel" class="act">Seleccionar</button>
-   <button id="tRec" class="sec">Dibujar recinto</button>
-   <button id="tRect" class="sec">Recinto rectangular</button>
-   <button id="tRell" class="sec">Recinto por clic (plano)</button>
-   <span class="sep"></span>
-   <button id="tSal" class="sec">+ Salida</button>
-   <button id="tFacp" class="sec">+ FACP/recepción</button>
-   <button id="tAhu" class="sec">+ Manejadora (AHU)</button>
-   <button id="tAsc" class="sec">+ Ascensor</button>
-   <span class="sep"></span>
-   <button id="tBor" class="peligro">Borrar</button>
-   <button id="tAjustar" class="sec">Ajustar vista</button>
-  </div>
-  <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:.78rem;margin-bottom:4px;align-items:center">
-   <b>Cobertura:</b>
-   <label style="margin:0"><input type="checkbox" id="vCobDet" checked style="width:auto"> Detectores</label>
-   <label style="margin:0"><input type="checkbox" id="vCobVis" style="width:auto"> Notificación visual</label>
-   <label style="margin:0"><input type="checkbox" id="vCobAud" style="width:auto"> Notificación auditiva</label>
-   <label style="margin:0" title="Rojo: por debajo del nivel requerido; verde: cumple; naranja: sobre 110 dBA"><input type="checkbox" id="vSPL" style="width:auto"> Nivel sonoro (dBA)</label>
-   <label style="margin:0"><input type="checkbox" id="vPlano" checked style="width:auto"> Plano</label>
-   <label style="margin:0">Opacidad plano <input type="range" id="vOp" min="10" max="100" value="55" style="width:90px"></label>
-   <label style="margin:0">Tamaño símbolos <input type="range" id="vSim" min="8" max="40" value="16" style="width:90px"></label>
-   <label style="margin:0">Cierre de huecos de puerta (px) <input type="number" id="rellCierre" value="10" min="0" max="40" style="width:56px"></label>
-  </div>
   <canvas id="cv"></canvas>
   <div id="estado">Cargue un plano o cree un recinto con dimensiones. Rueda = zoom · arrastrar con botón central o Espacio = desplazar · Enter/doble clic = cerrar polígono · Esc = cancelar.</div>
  </div>
@@ -272,6 +291,13 @@
   <footer class="pie"><b>Sinergia Ingeniería Latinoamérica</b><span>Costa Rica</span><span>Panamá</span><span>República Dominicana</span><span>Guatemala</span></footer>
 </div>
 
+<dialog id="dlgBorrar">
+  <h3 style="margin:0 0 6px">Borrar recintos</h3>
+  <small class="g">Marque los recintos que desea borrar. Al borrar, se quitan también los dispositivos prediseñados y hay que volver a generar. No se puede deshacer.</small>
+  <div style="margin:8px 0"><button class="sec" id="dlgTodos">Marcar todos</button><button class="sec" id="dlgNinguno">Desmarcar todos</button> <small class="g" id="dlgCuenta"></small></div>
+  <div id="dlgLista"></div>
+  <div style="margin-top:10px;text-align:right"><button class="sec" id="dlgCancelar">Cancelar</button><button class="peligro" id="dlgBorrarSel">Borrar seleccionados</button></div>
+</dialog>
 <div id="menuCtx"><div class="titulo" id="menuTit"></div><button id="mDevAud">🔊 Agregar bocina</button><button id="mDevBor" style="color:var(--ro)">🗑 Borrar dispositivo</button><button id="mAgregar">＋ Agregar punto aquí</button><button id="mQuitar">− Eliminar punto</button><button id="mUltimo">↶ Quitar último punto</button><button id="mCerrar">✔ Cerrar polígono</button><button id="mCancelar">✖ Cancelar dibujo</button><button id="mAjustar">✎ Ajustar polígono</button><button id="mCopiar">⧉ Copiar</button><button id="mBorrar" style="color:var(--ro)">🗑 Borrar</button></div>
 
 <script>
@@ -861,7 +887,7 @@ function ladoParaCd(tabla,cd){let l=0;tabla.forEach(([lado,c])=>{if(c<=cd&&lado>
 function devSel(){return E.disp.find(d=>d.id===E.selDev)||null;}
 function propiedadesDisp(){
   const c=$('propDisp');if(!c)return;const d=devSel();
-  if(!d){c.innerHTML='<small class="g">Haga clic en un dispositivo del plano para cambiar su tipo, candelas, montaje (pared/cielo) o nivel sonoro. Arrástrelo para moverlo; clic derecho para más opciones.</small>';return;}
+  if(!d){c.innerHTML='<small class="g">Haga clic en un dispositivo del plano para cambiar su tipo, candelas, montaje (pared/cielo) o nivel sonoro. Arrástrelo para moverlo; clic derecho para más opciones. Para agregar uno a mano, además de los automáticos, elija el tipo junto a «＋ Dispositivo» en Herramientas y haga clic en el plano.</small>';return;}
   const opt=(lista,val,fmt)=>lista.map(v=>'<option value="'+v[0]+'"'+(String(v[0])===String(val)?' selected':'')+'>'+(fmt?fmt(v):v[1])+'</option>').join('');
   const grupoDet=/^det_/.test(d.tipo),grupoNot=/estrobo|^bocina$|^parlante$/.test(d.tipo);
   let h='<b>'+esc(ROT[d.tipo]||d.tipo)+'</b> <small class="g">('+esc(d.sala||'')+' · x '+d.x.toFixed(1)+' m, y '+d.y.toFixed(1)+' m'+(d.manual?' · editado a mano':'')+')</small>';
@@ -935,12 +961,15 @@ function generar(){
   asignarHuecos();
   if(!E.recintos.length){alert('No hay recintos. Cargue un PDF/plano y pulse «Detectar recintos automáticamente», o cree uno con dimensiones.');return;}
   const o=opciones();
+  const man=E.disp.filter(d=>d.agregado);   // dispositivos agregados a mano: se conservan y se suman a los automáticos
   const res=E.recintos.map(r=>planificarRecinto(r,o));
   res.forEach(x=>x.disp.forEach(d=>{d.rid=x.r.id;}));
+  man.forEach(d=>{const x=res.find(z=>z.r.id===d.rid);if(x)x.disp.push(d);});
   const g=planificarGlobales(o,res);
   verificar(res,o);
   E.disp=[];res.forEach(x=>x.disp.forEach(d=>{d.id=E.seq++;E.disp.push(d);}));
   g.disp.forEach(d=>{d.id=E.seq++;E.disp.push(d);});
+  man.filter(d=>!res.some(z=>z.r.id===d.rid)).forEach(d=>{d.id=E.seq++;E.disp.push(d);});
   E.audPorRec={};res.forEach(x=>{if(x.aud&&x.aud.req)E.audPorRec[x.r.id]={req:x.aud.req,dba3:x.aud.dba3,parl:x.aud.parl};});E._spl=null;E.selDev=null;
   E.resultados=res;E.globales=g;
   mostrarResultados();propiedadesDisp();dibujar();
@@ -1115,7 +1144,25 @@ function dibujar(){
   const k=E.vista.k;cx.fillStyle='#111';cx.fillRect(12,r.height-18,5*k,3);cx.font='11px Arial';cx.textAlign='left';cx.fillText('5 m',12,r.height-24);
 }
 function estado(t){$('estado').textContent=t;}
-function herramienta(h){E.herr=h;E.borrador=[];E.calib=[];E.edit=null;E.pegando=null;['tSel','tRec','tRect','tRell','tSal','tFacp','tAhu','tAsc','tBor'].forEach(id=>$(id).classList.toggle('act',id==={sel:'tSel',rec:'tRec',rect:'tRect',rell:'tRell',salida:'tSal',facp:'tFacp',ahu:'tAhu',asc:'tAsc',bor:'tBor'}[h]));
+// Agrega un dispositivo a mano en el punto p, con valores por defecto del recinto que lo contiene (se suma a los automáticos).
+function agregarDisp(p){
+  const t=$('devTipo').value,o=opciones(),rc=recintoMin(p),A=rc&&(E.audPorRec||{})[rc.id];
+  const d={id:E.seq++,tipo:t,x:p.x,y:p.y,sala:rc?rc.nombre:'Manual',rid:rc?rc.id:undefined,manual:true,agregado:true};
+  if(/estrobo/.test(t)){
+    const cielo=/cielo/.test(t),alt=rc?rc.h:2.7,k=alt<=3.05?3.05:(alt<=6.1?6.10:9.14);
+    d.cd=+$('pCdMax').value||CATALOGO_CD[0];d.pared=!cielo;d.lado=cielo?(ladoParaCd(TABLA_ESTROBO_CIELO[k],d.cd)||undefined):undefined;
+  }
+  if(/bocina|parl/.test(t)){
+    const parl=/parl/.test(t);d.dba3=o.dba>0?o.dba:(parl?PARLANTE_DBA_3M:BOCINA_DBA_3M);
+    d.req=A?A.req:((rc&&TIPOS[rc.tipo]?TIPOS[rc.tipo].amb||0:0)+AUDIBLE_SOBRE_AMBIENTE_DB);d.radio=radioAudible(d.dba3,d.req);
+    E.audPorRec=E.audPorRec||{};if(rc&&!E.audPorRec[rc.id])E.audPorRec[rc.id]={req:d.req,dba3:d.dba3,parl};
+  }
+  if(t==='det_humo'||t==='det_calor')d.radio=(t==='det_humo'?o.espH:o.espC)*FACTOR_RADIO_COBERTURA;
+  E.disp.push(d);const x=E.resultados.find(z=>rc&&z.r.id===rc.id);if(x)x.disp.push(d);
+  E.selDev=d.id;E._spl=null;propiedadesDisp();dibujar();reverificar();
+  estado('Agregado «'+(ROT[t]||t)+'» en '+d.sala+'. Siga haciendo clic para agregar más del mismo tipo; Esc o «Seleccionar» para terminar. Se conserva al volver a generar.');
+}
+function herramienta(h){E.herr=h;E.borrador=[];E.calib=[];E.edit=null;E.pegando=null;['tSel','tRec','tRect','tRell','tSal','tFacp','tAhu','tAsc','tBor','tDev'].forEach(id=>$(id).classList.toggle('act',id==={sel:'tSel',rec:'tRec',rect:'tRect',rell:'tRell',salida:'tSal',facp:'tFacp',ahu:'tAhu',asc:'tAsc',bor:'tBor',dev:'tDev'}[h]));
   const m={sel:'Clic sobre un recinto para seleccionarlo.',rec:'Clic para cada vértice; doble clic o Enter para cerrar; Esc cancela.',rect:'Clic en dos esquinas opuestas del recinto.',rell:'Clic dentro de un recinto del plano: se rellena hasta los muros.',salida:'Clic para colocar una salida.',facp:'Clic para colocar el FACP/recepción.',ahu:'Clic para colocar una manejadora de aire.',asc:'Clic para colocar un vestíbulo de ascensor.',bor:'Clic sobre un recinto o marcador para borrarlo.',cal:'Clic en 2 puntos de distancia conocida.'}[h];estado(m||'');dibujar();}
 function nuevoRecinto(poly,nombre,tipo,h){const id=E.seq++;E.recintos.push({id,nombre:nombre||('Recinto '+id),tipo:tipo||guessTipo(nombre||''),poly,h:h||+$('mAlto').value||2.7,det:'auto',not:'auto',co:false});E.sel=id;propiedades();dibujar();}
 function guessTipo(n){n=n.toLowerCase();if(/corredor|pasillo|hall|corridor/.test(n))return 'corredor';if(/ba[ñn]o|shower|wc|sshh/.test(n))return 'bano';if(/kitchen|cocina/.test(n))return 'cocina';if(/elect|comms|data|tele/.test(n))return 'tecnico';if(/store|bodega|storage/.test(n))return 'bodega';if(/stair|escal/.test(n))return 'escalera';if(/lobby|lounge|recep/.test(n))return 'lobby';return $('mTipo').value||'oficina';}
@@ -1144,6 +1191,7 @@ window.addEventListener('mouseup',e=>{
   arr=null;
   if(arrV){if(movio){invalidar();suprimir=true;}arrV=null;}
   if(arrD){if(movio){suprimir=true;E.selDev=arrD.d.id;propiedadesDisp();reverificar();}arrD=null;}
+  if(suprimir)setTimeout(()=>{suprimir=false;},0);   // el clic de ese mismo gesto llega antes; si no llega, no se traga el siguiente
 });
 window.addEventListener('mousemove',e=>{
   if(arrD){const p=mundoDeEvento(e);arrD.d.x=p.x;arrD.d.y=p.y;arrD.d.manual=true;movio=true;E._spl=null;dibujar();return;}
@@ -1193,6 +1241,22 @@ $('mQuitar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel)
 $('mUltimo').onclick=()=>{ocultarMenu();E.borrador.pop();dibujar();estado('Último punto quitado ('+E.borrador.length+' puntos).');};
 $('mCerrar').onclick=()=>{ocultarMenu();cerrarBorrador();};
 $('mCancelar').onclick=()=>{ocultarMenu();E.borrador=[];dibujar();estado('Dibujo cancelado.');};
+/* --- Borrar recintos: lista con casillas para elegir cuáles --- */
+function abrirBorrarRecintos(){
+  if(!E.recintos.length){estado('No hay recintos que borrar.');return;}
+  $('dlgLista').innerHTML=E.recintos.map(r=>'<label><input type="checkbox" data-rid="'+r.id+'"> '+esc(r.nombre)+' <small class="g">('+area(r.poly).toFixed(0)+' m²)</small></label>').join('');
+  $('dlgLista').querySelectorAll('input').forEach(i=>i.onchange=cuentaBorrar);cuentaBorrar();$('dlgBorrar').showModal();
+}
+function cuentaBorrar(){const n=$('dlgLista').querySelectorAll('input:checked').length;$('dlgCuenta').textContent=n+' de '+E.recintos.length+' marcados';$('dlgBorrarSel').disabled=!n;}
+$('tBorTodos').onclick=abrirBorrarRecintos;
+$('dlgTodos').onclick=()=>{$('dlgLista').querySelectorAll('input').forEach(i=>{i.checked=true;});cuentaBorrar();};
+$('dlgNinguno').onclick=()=>{$('dlgLista').querySelectorAll('input').forEach(i=>{i.checked=false;});cuentaBorrar();};
+$('dlgCancelar').onclick=()=>$('dlgBorrar').close();
+$('dlgBorrarSel').onclick=()=>{
+  const ids=new Set([...$('dlgLista').querySelectorAll('input:checked')].map(i=>+i.dataset.rid));if(!ids.size)return;
+  const n=ids.size;E.recintos=E.recintos.filter(r=>!ids.has(r.id));if(ids.has(E.sel))E.sel=null;E.edit=null;E.pegando=null;
+  invalidar();propiedades();dibujar();$('dlgBorrar').close();estado(n+' recinto(s) borrado(s). Quedan '+E.recintos.length+'.');
+};
 function terminarAjuste(){E.edit=null;E.pegando=null;dibujar();}
 $('mAjustar').onclick=()=>{ocultarMenu();E.edit=E.sel;E.pegando=null;E.borrador=[];dibujar();estado('Ajuste de polígono: arrastre un vértice para moverlo, haga clic en un lado (o clic derecho → Agregar punto) para agregar un vértice, Mayús+clic (o clic derecho → Eliminar punto) en un vértice para quitarlo, arrastre dentro para mover el recinto. Enter o Esc termina.');};
 $('mCopiar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel);if(!r)return;const b=bbox(r.poly),cx0=b.x0+b.w/2,cy0=b.y0+b.h/2;
@@ -1200,8 +1264,10 @@ $('mCopiar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel)
   estado('Copiado «'+r.nombre+'»: mueva el cursor y haga clic para pegar (puede pegar varias veces). Esc termina.');dibujar();};
 $('mBorrar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel);if(!r)return;E.recintos=E.recintos.filter(x=>x!==r);E.sel=null;E.edit=null;invalidar();propiedades();dibujar();estado('Recinto «'+r.nombre+'» borrado.');};
 cv.addEventListener('wheel',e=>{e.preventDefault();const r=cv.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top,w=aMundo(px,py),f=e.deltaY<0?1.15:1/1.15;E.vista.k*=f;E.vista.x=px-w.x*E.vista.k;E.vista.y=py-w.y*E.vista.k;dibujar();},{passive:false});
-window.addEventListener('keydown',e=>{if(e.code==='Space'&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){espacio=true;e.preventDefault();}if(e.key==='Escape'){E.borrador=[];E.calib=[];ocultarMenu();terminarAjuste();}if(e.key==='Enter'){if(E.edit)terminarAjuste();else if(E.herr==='rec')cerrarBorrador();}});
+window.addEventListener('keydown',e=>{if(e.code==='Space'&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){espacio=true;e.preventDefault();}if(e.key==='Escape'){E.borrador=[];E.calib=[];ocultarMenu();terminarAjuste();if(E.herr==='dev')herramienta('sel');}if(e.key==='Enter'){if(E.edit)terminarAjuste();else if(E.herr==='rec')cerrarBorrador();}});
 window.addEventListener('keyup',e=>{if(e.code==='Space')espacio=false;});
+// Si la ventana pierde el foco (Alt+Tab, clic fuera) se pierde el «soltar»: se reinician teclas y arrastres para que los clics de dibujo no queden bloqueados.
+window.addEventListener('blur',()=>{espacio=false;arr=null;arrV=null;arrD=null;suprimir=false;});
 cv.addEventListener('mousemove',e=>{E.cursor=mundoDeEvento(e);if(E.borrador.length||E.pegando)dibujar();
   if(!arrD){cv.style.cursor=(E.herr==='sel'&&!E.edit&&!E.pegando&&devEn(E.cursor))?'move':'crosshair';}
   if($('vSPL').checked&&E.audPorRec&&!E.borrador.length&&!arrD){const rr=recintoMin(E.cursor),A=rr&&E.audPorRec[rr.id];
@@ -1221,6 +1287,7 @@ cv.addEventListener('click',e=>{
   else if(E.herr==='rec'){E.borrador.push(p);dibujar();}
   else if(E.herr==='rect'){E.borrador.push(p);if(E.borrador.length===2){const a=E.borrador[0],b=E.borrador[1];nuevoRecinto([{x:a.x,y:a.y},{x:b.x,y:a.y},{x:b.x,y:b.y},{x:a.x,y:b.y}]);E.borrador=[];}dibujar();}
   else if(E.herr==='rell'){rellenar_clic(p);}
+  else if(E.herr==='dev'){agregarDisp(p);}
   else if(['salida','facp','ahu','asc'].includes(E.herr)){E.marcas.push({id:E.seq++,t:E.herr,x:p.x,y:p.y});tablaEquipos();dibujar();}
   else if(E.herr==='bor'){
     const mi=E.marcas.findIndex(m=>Math.hypot(m.x-p.x,m.y-p.y)*E.vista.k<14);
@@ -1870,6 +1937,7 @@ function aplicarJurisdiccion(){
 function iniciar(){
   $('pais').innerHTML=Object.keys(JURISDICCIONES).map(k=>'<option value="'+k+'"'+(k===JURISDICCION_DEFECTO?' selected':'')+'>'+JURISDICCIONES[k].nombre+'</option>').join('');
   $('pais').onchange=aplicarJurisdiccion;
+  $('devTipo').innerHTML=Object.keys(ROT).map(k=>'<option value="'+k+'"'+(k==='det_humo'?' selected':'')+'>'+ROT[k]+'</option>').join('');
   $('ed72').innerHTML=EDICIONES_72.map(e=>'<option>'+e+'</option>').join('');
   $('ed101').innerHTML=EDICIONES_101.map(e=>'<option>'+e+'</option>').join('');aplicarJurisdiccion();
   $('ocup').innerHTML=OCUPACIONES.map(o=>'<option value="'+o.id+'">'+o.n+'</option>').join('');
@@ -1880,7 +1948,7 @@ function iniciar(){
   $('pAud').onchange=()=>{$('pDba').value=$('pAud').value==='parlante'?PARLANTE_DBA_3M:BOCINA_DBA_3M;};
   $('btnGenerar').onclick=generar;
   $('btnLimpiar').onclick=()=>{E.disp=[];E.resultados=[];$('resultados').innerHTML='';dibujar();};
-  [['tSel','sel'],['tRec','rec'],['tRect','rect'],['tRell','rell'],['tSal','salida'],['tFacp','facp'],['tAhu','ahu'],['tAsc','asc'],['tBor','bor']].forEach(([i,h])=>$(i).onclick=()=>herramienta(h));
+  [['tSel','sel'],['tRec','rec'],['tRect','rect'],['tRell','rell'],['tSal','salida'],['tFacp','facp'],['tAhu','ahu'],['tAsc','asc'],['tBor','bor'],['tDev','dev']].forEach(([i,h])=>$(i).onclick=()=>herramienta(h));
   $('tAjustar').onclick=ajustarVista;
   ['vCobDet','vCobVis','vCobAud','vSPL','vPlano','vOp','vSim'].forEach(i=>$(i).oninput=dibujar);
   $('btnDict').click();infoCadena();tablaEquipos();
