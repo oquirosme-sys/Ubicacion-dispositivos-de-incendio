@@ -11,6 +11,9 @@ Archivo único `index.html`, sin librerías ni CDN, funciona sin internet (doble
 4. **Generar prediseño**: detectores (humo/calor/CO/ducto), estrobos con candelas, audible, pulsadores y módulos, con verificación independiente y supuestos/limitaciones junto a cada resultado.
 5. **Archivo**: borrador .json, PNG, CSV de dispositivos e informe imprimible (PDF desde el navegador).
 
+## Clic derecho sobre un recinto
+Menú con **Ajustar polígono** (arrastrar vértices, clic en un lado agrega vértice, Mayús+clic quita uno, arrastrar dentro mueve el recinto; Enter/Esc termina), **Copiar** (queda pegado al cursor; clic para pegar, varias veces; Esc termina) y **Borrar**. Para desplazar el plano con el botón derecho, arrastre (más de 4 px).
+
 ## Plano de prueba
 `pruebas/A02.00_planta_72dpi.png` (A02.00, 1:75, 72 px/pulgada → escala 1:75 y resolución 72).
 
@@ -18,7 +21,8 @@ Archivo único `index.html`, sin librerías ni CDN, funciona sin internet (doble
 Lector propio, sin librerías ni internet (usa la descompresión nativa del navegador):
 - **Planos**: dibuja el vector de la hoja (con rotación) y busca «ESCALA 1:N» en el texto para fijar la escala; siempre verifique con «Calibrar con 2 puntos».
 - **Estándares de cadena**: extrae las frases normativas del PDF, sugiere parámetros (cd en dormitorios, dBA mínimo, cd en corredores, CO, pulsador en recepción) y usted elige qué adoptar.
-- **Recintos automáticos**: al cargar el PDF se genera una imagen solo con muros (sin texto, ejes punteados ni rectas larguísimas) y se detectan los recintos cerrados; cada uno toma su nombre del texto del plano que cae dentro (ej. «TRAINING 01», «KITCHEN»). En A02.00 detecta unos 45 recintos con áreas cercanas a las rotuladas; los falsos se borran y los que falten se crean con «Recinto por clic». También hay un botón «Detectar recintos automáticamente».
+- **Recintos automáticos**: al cargar el PDF se genera una imagen solo con muros (sin texto, ejes punteados ni rectas larguísimas) y se detectan los recintos. Tres métodos (selector junto al botón): *solo por rótulos de área* (cada «25 m²» del plano ancla un recinto y su área valida el contorno; ignora la tabla de áreas del cajetín), *rótulos + espacios sin rótulo* (recomendado) y *solo geometría*. Cada recinto toma su nombre del texto del plano. En A02.00 detecta unos 31 recintos; los rótulos sin recinto se listan en el mensaje para crearlos con «Recinto por clic».
+- **Capas de cobertura** seleccionables: detectores, notificación visual y notificación auditiva (las dos últimas recortadas a cada recinto).
 - No lee PDF escaneados, cifrados ni imágenes incrustadas; en ese caso exporte a PNG/JPG o a .csv/.json. Probado con el plano A02.00 y el Manual de Disposiciones Técnicas 2013 (184 páginas).
 
 ## Verificación normativa

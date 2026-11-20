@@ -44,6 +44,9 @@
   small.g{color:#5a6472;font-size:.74rem}
   #resultados{margin-top:12px}
   .sinoche{display:none}
+  #menuCtx{position:fixed;z-index:50;background:#fff;border:1px solid var(--gb);border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.25);padding:4px;display:none;min-width:170px}
+  #menuCtx button{display:block;width:100%;text-align:left;background:#fff;color:var(--tx);border:0;margin:0;padding:7px 10px;font-weight:600}
+  #menuCtx button:hover{background:var(--azc)} #menuCtx .titulo{font-size:.72rem;color:#5a6472;padding:3px 10px}
 </style>
 </head>
 <body>
@@ -101,6 +104,7 @@
   <button class="sec" id="btnEscalaAuto">Aplicar escala (N y resolución)</button>
   <button class="sec" id="btnCalibrar">Calibrar con 2 puntos</button>
   <button id="btnAuto">Detectar recintos automáticamente</button>
+  <select id="autoModo" title="Método de detección"><option value="rotulos">Solo por rótulos de área (estricto)</option><option value="ambos" selected>Rótulos + espacios sin rótulo (recomendado)</option><option value="geom">Solo geometría (sin rótulos)</option></select>
   <div class="nota"><b>Supuestos y limitaciones (carga de planos):</b><ul>
    <li>Los PDF se leen con un lector propio (sin internet): dibuja el vector de la hoja y busca «ESCALA 1:N» en el texto. No lee PDF escaneados, cifrados ni imágenes incrustadas: en ese caso exporte a PNG/JPG.</li>
    <li>La escala sale de «1:N + resolución» o de calibrar 2 puntos con una cota conocida; una escala errónea invalida todas las distancias y coberturas.</li>
@@ -176,7 +180,10 @@
    <button id="tAjustar" class="sec">Ajustar vista</button>
   </div>
   <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:.78rem;margin-bottom:4px;align-items:center">
-   <label style="margin:0"><input type="checkbox" id="vCob" checked style="width:auto"> Coberturas</label>
+   <b>Cobertura:</b>
+   <label style="margin:0"><input type="checkbox" id="vCobDet" checked style="width:auto"> Detectores</label>
+   <label style="margin:0"><input type="checkbox" id="vCobVis" style="width:auto"> Notificación visual</label>
+   <label style="margin:0"><input type="checkbox" id="vCobAud" style="width:auto"> Notificación auditiva</label>
    <label style="margin:0"><input type="checkbox" id="vPlano" checked style="width:auto"> Plano</label>
    <label style="margin:0">Opacidad plano <input type="range" id="vOp" min="10" max="100" value="55" style="width:90px"></label>
    <label style="margin:0">Tamaño símbolos <input type="range" id="vSim" min="8" max="40" value="16" style="width:90px"></label>
@@ -188,6 +195,8 @@
  <div id="resultados"></div>
 </div>
 </div>
+
+<div id="menuCtx"><div class="titulo" id="menuTit"></div><button id="mAjustar">✎ Ajustar polígono</button><button id="mCopiar">⧉ Copiar</button><button id="mBorrar" style="color:var(--ro)">🗑 Borrar</button></div>
 
 <script>
 "use strict";
@@ -313,8 +322,20 @@ const ESTPDF_RE_MODAL = /(shall|must|required|minimum|maximum|at least|no more|n
 const COMPONENTE_MURO_MIN_M = 12;
 // Desplazamiento de TJ (milésimas de em) a partir del cual se considera un espacio entre palabras (CRITERIO).
 const PDF_ESPACIO_TJ = 200;
+// Distancia en píxeles de pantalla para atrapar un vértice o un lado al ajustar un polígono (usabilidad).
+const HIT_PX = 9;
 const PDF_LINEA_LARGA_M = 25;   // trazos de una sola recta más largos que esto (ejes, cortes) no son muros
-const MURO_MIN_M = 0.08, PUERTA_CIERRE_M = 1.0, AUTO_AREA_MIN_M2 = 2, AUTO_AREA_MAX_M2 = 800, AUTO_NOMBRE_MAX = 40;
+const AUTO_AREA_MIN_M2 = 2, AUTO_AREA_MAX_M2 = 800, AUTO_NOMBRE_MAX = 40;
+// Radios (m) con que se engrosan los muros para cerrar puertas; por cada rótulo se prueba cada uno y se
+// conserva el contorno cuyo área más se parezca al área rotulada (CRITERIOS de procesamiento).
+const AUTO_RADIOS_M = [0.25, 0.35, 0.5, 0.65];
+// Diferencia máxima aceptada entre el área detectada y la rotulada, y factor de corte de fugas (CRITERIOS).
+const AUTO_TOL_AREA = 0.35, AUTO_FUGA_FACTOR = 2.5;
+// Búsqueda de píxel libre alrededor de la semilla (px) y límites de la detección sin rótulos (CRITERIOS).
+// Semillas de prueba alrededor de cada rótulo (rejilla de ±N pasos de PASO m), error que se da por bueno,
+// mínimo de rótulos alineados que delata una tabla de áreas, y área máxima de un espacio abierto compartido (CRITERIOS).
+const AUTO_SEMILLAS_N = 2, AUTO_PASO_SEMILLA_M = 0.8, AUTO_OK_ERR = 0.12, AUTO_TABLA_MIN = 8, AUTO_COMB_MAX_M2 = 400;
+const AUTO_BUSQUEDA_SEMILLA_PX = 25, AUTO_SIN_ROTULO_MAX_M2 = 400, AUTO_RELLENO_MIN = 0.45;
 // Tolerancia de simplificación del contorno (px). CRITERIO de procesamiento.
 const RELLENO_SIMPL_PX = 3;
 // Convención geométrica y gráfica (no normativas).
@@ -714,6 +735,7 @@ function generar(){
   if(!E.recintos.length){alert('No hay recintos. Cargue un PDF/plano y pulse «Detectar recintos automáticamente», o cree uno con dimensiones.');return;}
   const o=opciones();
   const res=E.recintos.map(r=>planificarRecinto(r,o));
+  res.forEach(x=>x.disp.forEach(d=>{d.rid=x.r.id;}));
   const g=planificarGlobales(o,res);
   verificar(res,o);
   E.disp=[];res.forEach(x=>x.disp.forEach(d=>E.disp.push(Object.assign({id:E.seq++},d))));
@@ -860,13 +882,22 @@ function dibujar(){
     cx.fillStyle=(E.sel===rc.id)?'rgba(224,168,0,0.25)':'rgba(27,74,117,0.08)';cx.fill();cx.strokeStyle=(E.sel===rc.id)?COLOR.sel:COLOR.recinto;cx.lineWidth=(E.sel===rc.id)?3:1.6;cx.stroke();
     const b=bbox(rc.poly),c=aPant({x:b.x0+b.w/2,y:b.y0+b.h/2});cx.fillStyle='#12314f';cx.font='11px Arial';cx.textAlign='center';cx.fillText(rc.nombre,c.x,c.y-14);
   });
+  // ajuste de polígono: vértices y puntos medios; copia: fantasma bajo el cursor
+  const re=E.edit?recEdit():null;
+  if(re){cx.lineWidth=2;re.poly.forEach((q,i)=>{const a=aPant(q),n=aPant(re.poly[(i+1)%re.poly.length]);
+    cx.strokeStyle='#e0a800';cx.fillStyle='#fff';cx.fillRect(a.x-5,a.y-5,10,10);cx.strokeRect(a.x-5,a.y-5,10,10);
+    cx.beginPath();cx.arc((a.x+n.x)/2,(a.y+n.y)/2,3,0,7);cx.fillStyle='#e0a800';cx.fill();});}
+  if(E.pegando&&E.cursor){cx.setLineDash([6,4]);cx.strokeStyle='#1e7d3c';cx.lineWidth=2;cx.beginPath();E.pegando.rel.forEach((q,i)=>{const a=aPant({x:q.x+E.cursor.x,y:q.y+E.cursor.y});cx[i?'lineTo':'moveTo'](a.x,a.y);});cx.closePath();cx.stroke();cx.setLineDash([]);}
   const S=+$('vSim').value;
   // coberturas
-  if($('vCob').checked)E.disp.forEach(d=>{
+  // Capas de cobertura seleccionables; las de notificación se recortan al recinto que las contiene.
+  const verDet=$('vCobDet').checked,verVis=$('vCobVis').checked,verAud=$('vCobAud').checked;
+  const recorta=(d,fn)=>{const rc=E.recintos.find(x=>x.id===d.rid);cx.save();if(rc){cx.beginPath();rc.poly.forEach((q,i)=>{const a=aPant(q);cx[i?'lineTo':'moveTo'](a.x,a.y);});cx.closePath();cx.clip();}fn();cx.restore();};
+  E.disp.forEach(d=>{
     const p=aPant(d);
-    if(d.tipo==='det_humo'||d.tipo==='det_calor'){cx.beginPath();cx.arc(p.x,p.y,d.radio*E.vista.k,0,7);cx.fillStyle=d.tipo==='det_humo'?COLOR.cob:'rgba(192,90,0,0.08)';cx.fill();cx.strokeStyle=d.tipo==='det_humo'?'rgba(30,125,60,.35)':'rgba(192,90,0,.35)';cx.lineWidth=1;cx.stroke();}
-    else if(d.lado&&(d.tipo.indexOf('estrobo')>0)){const l=d.lado*E.vista.k;cx.strokeStyle='rgba(164,35,31,.35)';cx.setLineDash([5,4]);cx.lineWidth=1;
-      if(d.pared)cx.strokeRect(p.x-l/2,p.y-l/2,l,l);else cx.strokeRect(p.x-l/2,p.y-l/2,l,l);cx.setLineDash([]);}
+    if(verDet&&(d.tipo==='det_humo'||d.tipo==='det_calor')){cx.beginPath();cx.arc(p.x,p.y,d.radio*E.vista.k,0,7);cx.fillStyle=d.tipo==='det_humo'?COLOR.cob:'rgba(192,90,0,0.08)';cx.fill();cx.strokeStyle=d.tipo==='det_humo'?'rgba(30,125,60,.45)':'rgba(192,90,0,.45)';cx.lineWidth=1;cx.stroke();}
+    if(verVis&&d.lado&&d.tipo.indexOf('estrobo')>0){const l=d.lado*E.vista.k;recorta(d,()=>{cx.fillStyle=COLOR.cobE;cx.fillRect(p.x-l/2,p.y-l/2,l,l);cx.strokeStyle='rgba(164,35,31,.5)';cx.setLineDash([5,4]);cx.lineWidth=1;cx.strokeRect(p.x-l/2,p.y-l/2,l,l);cx.setLineDash([]);});}
+    if(verAud&&/bocina|parl/.test(d.tipo)&&d.radio){recorta(d,()=>{cx.beginPath();cx.arc(p.x,p.y,d.radio*E.vista.k,0,7);cx.fillStyle=COLOR.cobA;cx.fill();cx.strokeStyle='rgba(27,74,117,.5)';cx.lineWidth=1;cx.stroke();});}
   });
   E.disp.forEach(d=>{const p=aPant(d);sim(cx,d.tipo,p.x,p.y,S,{cd:d.cd});});
   E.marcas.forEach(m=>{const p=aPant(m);sim(cx,m.t==='salida'?'salida':m.t,p.x,p.y,S);});
@@ -877,25 +908,67 @@ function dibujar(){
   const k=E.vista.k;cx.fillStyle='#111';cx.fillRect(12,r.height-18,5*k,3);cx.font='11px Arial';cx.textAlign='left';cx.fillText('5 m',12,r.height-24);
 }
 function estado(t){$('estado').textContent=t;}
-function herramienta(h){E.herr=h;E.borrador=[];E.calib=[];['tSel','tRec','tRect','tRell','tSal','tFacp','tAhu','tAsc','tBor'].forEach(id=>$(id).classList.toggle('act',id==={sel:'tSel',rec:'tRec',rect:'tRect',rell:'tRell',salida:'tSal',facp:'tFacp',ahu:'tAhu',asc:'tAsc',bor:'tBor'}[h]));
+function herramienta(h){E.herr=h;E.borrador=[];E.calib=[];E.edit=null;E.pegando=null;['tSel','tRec','tRect','tRell','tSal','tFacp','tAhu','tAsc','tBor'].forEach(id=>$(id).classList.toggle('act',id==={sel:'tSel',rec:'tRec',rect:'tRect',rell:'tRell',salida:'tSal',facp:'tFacp',ahu:'tAhu',asc:'tAsc',bor:'tBor'}[h]));
   const m={sel:'Clic sobre un recinto para seleccionarlo.',rec:'Clic para cada vértice; doble clic o Enter para cerrar; Esc cancela.',rect:'Clic en dos esquinas opuestas del recinto.',rell:'Clic dentro de un recinto del plano: se rellena hasta los muros.',salida:'Clic para colocar una salida.',facp:'Clic para colocar el FACP/recepción.',ahu:'Clic para colocar una manejadora de aire.',asc:'Clic para colocar un vestíbulo de ascensor.',bor:'Clic sobre un recinto o marcador para borrarlo.',cal:'Clic en 2 puntos de distancia conocida.'}[h];estado(m||'');dibujar();}
 function nuevoRecinto(poly,nombre,tipo,h){const id=E.seq++;E.recintos.push({id,nombre:nombre||('Recinto '+id),tipo:tipo||guessTipo(nombre||''),poly,h:h||+$('mAlto').value||2.7,det:'auto',not:'auto',co:false});E.sel=id;propiedades();dibujar();}
 function guessTipo(n){n=n.toLowerCase();if(/corredor|pasillo|hall|corridor/.test(n))return 'corredor';if(/ba[ñn]o|shower|wc|sshh/.test(n))return 'bano';if(/kitchen|cocina/.test(n))return 'cocina';if(/elect|comms|data|tele/.test(n))return 'tecnico';if(/store|bodega|storage/.test(n))return 'bodega';if(/stair|escal/.test(n))return 'escalera';if(/lobby|lounge|recep/.test(n))return 'lobby';return $('mTipo').value||'oficina';}
 function mundoDeEvento(e){const r=cv.getBoundingClientRect();return aMundo(e.clientX-r.left,e.clientY-r.top);}
 function recintoEn(p){for(let i=E.recintos.length-1;i>=0;i--)if(dentro(p,E.recintos[i].poly))return E.recintos[i];return null;}
-let arr=null,espacio=false;
-cv.addEventListener('mousedown',e=>{if(e.button===1||espacio||e.button===2){arr={x:e.clientX,y:e.clientY,vx:E.vista.x,vy:E.vista.y};e.preventDefault();}});
-window.addEventListener('mouseup',()=>{arr=null;});
-window.addEventListener('mousemove',e=>{if(arr){E.vista.x=arr.vx+e.clientX-arr.x;E.vista.y=arr.vy+e.clientY-arr.y;dibujar();}});
+let arr=null,espacio=false,arrV=null,movio=false,suprimir=false;
+function invalidar(){E.disp=[];E.resultados=[];$('resultados').innerHTML='';}
+function recEdit(){return E.recintos.find(r=>r.id===E.edit);}
+function ocultarMenu(){$('menuCtx').style.display='none';}
+function distBordeIdx(pt,poly){let m=1e18,idx=-1,pr=null;for(let i=0;i<poly.length;i++){const sg=distSeg(pt,poly[i],poly[(i+1)%poly.length]);if(sg.d<m){m=sg.d;idx=i;pr=sg;}}return{d:m,i:idx,p:pr};}
+cv.addEventListener('mousedown',e=>{
+  ocultarMenu();
+  if(e.button===1||espacio||e.button===2){arr={x:e.clientX,y:e.clientY,vx:E.vista.x,vy:E.vista.y,mov:false,btn:e.button};e.preventDefault();return;}
+  if(e.button===0&&E.edit){const r=recEdit();if(r){const p=mundoDeEvento(e),k=E.vista.k;
+    const iv=r.poly.findIndex(q=>Math.hypot(q.x-p.x,q.y-p.y)*k<=HIT_PX);
+    if(iv>=0&&!e.shiftKey)arrV={tipo:'v',i:iv};
+    else if(iv<0&&dentro(p,r.poly)&&distBordeIdx(p,r.poly).d*k>HIT_PX)arrV={tipo:'r',last:p};
+    movio=false;}}
+});
+window.addEventListener('mouseup',e=>{
+  if(arr&&arr.btn===2&&!arr.mov&&e.target===cv)menuContextual(e);
+  arr=null;
+  if(arrV){if(movio){invalidar();suprimir=true;}arrV=null;}
+});
+window.addEventListener('mousemove',e=>{
+  if(arr){if(Math.hypot(e.clientX-arr.x,e.clientY-arr.y)>4)arr.mov=true;if(arr.mov){E.vista.x=arr.vx+e.clientX-arr.x;E.vista.y=arr.vy+e.clientY-arr.y;dibujar();}}
+  if(arrV){const r=recEdit();if(r){const p=mundoDeEvento(e);movio=true;
+    if(arrV.tipo==='v')r.poly[arrV.i]={x:p.x,y:p.y};
+    else{const dx=p.x-arrV.last.x,dy=p.y-arrV.last.y;r.poly.forEach(q=>{q.x+=dx;q.y+=dy;});arrV.last=p;}
+    dibujar();}}
+});
 cv.addEventListener('contextmenu',e=>e.preventDefault());
+/* --- Menú contextual (clic derecho sobre un recinto): ajustar polígono, copiar, borrar --- */
+function menuContextual(e){
+  const r=recintoEn(mundoDeEvento(e));if(!r){ocultarMenu();return;}
+  E.sel=r.id;propiedades();dibujar();
+  const m=$('menuCtx');$('menuTit').textContent=r.nombre;m.style.display='block';
+  m.style.left=Math.min(e.clientX,window.innerWidth-190)+'px';m.style.top=Math.min(e.clientY,window.innerHeight-130)+'px';
+}
+function terminarAjuste(){E.edit=null;E.pegando=null;dibujar();}
+$('mAjustar').onclick=()=>{ocultarMenu();E.edit=E.sel;E.pegando=null;E.borrador=[];dibujar();estado('Ajuste de polígono: arrastre un vértice para moverlo, haga clic en un lado para agregar un vértice, Mayús+clic en un vértice para quitarlo, arrastre dentro para mover el recinto. Enter o Esc termina.');};
+$('mCopiar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel);if(!r)return;const b=bbox(r.poly),cx0=b.x0+b.w/2,cy0=b.y0+b.h/2;
+  E.edit=null;E.pegando={rel:r.poly.map(q=>({x:q.x-cx0,y:q.y-cy0})),nombre:r.nombre+' (copia)',tipo:r.tipo,h:r.h,det:r.det,not:r.not,co:r.co};
+  estado('Copiado «'+r.nombre+'»: mueva el cursor y haga clic para pegar (puede pegar varias veces). Esc termina.');dibujar();};
+$('mBorrar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel);if(!r)return;E.recintos=E.recintos.filter(x=>x!==r);E.sel=null;E.edit=null;invalidar();propiedades();dibujar();estado('Recinto «'+r.nombre+'» borrado.');};
 cv.addEventListener('wheel',e=>{e.preventDefault();const r=cv.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top,w=aMundo(px,py),f=e.deltaY<0?1.15:1/1.15;E.vista.k*=f;E.vista.x=px-w.x*E.vista.k;E.vista.y=py-w.y*E.vista.k;dibujar();},{passive:false});
-window.addEventListener('keydown',e=>{if(e.code==='Space'&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){espacio=true;e.preventDefault();}if(e.key==='Escape'){E.borrador=[];E.calib=[];dibujar();}if(e.key==='Enter'&&E.herr==='rec')cerrarBorrador();});
+window.addEventListener('keydown',e=>{if(e.code==='Space'&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){espacio=true;e.preventDefault();}if(e.key==='Escape'){E.borrador=[];E.calib=[];ocultarMenu();terminarAjuste();}if(e.key==='Enter'){if(E.edit)terminarAjuste();else if(E.herr==='rec')cerrarBorrador();}});
 window.addEventListener('keyup',e=>{if(e.code==='Space')espacio=false;});
-cv.addEventListener('mousemove',e=>{E.cursor=mundoDeEvento(e);if(E.borrador.length)dibujar();});
+cv.addEventListener('mousemove',e=>{E.cursor=mundoDeEvento(e);if(E.borrador.length||E.pegando)dibujar();});
 function cerrarBorrador(){if(E.borrador.length>=3&&area(E.borrador)>=AREA_MIN_RECINTO_M2){nuevoRecinto(E.borrador.slice());}E.borrador=[];dibujar();}
 cv.addEventListener('dblclick',e=>{if(E.herr==='rec'){E.borrador.pop();cerrarBorrador();}});
 cv.addEventListener('click',e=>{
-  if(arr||espacio)return;const p=mundoDeEvento(e);
+  if(arr||espacio)return;
+  if(suprimir){suprimir=false;return;}
+  const p=mundoDeEvento(e);
+  if(E.pegando){const g=E.pegando,id=E.seq++;E.recintos.push({id,nombre:g.nombre,tipo:g.tipo,poly:g.rel.map(q=>({x:q.x+p.x,y:q.y+p.y})),h:g.h,det:g.det,not:g.not,co:g.co});E.sel=id;propiedades();dibujar();return;}
+  if(E.edit){const r=recEdit();if(r){const k=E.vista.k,iv=r.poly.findIndex(q=>Math.hypot(q.x-p.x,q.y-p.y)*k<=HIT_PX);
+    if(iv>=0){if(e.shiftKey&&r.poly.length>3){r.poly.splice(iv,1);invalidar();dibujar();}}
+    else{const bd=distBordeIdx(p,r.poly);if(bd.d*k<=HIT_PX){r.poly.splice(bd.i+1,0,{x:bd.p.x,y:bd.p.y});invalidar();dibujar();}}}
+    return;}
   if(E.herr==='sel'){const r=recintoEn(p);E.sel=r?r.id:null;propiedades();dibujar();}
   else if(E.herr==='rec'){E.borrador.push(p);dibujar();}
   else if(E.herr==='rect'){E.borrador.push(p);if(E.borrador.length===2){const a=E.borrador[0],b=E.borrador[1];nuevoRecinto([{x:a.x,y:a.y},{x:b.x,y:a.y},{x:b.x,y:b.y},{x:a.x,y:b.y}]);E.borrador=[];}dibujar();}
@@ -961,60 +1034,129 @@ function rdp(p,e){if(p.length<3)return p;let m=0,idx=0;const a=p[0],b=p[p.length
 function erosionar(m,W,H,r){const inv=m.map(v=>v?0:1);return dilatar(inv,W,H,r).map(v=>v?0:1);}
 async function detectarRecintos(){
   if(!E.img){alert('Cargue primero un plano.');return;}
+  let modo=$('autoModo').value;
   estado('Detectando recintos… (puede tardar unos segundos)');await new Promise(r=>setTimeout(r,30));
   const W0=E.img.width,H0=E.img.height,f=Math.min(1,RELLENO_LADO_MAX_PX/Math.max(W0,H0)),W=Math.round(W0*f),H=Math.round(H0*f);
   const c2=document.createElement('canvas');c2.width=W;c2.height=H;const g=c2.getContext('2d',{willReadFrequently:true});g.drawImage(E.imgMuros||E.img,0,0,W,H);
-  const d=g.getImageData(0,0,W,H).data;let oscuro=new Uint8Array(W*H);
+  const d=g.getImageData(0,0,W,H).data;const oscuro=new Uint8Array(W*H);
   for(let i=0;i<W*H;i++)oscuro[i]=(d[i*4+3]>10&&(d[i*4]+d[i*4+1]+d[i*4+2])/3<RELLENO_UMBRAL_GRIS)?1:0;
-  const mpx=E.imgM/f,rFino=Math.max(1,Math.round(MURO_MIN_M/2/mpx)),rPuerta=Math.max(2,Math.round(PUERTA_CIERRE_M/2/mpx));
-  // Se descartan los conjuntos de trazos pequeños aislados (mobiliario, texto, símbolos): no son muros.
-  {const lim=COMPONENTE_MURO_MIN_M/mpx,vis=new Uint8Array(W*H),q=new Int32Array(W*H);
-   for(let s0=0;s0<W*H;s0++){if(!oscuro[s0]||vis[s0])continue;let ini=0,fin=0;q[fin++]=s0;vis[s0]=1;let x0=W,y0=H,x1=0,y1=0;
+  const mpx=E.imgM/f;
+  // 1) Se descartan los conjuntos de trazos pequeños aislados (mobiliario, texto, símbolos): no son muros.
+  {const lim=COMPONENTE_MURO_MIN_M/mpx,vis0=new Uint8Array(W*H),q=new Int32Array(W*H);
+   for(let s0=0;s0<W*H;s0++){if(!oscuro[s0]||vis0[s0])continue;let ini=0,fin=0;q[fin++]=s0;vis0[s0]=1;let x0=W,y0=H,x1=0,y1=0;
      while(ini<fin){const i=q[ini++],x=i%W,y=(i/W)|0;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;
-       for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=W||ny>=H)continue;const j=ny*W+nx;if(oscuro[j]&&!vis[j]){vis[j]=1;q[fin++]=j;}}}
+       for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=W||ny>=H)continue;const j=ny*W+nx;if(oscuro[j]&&!vis0[j]){vis0[j]=1;q[fin++]=j;}}}
      if(Math.hypot(x1-x0,y1-y0)<lim)for(let k=0;k<fin;k++)oscuro[q[k]]=0;}}
-  const muro=oscuro;   // las líneas finas SÍ son muros en este plano (doble línea); los ejes/cortes ya se omitieron en el PDF
-  const cerrado=dilatar(muro,W,H,rPuerta);
-  // etiquetado de zonas libres (4 vecinos)
-  const lab=new Int32Array(W*H),cola=new Int32Array(W*H),comps=[];let id=0;
-  for(let s0=0;s0<W*H;s0++){
-    if(cerrado[s0]||lab[s0])continue;id++;let ini=0,fin=0;cola[fin++]=s0;lab[s0]=id;
-    let x0=W,y0=H,x1=0,y1=0,n=0,borde=false;
-    while(ini<fin){const i=cola[ini++],x=i%W,y=(i/W)|0;n++;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;if(x===0||y===0||x===W-1||y===H-1)borde=true;
-      if(x>0&&!cerrado[i-1]&&!lab[i-1]){lab[i-1]=id;cola[fin++]=i-1;}if(x<W-1&&!cerrado[i+1]&&!lab[i+1]){lab[i+1]=id;cola[fin++]=i+1;}
-      if(y>0&&!cerrado[i-W]&&!lab[i-W]){lab[i-W]=id;cola[fin++]=i-W;}if(y<H-1&&!cerrado[i+W]&&!lab[i+W]){lab[i+W]=id;cola[fin++]=i+W;}}
-    comps.push({id,n,x0,y0,x1,y1,borde});
+  const muro=oscuro;
+  // 2) Cierres de puertas con varios radios (se elige el que mejor reproduce el área rotulada)
+  const radios=AUTO_RADIOS_M.map(rm=>{const rpx=Math.max(2,Math.round(rm/mpx));return{rpx,cerr:dilatar(muro,W,H,rpx)};});
+  const vis=new Uint32Array(W*H),cola=new Int32Array(W*H);let sello=0;
+  const aPx=(xw,yw)=>[Math.round((xw-E.imgX)/E.imgM*f),Math.round((yw-E.imgY)/E.imgM*f)];
+  // Inundación desde una semilla sobre un cierre; devuelve null si no hay semilla libre o si se fuga
+  function inundar(sx,sy,cl,maxPx){
+    const cerr=cl.cerr;
+    if(sx<0||sy<0||sx>=W||sy>=H)return null;
+    if(cerr[sy*W+sx]){let ok=false;const R=AUTO_BUSQUEDA_SEMILLA_PX;
+      for(let rr=1;rr<=R&&!ok;rr++)for(let dy=-rr;dy<=rr&&!ok;dy++)for(let dx=-rr;dx<=rr;dx++){if(Math.max(Math.abs(dx),Math.abs(dy))!==rr)continue;const nx=sx+dx,ny=sy+dy;if(nx>=0&&ny>=0&&nx<W&&ny<H&&!cerr[ny*W+nx]){sx=nx;sy=ny;ok=true;break;}}
+      if(!ok)return null;}
+    sello++;let ini=0,fin=0;cola[fin++]=sy*W+sx;vis[sy*W+sx]=sello;let x0=W,y0=H,x1=0,y1=0,borde=false;
+    while(ini<fin){const i=cola[ini++],x=i%W,y=(i/W)|0;if(fin>maxPx)return null;
+      if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;if(x===0||y===0||x===W-1||y===H-1)borde=true;
+      if(x>0&&!cerr[i-1]&&vis[i-1]!==sello){vis[i-1]=sello;cola[fin++]=i-1;}if(x<W-1&&!cerr[i+1]&&vis[i+1]!==sello){vis[i+1]=sello;cola[fin++]=i+1;}
+      if(y>0&&!cerr[i-W]&&vis[i-W]!==sello){vis[i-W]=sello;cola[fin++]=i-W;}if(y<H-1&&!cerr[i+W]&&vis[i+W]!==sello){vis[i+W]=sello;cola[fin++]=i+W;}}
+    return {n:fin,x0,y0,x1,y1,borde,rpx:cl.rpx};
   }
-  // textos del PDF → coordenadas de mundo (para nombrar)
-  const T=E.textosPdf||[];
-  let creados=0,total=0;
-  for(const c of comps){
-    const a=c.n*mpx*mpx;                                  // área aproximada (m²) de la zona cerrada
-    if(c.borde||a<AUTO_AREA_MIN_M2*0.25||a>AUTO_AREA_MAX_M2)continue;
-    const bw=c.x1-c.x0+1+2*rPuerta,bh=c.y1-c.y0+1+2*rPuerta,ox=c.x0-rPuerta,oy=c.y0-rPuerta;
-    let reg=new Uint8Array(bw*bh);
-    for(let y=c.y0;y<=c.y1;y++)for(let x=c.x0;x<=c.x1;x++)if(lab[y*W+x]===c.id)reg[(y-oy)*bw+(x-ox)]=1;
-    reg=dilatar(reg,bw,bh,rPuerta);                       // se recupera lo que se comió el engrosado de muros
+  // Recupera lo que el engrosado de muros se comió y devuelve el polígono en metros de mundo
+  function poligono(b){
+    const r=b.rpx,bw=b.x1-b.x0+1+2*r,bh=b.y1-b.y0+1+2*r,ox=b.x0-r,oy=b.y0-r;let reg=new Uint8Array(bw*bh);
+    for(let k=0;k<b.n;k++){const i=cola[k];reg[((i/W|0)-oy)*bw+((i%W)-ox)]=1;}
+    reg=dilatar(reg,bw,bh,r);
     for(let y=0;y<bh;y++)for(let x=0;x<bw;x++){const X=x+ox,Y=y+oy;if(reg[y*bw+x]&&(X<0||Y<0||X>=W||Y>=H||muro[Y*W+X]))reg[y*bw+x]=0;}
     let sx=-1,sy=-1;for(let y=0;y<bh&&sy<0;y++)for(let x=0;x<bw;x++)if(reg[y*bw+x]){sx=x;sy=y;break;}
-    if(sy<0)continue;
-    const cont=contorno(reg,bw,bh,sx,sy);if(!cont||cont.length<4)continue;
-    const simp=rdp(cont,RELLENO_SIMPL_PX*f);
-    const poly=simp.map(q=>({x:E.imgX+(q.x+ox)/f*E.imgM,y:E.imgY+(q.y+oy)/f*E.imgM}));
-    const ar=area(poly);if(ar<AUTO_AREA_MIN_M2||ar>AUTO_AREA_MAX_M2)continue;
-    // nombre: textos del plano dentro del polígono (sin cifras de área ni letras sueltas)
-    // Textos del plano dentro del polígono, unidos por líneas (de arriba abajo); se descartan áreas («25 m²»),
-    // cifras sueltas y letras de ejes. La numeración «01», «02» se agrega al nombre.
+    if(sy<0)return null;const cont=contorno(reg,bw,bh,sx,sy);if(!cont||cont.length<4)return null;
+    const poly=rdp(cont,RELLENO_SIMPL_PX*f).map(q=>({x:E.imgX+(q.x+ox)/f*E.imgM,y:E.imgY+(q.y+oy)/f*E.imgM}));
+    return poly.length>=3?{poly,ar:area(poly)}:null;
+  }
+  // 3) Textos del plano: líneas con posición y rótulos de área («25 m²»)
+  const T=E.textosPdf||[];
+  const lineasPos=T.length?pdfLineasPos(T.map(q=>({x:q.x,y:-q.y,t:q.t,s:q.s||0.2})),0.01):[];
+  const etiquetas=[];
+  lineasPos.forEach(l=>{const m=/(\d+(?:[.,]\d+)?)\s*m\s*[²2]\s*$/i.exec(l.t.trim());
+    if(m){const A=parseFloat(m[1].replace(',','.'));if(A>=AUTO_AREA_MIN_M2&&A<=AUTO_AREA_MAX_M2)etiquetas.push({A,x:l.x+l.t.length*l.s*0.25,y:-l.y-l.s*0.5});}});
+  // La tabla de áreas del cajetín alinea muchos rótulos en una columna: no son recintos del plano.
+  const cols={};etiquetas.forEach(e=>{const k=Math.round(e.x/2);(cols[k]=cols[k]||[]).push(e);});
+  const enTabla=new Set();Object.keys(cols).forEach(k=>{if(cols[k].length>=AUTO_TABLA_MIN)cols[k].forEach(e=>enTabla.add(e));});
+  const etq=etiquetas.filter(e=>!enTabla.has(e));
+  if(modo==='rotulos'&&!etq.length){modo='geom';}
+  const creados=[],noResueltos=[];
+  const nombreDe=poly=>{
     const pz=T.filter(q=>dentro(q,poly)).map(q=>({x:q.x,y:-q.y,t:q.t,s:q.s||0.2}));
     const lineas=pdfLineas(pz,0,0.01);
     const nombres=lineas.filter(l=>/[A-Za-zÁÉÍÓÚÑáéíóúñ]{2,}/.test(l)&&!/m²|m2/i.test(l));
     const nums=lineas.filter(l=>/^0\d$/.test(l.trim()));
-    const nombre=(nombres.slice(0,2).concat(nombres.length?nums.slice(0,1):[])).join(' ').replace(/\s+/g,' ').slice(0,AUTO_NOMBRE_MAX)||('Recinto '+(E.recintos.length+1));
-    nuevoRecinto(poly,nombre,guessTipo(nombre),+$('mAlto').value||2.7);creados++;total+=ar;
+    return (nombres.slice(0,2).concat(nombres.length?nums.slice(0,1):[])).join(' ').replace(/\s+/g,' ').slice(0,AUTO_NOMBRE_MAX);
+  };
+  const yaCubierto=(x,y)=>creados.some(c=>dentro({x,y},c.poly));
+  const crear=(poly,nombre,Arot)=>{nuevoRecinto(poly,nombre||('Recinto '+(E.recintos.length+1)),guessTipo(nombre||''),+$('mAlto').value||2.7);
+    if(Arot)E.recintos[E.recintos.length-1].areaRotulo=Arot;creados.push({poly});};
+  // 4) Por rótulos de área: cada rótulo es un recinto real y su área valida el contorno. Se prueban varias
+  //    semillas alrededor del rótulo (el texto suele caer sobre mobiliario) y varios cierres de puertas.
+  const semillas=[];
+  for(let i=-AUTO_SEMILLAS_N;i<=AUTO_SEMILLAS_N;i++)for(let j=-AUTO_SEMILLAS_N;j<=AUTO_SEMILLAS_N;j++)semillas.push([i*AUTO_PASO_SEMILLA_M,j*AUTO_PASO_SEMILLA_M]);
+  semillas.sort((p,q)=>Math.hypot(p[0],p[1])-Math.hypot(q[0],q[1]));
+  const evalua=(xw,yw,maxM2)=>{const [sx,sy]=aPx(xw,yw);const res=[];
+    for(const cl of radios){const b=inundar(sx,sy,cl,Math.round(maxM2/(mpx*mpx)));if(!b||b.borde)continue;const pg=poligono(b);if(pg)res.push(pg);}
+    return res;};
+  if(modo==='rotulos'||modo==='ambos'){
+    for(const et of etq){
+      if(et.hecho||yaCubierto(et.x,et.y))continue;
+      let mejor=null;
+      for(const [dx,dy] of semillas){
+        for(const pg of evalua(et.x+dx,et.y+dy,et.A*AUTO_FUGA_FACTOR)){
+          if(!dentro({x:et.x,y:et.y},pg.poly))continue;          // el rótulo debe quedar dentro del contorno
+          const err=Math.abs(pg.ar-et.A)/et.A;if(!mejor||err<mejor.err)mejor={poly:pg.poly,ar:pg.ar,err};
+        }
+        if(mejor&&mejor.err<=AUTO_OK_ERR)break;
+      }
+      if(mejor&&mejor.err<=AUTO_TOL_AREA){crear(mejor.poly,nombreDe(mejor.poly),et.A);et.hecho=true;}
+    }
+    // Espacios abiertos con varios rótulos juntos (p. ej. Yoga + Wellbeing): el área debe igualar la suma
+    for(const et of etq){
+      if(et.hecho||yaCubierto(et.x,et.y))continue;
+      let mejor=null;
+      for(const pg of evalua(et.x,et.y,AUTO_COMB_MAX_M2)){
+        const dentroE=etq.filter(e=>!e.hecho&&dentro({x:e.x,y:e.y},pg.poly));if(dentroE.length<2)continue;
+        const suma=dentroE.reduce((t,e)=>t+e.A,0),err=Math.abs(pg.ar-suma)/suma;
+        if(!mejor||err<mejor.err)mejor={poly:pg.poly,err,suma,lista:dentroE};
+      }
+      if(mejor&&mejor.err<=AUTO_TOL_AREA){mejor.lista.forEach(e=>{e.hecho=true;});crear(mejor.poly,nombreDe(mejor.poly),mejor.suma);}
+    }
   }
+  // 5) Por geometría (sin rótulos o como complemento): zonas cerradas con área y forma plausibles
+  if(modo==='geom'||modo==='ambos'){
+    const cl=radios[Math.min(2,radios.length-1)],lab=new Int32Array(W*H),q=new Int32Array(W*H);let id=0;
+    const maxA=modo==='ambos'?AUTO_SIN_ROTULO_MAX_M2:AUTO_AREA_MAX_M2;
+    for(let s0=0;s0<W*H;s0++){
+      if(cl.cerr[s0]||lab[s0])continue;id++;let ini=0,fin=0;q[fin++]=s0;lab[s0]=id;let x0=W,y0=H,x1=0,y1=0,borde=false;
+      while(ini<fin){const i=q[ini++],x=i%W,y=(i/W)|0;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;if(x===0||y===0||x===W-1||y===H-1)borde=true;
+        if(x>0&&!cl.cerr[i-1]&&!lab[i-1]){lab[i-1]=id;q[fin++]=i-1;}if(x<W-1&&!cl.cerr[i+1]&&!lab[i+1]){lab[i+1]=id;q[fin++]=i+1;}
+        if(y>0&&!cl.cerr[i-W]&&!lab[i-W]){lab[i-W]=id;q[fin++]=i-W;}if(y<H-1&&!cl.cerr[i+W]&&!lab[i+W]){lab[i+W]=id;q[fin++]=i+W;}}
+      const a=fin*mpx*mpx,cajaPx=(x1-x0+1)*(y1-y0+1);
+      if(borde||a<AUTO_AREA_MIN_M2*0.5||a>maxA||fin/cajaPx<AUTO_RELLENO_MIN)continue;
+      const cxw=E.imgX+((x0+x1)/2)/f*E.imgM,cyw=E.imgY+((y0+y1)/2)/f*E.imgM;
+      if(yaCubierto(cxw,cyw))continue;
+      for(let k=0;k<fin;k++)cola[k]=q[k];
+      const pg=poligono({n:fin,x0,y0,x1,y1,rpx:cl.rpx});
+      if(!pg||pg.ar<AUTO_AREA_MIN_M2||pg.ar>maxA||creados.some(c=>dentro(pg.poly[0],c.poly)))continue;
+      crear(pg.poly,nombreDe(pg.poly),0);
+    }
+  }
+  // Rótulos que quedaron sin ningún recinto que los contenga
+  etq.filter(e=>!yaCubierto(e.x,e.y)).forEach(e=>noResueltos.push(e.A+' m²'));
   E.sel=null;propiedades();ajustarVista();
-  estado(creados?creados+' recintos detectados ('+total.toFixed(0)+' m² en total). Revise nombres y tipos (panel izquierdo), borre los falsos con «Borrar» y corrija con «Recinto por clic» los que falten.':'No se detectaron recintos: el plano no tiene muros gruesos cerrados o la escala es incorrecta. Use «Recinto por clic» o dibújelos.');
-  return creados;
+  const tot=creados.reduce((s,c)=>s+area(c.poly),0);
+  estado(creados.length?(creados.length+' recintos detectados ('+tot.toFixed(0)+' m²)'+(modo!=='geom'?' de '+etq.length+' rótulos de área':'')+'. '+(noResueltos.length?'Rótulos sin recinto ('+noResueltos.length+'): '+noResueltos.slice(0,8).join(', ')+(noResueltos.length>8?'…':'')+' — créelos con «Recinto por clic». ':'')+'Revise nombres y tipos; borre falsos con clic derecho → Borrar.'):'No se detectaron recintos: el plano no tiene muros cerrados o la escala es incorrecta. Use «Recinto por clic» o dibújelos.');
+  return creados.length;
 }
 $('btnAuto').onclick=detectarRecintos;
 
@@ -1260,16 +1402,22 @@ async function pdfRenderizar(D,pag,opt){
   await pdfEjecutar(D,c,await pdfContenido(D,pag),pdfGet(D,pag.h.Resources),{M:[1,0,0,1,0,0],esc,textos,muros:!!opt.muros,mPt:opt.mPt||0},0);
   return {canvas:cvp,esc,textos,rot,MT};
 }
+function agruparLineas(textos,tolMin){
+  const t=textos.filter(x=>x.t&&x.t.trim()).sort((a,b)=>(b.y-a.y)||(a.x-b.x)),L=[];
+  for(const p of t){const l=L[L.length-1];if(l&&Math.abs(l.y-p.y)<=Math.max(tolMin==null?1:tolMin,p.s*0.4))l.p.push(p);else L.push({y:p.y,p:[p]});}
+  L.forEach(l=>l.p.sort((a,b)=>a.x-b.x));return L;
+}
+function unirLinea(l){let s='',ult=null;
+  for(const p of l.p){if(ult!==null&&p.x-ult>p.s*0.2&&!/\s$/.test(s)&&!/^\s/.test(p.t))s+=' ';s+=p.t;ult=p.x+p.t.length*p.s*PDF_ANCHO_CARACTER;}
+  return s.trim();}
 function pdfLineas(textos,rot,tolMin){
   // Pasa las posiciones al sentido de lectura de la página según /Rotate (y hacia arriba).
   const R={90:(x,y)=>[y,-x],180:(x,y)=>[-x,-y],270:(x,y)=>[-y,x]}[rot||0];
   if(R)textos=textos.map(p=>{const q=R(p.x,p.y);return {x:q[0],y:q[1],t:p.t,s:p.s};});
-  const t=textos.filter(x=>x.t&&x.t.trim()).sort((a,b)=>(b.y-a.y)||(a.x-b.x)),L=[];
-  for(const p of t){const l=L[L.length-1];if(l&&Math.abs(l.y-p.y)<=Math.max(tolMin==null?1:tolMin,p.s*0.4))l.p.push(p);else L.push({y:p.y,p:[p]});}
-  return L.map(l=>{l.p.sort((a,b)=>a.x-b.x);let s='',ult=null;
-    for(const p of l.p){if(ult!==null&&p.x-ult>p.s*0.2&&!/\s$/.test(s)&&!/^\s/.test(p.t))s+=' ';s+=p.t;ult=p.x+p.t.length*p.s*PDF_ANCHO_CARACTER;}
-    return s.trim();}).filter(Boolean);
+  return agruparLineas(textos,tolMin).map(unirLinea).filter(Boolean);
 }
+// Igual que pdfLineas pero devuelve también la posición (x inicial, y) y el tamaño de cada línea.
+function pdfLineasPos(textos,tolMin){return agruparLineas(textos,tolMin).map(l=>({t:unirLinea(l),x:l.p[0].x,y:l.y,s:l.p[0].s})).filter(l=>l.t);}
 
 /* --- Cargar plano en PDF: dibuja la primera página (o la elegida) y deduce 1:N del texto --- */
 async function cargarPDF(f){
@@ -1449,7 +1597,7 @@ function iniciar(){
   $('btnLimpiar').onclick=()=>{E.disp=[];E.resultados=[];$('resultados').innerHTML='';dibujar();};
   [['tSel','sel'],['tRec','rec'],['tRect','rect'],['tRell','rell'],['tSal','salida'],['tFacp','facp'],['tAhu','ahu'],['tAsc','asc'],['tBor','bor']].forEach(([i,h])=>$(i).onclick=()=>herramienta(h));
   $('tAjustar').onclick=ajustarVista;
-  ['vCob','vPlano','vOp','vSim'].forEach(i=>$(i).oninput=dibujar);
+  ['vCobDet','vCobVis','vCobAud','vPlano','vOp','vSim'].forEach(i=>$(i).oninput=dibujar);
   $('btnDict').click();infoCadena();tablaEquipos();
   window.addEventListener('resize',ajustarLienzo);ajustarLienzo();ajustarVista();
 }
