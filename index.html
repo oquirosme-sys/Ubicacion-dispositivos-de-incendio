@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prediseño de alarmas contra incendio — Sinergia</title>
+<style>
+  :root{--az0:#12314f;--az:#1b4a75;--azc:#e8f0f7;--gb:#ccd6e0;--tx:#2b2f36;--ve:#1e7d3c;--vef:#e6f4ea;--ro:#a4231f;--rof:#fbe9e8;--am:#8a5a00;--amf:#fff4e0;}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",Arial,sans-serif;color:var(--tx);background:#f4f6f8;font-size:14px;line-height:1.4}
+  header{background:var(--az0);color:#fff;padding:10px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  header h1{margin:0;font-size:1.1rem} header p{margin:0;font-size:.78rem;color:#cfe0ee}
+  #app{display:grid;grid-template-columns:400px 1fr;gap:12px;padding:12px;align-items:start}
+  @media(max-width:1000px){#app{grid-template-columns:1fr}}
+  #lateral{max-height:calc(100vh - 80px);overflow:auto;padding-right:4px}
+  details{background:#fff;border:1px solid var(--gb);border-radius:8px;margin-bottom:8px}
+  summary{cursor:pointer;font-weight:700;color:var(--az0);padding:9px 12px;font-size:.92rem}
+  details>div.cuerpo{padding:4px 12px 12px}
+  label{display:block;font-weight:600;font-size:.8rem;margin:8px 0 2px}
+  input[type=text],input[type=number],select,textarea{width:100%;padding:6px 8px;border:1px solid var(--gb);border-radius:5px;font:inherit;background:#fff}
+  .f2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  button{background:var(--az);color:#fff;border:0;border-radius:5px;padding:7px 11px;font:inherit;font-weight:600;cursor:pointer;margin:3px 3px 3px 0}
+  button:hover{background:var(--az0)} button.sec{background:#fff;color:var(--az);border:1px solid var(--az)}
+  button.gran{background:var(--ve);font-size:1rem;padding:10px 16px} button.act{outline:3px solid #e0a800}
+  button.peligro{background:var(--ro)}
+  .nota{background:var(--amf);border:1px solid #e0b768;border-left:4px solid var(--am);border-radius:5px;padding:7px 10px;font-size:.78rem;margin-top:8px}
+  .nota b{color:var(--am)} .nota ul{margin:3px 0 0 16px;padding:0}
+  .ok{color:var(--ve);font-weight:700}.mal{color:var(--ro);font-weight:700}.rev{color:var(--am);font-weight:700}
+  #lienzoWrap{background:#fff;border:1px solid var(--gb);border-radius:8px;padding:8px}
+  #barra{display:flex;flex-wrap:wrap;gap:2px;align-items:center;margin-bottom:6px}
+  #barra .sep{width:1px;background:var(--gb);align-self:stretch;margin:0 6px}
+  canvas{width:100%;height:68vh;min-height:420px;display:block;background:#fff;border:1px solid var(--gb);cursor:crosshair;touch-action:none}
+  #estado{font-size:.78rem;color:#46515e;margin-top:4px;min-height:1.2em}
+  table{border-collapse:collapse;width:100%;font-size:.8rem;margin:6px 0}
+  th,td{border:1px solid var(--gb);padding:4px 6px;text-align:left;vertical-align:top} th{background:var(--azc)}
+  .tarjeta{border:1px solid var(--gb);border-radius:7px;padding:8px 10px;margin:8px 0;background:#fbfcfd}
+  .tarjeta h4{margin:0 0 4px;font-size:.88rem;color:var(--az0)}
+  .insignia{display:inline-block;border-radius:10px;padding:1px 8px;font-size:.72rem;font-weight:700}
+  .insignia.ok{background:var(--vef)}.insignia.mal{background:var(--rof)}.insignia.rev{background:var(--amf)}
+  .leyenda{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:4px;font-size:.78rem}
+  .leyenda div{display:flex;align-items:center;gap:6px}
+  small.g{color:#5a6472;font-size:.74rem}
+  #resultados{margin-top:12px}
+  .sinoche{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>Prediseño de ubicación de dispositivos de alarma contra incendio</h1>
+  <p>SinergiaIngeniería · NFPA 72 / NFPA 101 / Manual de Disposiciones Técnicas CR 2013 · símbolos NFPA 170:2018 · prediseño, no sustituye el diseño firmado</p>
+</header>
+
+<div id="app">
+<div id="lateral">
+
+<details open><summary>1. Proyecto y normas aplicables</summary><div class="cuerpo">
+  <label>Nombre del proyecto</label><input type="text" id="pNombre" value="Proyecto de prueba — oficina">
+  <div class="f2">
+   <div><label>Año de NFPA 72 a cumplir</label><select id="ed72"></select></div>
+   <div><label>Año de NFPA 101 a cumplir</label><select id="ed101"></select></div>
+  </div>
+  <label>Ocupación (NFPA 101 / cap. 4 del Manual)</label><select id="ocup"></select>
+  <div class="f2">
+   <div><label>Niveles sobre rasante</label><input type="number" id="pNiveles" value="1" min="1"></div>
+   <div><label>Altura piso ocupable más alto (m)</label><input type="number" id="pAlt" value="4" min="0" step="0.5"></div>
+   <div><label>Carga mayor salón reunión (personas)</label><input type="number" id="pReunion" value="0" min="0"></div>
+   <div><label>Habitaciones (solo hoteles)</label><input type="number" id="pHab" value="0" min="0"></div>
+  </div>
+  <label>Cobertura de detección automática</label>
+  <select id="cobDet">
+    <option value="total">Total (todas las áreas ocupables) — criterio de prediseño</option>
+    <option value="parcial">Parcial (corredores, vestíbulos, cuartos técnicos, escaleras)</option>
+    <option value="ninguna">Sin detección automática (solo pulsadores y notificación)</option>
+  </select>
+  <button class="sec" id="btnDict">Actualizar requisitos obligatorios</button>
+  <div id="dictamen"></div>
+</div></details>
+
+<details><summary>2. Estándar de cadena hotelera</summary><div class="cuerpo">
+  <label>Estándar de cadena</label><select id="cadena"></select>
+  <div class="f2">
+    <button class="sec" id="btnImpEst">Cargar estándar (.json / .csv)</button>
+    <button class="sec" id="btnExpEst">Descargar plantilla .json</button>
+  </div>
+  <input type="file" id="fileEst" accept=".json,.csv" class="sinoche">
+  <small class="g">Formato CSV: columnas ID, Tema, Regla, Referencia (como las pestañas de la guía de hoteles). JSON: {nombre, parametros, reglas:[{id,tema,regla,ref}]}.</small>
+  <div id="cadenaInfo"></div>
+</div></details>
+
+<details open><summary>3. Planta y recintos</summary><div class="cuerpo">
+  <b>Modo A — cargar plano</b>
+  <button id="btnPlano">Cargar plano (imagen / PDF)</button>
+  <input type="file" id="filePlano" accept="image/*,.pdf" class="sinoche">
+  <div class="f2">
+    <div><label>Escala 1:N del plano impreso</label><input type="number" id="escN" value="75"></div>
+    <div><label>Resolución de la imagen (px/pulg)</label><input type="number" id="escDpi" value="72"></div>
+  </div>
+  <button class="sec" id="btnEscalaAuto">Aplicar escala (N y resolución)</button>
+  <button class="sec" id="btnCalibrar">Calibrar con 2 puntos</button>
+  <div class="nota"><b>Supuestos y limitaciones (carga de planos):</b><ul>
+   <li>Los PDF requieren el visor pdf.js local (<code>pdfjs/pdf.min.js</code>) junto a este archivo; sin él, exporte la hoja a PNG/JPG (no se usan CDN: la herramienta funciona sin internet).</li>
+   <li>La escala sale de «1:N + resolución» o de calibrar 2 puntos con una cota conocida; una escala errónea invalida todas las distancias y coberturas.</li>
+  </ul></div>
+  <hr>
+  <b>Modo B — crear recinto con dimensiones</b>
+  <div class="f2">
+   <div><label>Nombre</label><input type="text" id="mNombre" value="Recinto 1"></div>
+   <div><label>Tipo</label><select id="mTipo"></select></div>
+   <div><label>Ancho (m)</label><input type="number" id="mAncho" value="8" min="1" step="0.1"></div>
+   <div><label>Fondo (m)</label><input type="number" id="mFondo" value="6" min="1" step="0.1"></div>
+   <div><label>Altura de cielo (m)</label><input type="number" id="mAlto" value="2.7" min="2" step="0.1"></div>
+   <div><label>Puerta de salida en muro</label><select id="mPuerta"><option value="S">Sur</option><option value="N">Norte</option><option value="E">Este</option><option value="O">Oeste</option><option value="">Sin salida</option></select></div>
+  </div>
+  <button id="btnCrear">Crear recinto</button>
+  <hr>
+  <b>Recinto seleccionado</b>
+  <div id="propRec"><small class="g">Seleccione un recinto en el lienzo.</small></div>
+</div></details>
+
+<details open><summary>4. Parámetros de prediseño</summary><div class="cuerpo">
+  <div class="f2">
+   <div><label>Espaciamiento humo (m)</label><input type="number" id="pEspH" step="0.1"></div>
+   <div><label>Espaciamiento calor listado (m)</label><input type="number" id="pEspC" step="0.1"></div>
+   <div><label>cd máx. estrobo de pared</label><select id="pCdMax"></select></div>
+   <div><label>Audible: dBA a 3 m del dispositivo</label><input type="number" id="pDba" step="1"></div>
+   <div><label>Notificación audible</label><select id="pAud"><option value="bocina">Bocina / estrobo</option><option value="parlante">Parlante / estrobo (voz)</option></select></div>
+   <div><label>Factor recorrido real/recto</label><input type="number" id="pFacRec" step="0.05"></div>
+   <div><label>Aislador cada N disp. SLC</label><input type="number" id="pIso" step="1"></div>
+   <div><label>Incluir CO (según tipo/cadena)</label><select id="pCO"><option value="1">Sí</option><option value="0">No</option></select></div>
+  </div>
+  <button class="gran" id="btnGenerar">▶ Generar prediseño</button>
+  <button class="sec" id="btnLimpiar">Quitar dispositivos</button>
+  <div class="nota"><b>Supuestos y limitaciones (parámetros):</b><ul>
+   <li>Los valores por defecto vienen de las constantes declaradas al inicio del código, cada una con su fuente.</li>
+   <li>El espaciamiento de calor es el <i>listado</i> del detector (ficha UL/FM): 15.2 m es un valor de mercado, no normativo.</li>
+   <li>dBA a 3 m, factor de recorrido y aislador cada N son supuestos de prediseño editables; no son normativos.</li>
+  </ul></div>
+</div></details>
+
+<details><summary>5. Equipos supervisados y módulos</summary><div class="cuerpo">
+  <small class="g">Cantidades de equipos del proyecto (los marcadores AHU/ascensor del plano se suman automáticamente).</small>
+  <div id="equiposTabla"></div>
+</div></details>
+
+<details open><summary>6. Archivo</summary><div class="cuerpo">
+  <button class="sec" id="btnGuardar">Guardar borrador (.json)</button>
+  <button class="sec" id="btnAbrir">Abrir borrador…</button>
+  <input type="file" id="fileBorr" accept=".json" class="sinoche">
+  <label><input type="checkbox" id="chkImg" style="width:auto"> Incluir imagen del plano en el borrador (archivo grande)</label>
+  <button class="sec" id="btnPNG">Exportar plano (PNG)</button>
+  <button class="sec" id="btnCSV">Exportar dispositivos (CSV)</button>
+  <button class="sec" id="btnInforme">Informe imprimible / PDF</button>
+  <small class="g">Sin localStorage ni cookies: el estado se guarda solo en el borrador .json. La base de datos Supabase llega en el paso 2.</small>
+</div></details>
+
+</div>
+
+<div>
+ <div id="lienzoWrap">
+  <div id="barra">
+   <button id="tSel" class="act">Seleccionar</button>
+   <button id="tRec" class="sec">Dibujar recinto</button>
+   <button id="tRect" class="sec">Recinto rectangular</button>
+   <button id="tRell" class="sec">Recinto por clic (plano)</button>
+   <span class="sep"></span>
+   <button id="tSal" class="sec">+ Salida</button>
+   <button id="tFacp" class="sec">+ FACP/recepción</button>
+   <button id="tAhu" class="sec">+ Manejadora (AHU)</button>
+   <button id="tAsc" class="sec">+ Ascensor</button>
+   <span class="sep"></span>
+   <button id="tBor" class="peligro">Borrar</button>
+   <button id="tAjustar" class="sec">Ajustar vista</button>
+  </div>
+  <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:.78rem;margin-bottom:4px;align-items:center">
+   <label style="margin:0"><input type="checkbox" id="vCob" checked style="width:auto"> Coberturas</label>
+   <label style="margin:0"><input type="checkbox" id="vPlano" checked style="width:auto"> Plano</label>
+   <label style="margin:0">Opacidad plano <input type="range" id="vOp" min="10" max="100" value="55" style="width:90px"></label>
+   <label style="margin:0">Tamaño símbolos <input type="range" id="vSim" min="8" max="40" value="16" style="width:90px"></label>
+   <label style="margin:0">Cierre de huecos de puerta (px) <input type="number" id="rellCierre" value="10" min="0" max="40" style="width:56px"></label>
+  </div>
+  <canvas id="cv"></canvas>
+  <div id="estado">Cargue un plano o cree un recinto con dimensiones. Rueda = zoom · arrastrar con botón central o Espacio = desplazar · Enter/doble clic = cerrar polígono · Esc = cancelar.</div>
+ </div>
+ <div id="resultados"></div>
+</div>
+</div>
+
+<script>
+"use strict";
+/* ==========================================================================
+   CONSTANTES DE DISEÑO — declaradas una sola vez, cada una con su fuente.
+   Estado de verificación: "V22" = verificado contra la copia provista de
+   NFPA 72:2022 Handbook; "V15" = verificado contra NFPA 101:2015 (ES);
+   "SIN VERIFICAR" = no confirmado contra texto oficial; "CRITERIO" = criterio
+   propio de Sinergia / de prediseño, no normativo.
+   ========================================================================== */
+
+// Espaciamiento nominal de detectores de humo puntuales, cielo liso (30 ft).
+// NFPA 72:2022 §17.7.4.2.3.1 (V22: «nominal spacing of 30 ft (9.1 m)»).
+const ESP_HUMO_M = 9.1;
+// Factor de cobertura: todo punto del cielo a ≤ 0.7×espaciamiento de un detector.
+// NFPA 72:2022 §17.7.4.2.3.1(2) humo y §17.6.3.1.1(2) calor (V22).
+const FACTOR_RADIO_COBERTURA = 0.7;
+// Espaciamiento listado asumido para detector de calor puntual (50 ft). NFPA 72
+// §17.6.3.1.1 exige usar el espaciamiento LISTADO (UL/FM) del equipo; 15.2 m es
+// valor comercial típico, NO normativo (CRITERIO; confirmar con ficha técnica).
+const ESP_CALOR_M = 15.2;
+// Altura de cielo sobre la cual el espaciamiento de calor debe reducirse según la
+// tabla de altura de NFPA 72 (tabla no implementada aquí). CRITERIO: aviso a 3.0 m.
+const ALTURA_AVISO_CALOR_M = 3.0;
+// Altura de cielo sobre la cual se avisa revisar humo (estratificación, haz,
+// aspiración). CRITERIO de prediseño: 9.1 m (30 ft); SIN VERIFICAR como límite.
+const ALTURA_AVISO_HUMO_M = 9.1;
+// Distancia mínima de un detector a una pared (en el prediseño). CRITERIO (≈4 in);
+// SIN VERIFICAR contra el texto de NFPA 72.
+const DIST_MIN_PARED_M = 0.10;
+// Distancia entre detector de humo y ascensor/vestíbulo (Hyatt, informe FLS, D-43).
+const DIST_HUMO_ASCENSOR_M = 3.05;
+
+// Tabla de estrobos montados en PARED, un artefacto por recinto (cd efectiva).
+// NFPA 72:2022 Tabla 18.5.5.7.1(a) (V22). [lado máx. de recinto en m, cd].
+const TABLA_ESTROBO_PARED = [[6.10,15],[8.53,30],[9.14,34],[12.2,60],[13.7,75],[15.2,94],[16.5,110],
+  [16.8,115],[18.3,135],[19.2,150],[20.7,177],[21.3,184],[24.4,240],[27.4,304],[30.5,375],[33.5,455],[36.6,540],[39.6,635]];
+// Tabla de estrobos de CIELO (centro del recinto). NFPA 72:2022 Tabla
+// 18.5.5.7.1(b) (V22). Por altura máxima de lente: [lado máx m, cd].
+const TABLA_ESTROBO_CIELO = {
+  3.05:[[6.1,15],[9.1,30],[12.2,60],[13.4,75]],
+  6.10:[[6.1,30],[9.1,45],[13.4,75],[14.0,80]],
+  9.14:[[6.1,55],[9.1,75],[15.2,95],[16.2,110],[16.8,115],[18.0,135],[19.2,150],[20.7,177],[21.3,185]]
+};
+// Altura de cielo máxima para estrobo de cielo sin suspender. NFPA 72:2022 §18.5.5.7.6 (V22): 30 ft.
+const ALTURA_MAX_ESTROBO_CIELO_M = 9.1;
+// Catálogo de candelas de uso común (CRITERIO de mercado, para selector).
+const CATALOGO_CD = [15,30,45,60,75,95,110,135,150,177];
+// Montaje en pared: lente entre 2.03 y 2.44 m sobre el piso. NFPA 72:2022 §18.5.5.1 (V22).
+const ESTROBO_ALTURA_MIN_M = 2.03, ESTROBO_ALTURA_MAX_M = 2.44;
+// Corredores ≤ 6.1 m (20 ft) de ancho: 15 cd, separación ≤ 30.5 m, ≤ 4.5 m del
+// extremo. NFPA 72:2022 §18.5.5.8.2, .3 y .5 (V22).
+const CORREDOR_ANCHO_MAX_M = 6.1, CORREDOR_CD = 15, CORREDOR_SEP_MAX_M = 30.5, CORREDOR_EXTREMO_MAX_M = 4.5;
+// Margen interno del extremo del corredor (CRITERIO: dejar 0.5 m de holgura).
+const CORREDOR_HOLGURA_M = 0.5;
+// Áreas de dormir: 110 cd si el lente está a ≥ 610 mm del cielo, 177 cd si < 610 mm.
+// NFPA 72:2022 Tabla 18.5.5.10.3 (V22).
+const DORMIR_CD_LEJOS = 110, DORMIR_CD_CERCA = 177, DORMIR_DIST_TECHO_M = 0.61;
+// Altura de montaje asumida del estrobo de pared para decidir 110/177 cd (dentro de 2.03–2.44).
+const ESTROBO_ALTURA_ASUMIDA_M = 2.2;
+// Audible modo público: ≥ 15 dB sobre el ambiente promedio. NFPA 72:2022 §18.4.4.1 (V22).
+const AUDIBLE_SOBRE_AMBIENTE_DB = 15;
+// Áreas de dormir: ≥ 75 dBA a nivel de almohada. NFPA 72:2022 §18.4.6.1 (V22).
+const AUDIBLE_DORMIR_MIN_DBA = 75;
+// Máximo nivel sonoro permitido en el espacio (110 dBA). NFPA 72:2022 §18.4.1.2 (V22).
+const AUDIBLE_MAX_DBA = 110;
+// Distancia de referencia de la salida sonora de catálogo (3 m = 10 ft).
+const AUDIBLE_DIST_REF_M = 3;
+// Salida de bocina asumida a 3 m (CRITERIO; usar dato listado del equipo real).
+const BOCINA_DBA_3M = 85;
+// Salida de parlante asumida a 3 m (CRITERIO; depende del tap en W).
+const PARLANTE_DBA_3M = 80;
+// Radio audible mínimo útil (m): por debajo se declara «no resoluble con este nivel».
+const AUDIBLE_RADIO_MIN_M = 2;
+// Pulsadores: dentro de 1.5 m (5 ft) de cada salida. NFPA 72:2022 §17.15.9.4 (V22);
+// NFPA 101:2015 9.6.2.x (V15).
+const PULSADOR_DIST_SALIDA_M = 1.5;
+// Pulsadores adicionales: recorrido horizontal ≤ 61 m (200 ft). NFPA 72:2022
+// §17.15.9.5 (V22); NFPA 101:2015 9.6.2.5 (V15).
+const PULSADOR_RECORRIDO_MAX_M = 61;
+// Altura del pulsador: 1.07–1.22 m. NFPA 72:2022 §17.15.6 (V22).
+const PULSADOR_ALT_MIN_M = 1.07, PULSADOR_ALT_MAX_M = 1.22;
+// Distancia de colocación del pulsador respecto a la puerta (dentro de 1.5 m). CRITERIO: 1.0 m.
+const PULSADOR_OFFSET_M = 1.0;
+// Relación recorrido real / distancia recta (CRITERIO propio; el plano no da el recorrido real).
+const FACTOR_RECORRIDO_REAL = 1.3;
+// Baterías: 24 h en reposo + 5 min en alarma. NFPA 72:2022 §10.6.7.2.1 y .2.2 (V22: «24 hours», «5 minutes»).
+const BATERIA_REPOSO_H = 24, BATERIA_ALARMA_MIN = 5;
+// Aislador de lazo cada N dispositivos SLC (CRITERIO de prediseño; confirmar con el fabricante y Cap. 12).
+const AISLADOR_CADA_N = 20;
+// Cuántos puntos de muestreo para verificar cobertura (m): paso fino y grueso.
+const PASO_MUESTRA_M = 0.5, PASO_CANDIDATOS_M = 1.0, PASO_GLOBAL_M = 2.0;
+// Máximo de subdivisiones por eje al repartir estrobos (CRITERIO de cálculo).
+const MAX_DIV_ESTROBO = 8;
+// Máximo de dispositivos agregados por relleno (protección contra bucles).
+const MAX_AGREGADOS = 200;
+// Radios mínimos de recinto para considerar (m²). Recintos menores se ignoran por ruido.
+const AREA_MIN_RECINTO_M2 = 1;
+// Límite de relleno por clic: fracción máxima de la imagen (evita fugas por puertas abiertas).
+const RELLENO_MAX_FRACCION = 0.18;
+// Umbral de gris para considerar «línea/muro» al rellenar (0–255). CRITERIO de procesamiento.
+const RELLENO_UMBRAL_GRIS = 140;
+// Lado máximo de la imagen procesada para relleno (px). CRITERIO de rendimiento.
+const RELLENO_LADO_MAX_PX = 3400;
+// Radio de búsqueda (px de la imagen) de un píxel libre cuando el clic cae sobre una línea/texto. CRITERIO de usabilidad.
+const RELLENO_BUSQUEDA_PX = 20;
+// Tolerancia de simplificación del contorno (px). CRITERIO de procesamiento.
+const RELLENO_SIMPL_PX = 3;
+// Convención geométrica y gráfica (no normativas).
+const RAIZ2 = Math.SQRT2, GRADOS_180 = 180, RAD_90 = Math.PI / 2;
+const COLOR = {recinto:'#1b4a75',sel:'#e0a800',humo:'#1e7d3c',calor:'#c05a00',co:'#222',estrobo:'#a4231f',pulsador:'#a4231f',mod:'#5a3d99',cob:'rgba(30,125,60,0.10)',cobE:'rgba(164,35,31,0.07)',cobA:'rgba(27,74,117,0.07)'};
+
+/* Ocupaciones (NFPA 101 cap. 12–43 / Manual CR cap. 4). «dormir» activa reglas de áreas de dormir. */
+const OCUPACIONES = [
+  {id:'negocios',n:'Negocios / oficinas',dormir:false},
+  {id:'reunion',n:'Reunión',dormir:false},
+  {id:'educativa',n:'Educativa',dormir:false},
+  {id:'hotel',n:'Residencial — hoteles y residencias',dormir:true},
+  {id:'apart',n:'Residencial — apartamentos',dormir:true},
+  {id:'salud',n:'Cuidado de la salud',dormir:true},
+  {id:'mercantil',n:'Mercantil',dormir:false},
+  {id:'industrial',n:'Industrial',dormir:false},
+  {id:'almacen',n:'Almacenamiento',dormir:false}
+];
+const EDICIONES_72 = ['2016','2019','2022','2025'];
+const EDICIONES_101 = ['2015','2018','2021','2024'];
+// Citas verificadas por edición. Solo 2022 (NFPA 72) y 2015 (NFPA 101) se verificaron
+// contra las copias provistas; el resto queda «null» (no inventar números de sección).
+const CITAS72 = {
+  humo:{'2022':'17.7.4.2.3.1'}, calor:{'2022':'17.6.3.1.1'},
+  estrobo_pared:{'2022':'Tabla 18.5.5.7.1(a)'}, estrobo_cielo:{'2022':'Tabla 18.5.5.7.1(b)'},
+  corredor:{'2022':'18.5.5.8'}, dormir_cd:{'2022':'Tabla 18.5.5.10.3'},
+  audible:{'2022':'18.4.4.1'}, audible_dormir:{'2022':'18.4.6.1'},
+  pulsador_salida:{'2022':'17.15.9.4'}, pulsador_recorrido:{'2022':'17.15.9.5'}, pulsador_altura:{'2022':'17.15.6'},
+  bateria:{'2022':'10.6.7.2.1 y 10.6.7.2.2'}
+};
+const CITAS101 = { pulsador_recorrido:{'2015':'9.6.2.5'}, pulsador_salida:{'2015':'9.6.2.4 (grupos de aberturas)'},
+  voz:{'2015':'11.8.4.1'}, telefonos:{'2015':'11.8.4.2.1'} };
+function citar(mapa, tema, ed, norma){
+  const s = mapa[tema] && mapa[tema][ed];
+  return s ? norma+':'+ed+' §'+s+' (verificado en la copia provista)'
+           : norma+':'+ed+': número de sección NO verificado para esta edición — confirmar en la copia oficial antes de firmar';
+}
+
+/* Tipos de recinto: detector, notificación, ambiente sonoro y banderas. */
+const TIPOS = {
+  oficina:{n:'Oficina',det:'humo',not:'si',amb:45},
+  oficina1:{n:'Oficina de 1 persona (BOH)',det:'humo',not:'si',amb:45},
+  reunion:{n:'Sala de reuniones / capacitación',det:'humo',not:'si',amb:50},
+  corredor:{n:'Corredor / pasillo',det:'humo',not:'corredor',amb:50},
+  lobby:{n:'Lobby / vestíbulo / recepción',det:'humo',not:'si',amb:55},
+  salon:{n:'Salón / comedor / cocina-comedor',det:'humo',not:'si',amb:60},
+  dormitorio:{n:'Dormitorio / habitación',det:'humo',not:'si',amb:40,dormir:true},
+  bano:{n:'Baño / vestidor / ducha',det:'ninguno',not:'si',amb:55,humedo:true},
+  cocina:{n:'Cocina',det:'calor',not:'si',amb:70,co:true,humedo:true},
+  lavanderia:{n:'Lavandería',det:'calor',not:'si',amb:70,co:true,humedo:true},
+  tecnico:{n:'Cuarto eléctrico / comunicaciones',det:'humo',not:'si',amb:55,parcial:true},
+  maquinas:{n:'Cuarto de máquinas / bombas / generador',det:'humo',not:'si',amb:85,co:true,parcial:true},
+  bodega:{n:'Bodega / almacén',det:'calor',not:'si',amb:50},
+  escalera:{n:'Escalera de egreso',det:'humo',not:'si',amb:50,parcial:true},
+  parqueo:{n:'Parqueo interior',det:'calor',not:'si',amb:65,co:true},
+  exterior:{n:'Área exterior ocupada',det:'ninguno',not:'si',amb:60},
+  sinservicio:{n:'Ducto / sin dispositivos',det:'ninguno',not:'no',amb:0}
+};
+const TIPOS_PARCIAL_VESTIBULO = ['corredor','lobby','tecnico','maquinas','escalera'];
+
+/* Estándares de cadena (condensado de «Guía de diseño — Detección y alarma, Hoteles»).
+   Cada regla conserva el ID de la guía. «parametros» son los que el motor aplica. */
+const CADENAS = {
+  ninguna:{nombre:'Ninguna (solo normas)',parametros:{},reglas:[]},
+  hyatt:{nombre:'Hyatt (FLS Q1 2024)',
+   parametros:{estroboTodos:true,dormirCd:177,banoDormirCd:15,dbaMin:75,co:true,humoVestAsc:true,pulsadorRecepcion:true,sinHumoHumedo:true,voz:true},
+   reglas:[
+    {id:'D-22',tema:'Notificación audible',regla:'Parlantes multi-tap 1/4–4 W, mínimo 75 dBA, +15 dBA sobre el ruido ambiente y máximo 110 dBA.',ref:'Hyatt FLS Q1 2024 §1.3 Alarm Notification Devices'},
+    {id:'D-24',tema:'Notificación audible',regla:'Cada área de dormir y su baño con dispositivo audible ≥75 dBA en el punto más remoto con puertas cerradas.',ref:'Hyatt FLS Q1 2024 §1.3 Audible Devices'},
+    {id:'D-28',tema:'Notificación visual',regla:'Estrobos en todos los locales y espacios, incluidos baños públicos, vestidores y áreas de servicio.',ref:'Hyatt FLS Q1 2024 §1.3 Visible Devices; NFPA 72 cap. 18'},
+    {id:'D-29',tema:'Notificación visual',regla:'Habitaciones con características de comunicación: 177 cd en áreas de dormir y 15 cd en baños.',ref:'Hyatt FLS Q1 2024 §1.3 Visible Devices'},
+    {id:'D-30',tema:'Notificación visual',regla:'Cobertura visual calculada por local (candelas vs. dimensiones); el conteo de dispositivos no sustituye el cálculo.',ref:'NFPA 72 cap. 18'},
+    {id:'D-33',tema:'Detección de humo',regla:'No instalar detectores de humo en áreas con vapor (baños, duchas, saunas); usar detector adecuado.',ref:'Hyatt FLS Q1 2024 §1.3 Smoke Detectors'},
+    {id:'D-43',tema:'Detección de humo',regla:'Vestíbulos de ascensores y cuartos eléctricos: detector de humo si no hay otro a menos de 3 m (10 ft).',ref:'Informe FLS Hyatt; NFPA 72 cap. 17'},
+    {id:'D-47',tema:'Detección de CO',regla:'CO en locales con equipo a combustible (cocinas, bombas/generador) con base sonora y módulo.',ref:'Hyatt FLS Q1 2024 §1.3 Carbon Monoxide Detectors'},
+    {id:'D-51',tema:'Detectores de ducto',regla:'DU en unidades manejadoras mayores de 2000 cfm (944 L/s), con tubo de muestreo a todo el ancho.',ref:'Hyatt FLS Q1 2024 §1.3 Duct Smoke Detectors'},
+    {id:'D-53',tema:'Pulsadores',regla:'Pulsador en cada salida de escalera a nivel de descarga y en niveles sin acceso a otra escalera.',ref:'NFPA 72 cap. 17; criterio IFSC'},
+    {id:'D-55',tema:'Pulsadores',regla:'Pulsador general junto al FACP/recepción para evacuación general.',ref:'Hyatt FLS Q1 2024 §1.3 Manual Pull Stations'},
+    {id:'D-56',tema:'Pulsadores',regla:'Pulsadores no en exteriores ni en áreas con polvo o aire sin acondicionar (<0 °C o >38 °C).',ref:'Hyatt FLS Q1 2024 §1.3 Manual Pull Stations 2'}
+   ]},
+  marriott:{nombre:'Marriott (Módulo 14)',
+   parametros:{estroboTodos:true,dormirCd:177,banoDormirCd:177,dbaMin:75,dormirDba3m:85,co:true,humoVestAsc:true,pulsadorRecepcion:true,sinHumoHumedo:true,oficina1SinNot:true,voz:true,corredorCd:15},
+   reglas:[
+    {id:'D-19',tema:'Notificación',regla:'Parlantes o parlante/estrobo en todas las áreas públicas y de BOH ocupadas: baños públicos y de personal.',ref:'Marriott Módulo 14 §14.5 (Principio 3) F.3'},
+    {id:'D-20',tema:'Notificación',regla:'Corredores públicos y de BOH: estrobos de 15 cd, separados máximo 30.5 m y a no más de 4.5 m del extremo.',ref:'Módulo 14; NFPA 72 cap. 18'},
+    {id:'D-21',tema:'Notificación',regla:'Tramos más anchos o abiertos de un corredor de servicio: estrobo de 30 o 60 cd, no 15 cd.',ref:'NFPA 72 cap. 18'},
+    {id:'D-22',tema:'Notificación',regla:'Sótanos: dispositivos de notificación de cielo en lugar de muro.',ref:'NFPA 72 cap. 18'},
+    {id:'D-24',tema:'Notificación',regla:'No colocar dispositivos en oficinas de BOH ocupadas por una sola persona; solo en oficinas compartidas.',ref:'Revisión Marriott'},
+    {id:'D-26',tema:'Notificación',regla:'Habitaciones: audible en cada dormitorio y sala; mínimo 85 dBA a 3 m y 75 dBA en almohada.',ref:'Marriott Módulo 14 §14.5 (Principio 3) F.1'},
+    {id:'D-27',tema:'Notificación',regla:'Habitaciones para personas con discapacidad auditiva: 177 cd y estrobo en el baño.',ref:'Marriott Módulo 14 §14.5 (Principio 3) F.2'},
+    {id:'D-32',tema:'Detección de humo',regla:'Evitar detectores de humo cerca de cocinas, baños y lavandería; usar térmicos donde corresponda.',ref:'Marriott Módulo 14 D.1.f'},
+    {id:'D-33',tema:'Detección de humo',regla:'Detector de humo y parlante/estrobo en todos los vestíbulos de ascensor, incluidos los de BOH.',ref:'Marriott Módulo 14 §14.5 (Principio 3)'},
+    {id:'D-34',tema:'Detección de humo',regla:'Ubicar los detectores en el punto más alto del cielo del local.',ref:'Marriott Módulo 14 D.1.g'},
+    {id:'D-35',tema:'Detección de humo',regla:'Detectores de ducto en unidades de aire mayores de 945 L/s (2000 cfm), aguas abajo.',ref:'Marriott Módulo 14 D.3'},
+    {id:'D-37',tema:'Detección de CO',regla:'CO direccionable con base sonora propia en cocinas, lavandería, calderas, equipos de piscina.',ref:'Marriott Módulo 14 E.1'},
+    {id:'D-38',tema:'Detección de CO',regla:'CO independiente con base sonora; no usar combinados calor/CO.',ref:'Marriott Módulo 14 E.2'},
+    {id:'D-40',tema:'Pulsadores',regla:'Pulsadores según NFPA 72 y el código local, más uno en la recepción.',ref:'Marriott Módulo 14 H'}
+   ]}
+};
+
+/* Equipos supervisados → módulos (extracto de «Matriz_Supervision_NFPA72_2.xlsx»):
+   [id, nombre, módulos de monitoreo por equipo, módulos de control por equipo, referencia] */
+const EQUIPOS = [
+ ['BPE','Bomba contra incendio eléctrica',8,0,'NFPA 20 10.4.7.2.1–.4'],
+ ['BPD','Bomba contra incendio diésel',8,0,'NFPA 20 cap. 11 y 12'],
+ ['BJK','Bomba jockey',1,0,'NFPA 20 cap. 10'],
+ ['TFP','Transferencia automática de bomba',3,0,'NFPA 20 10.8.3.12'],
+ ['GEN','Generador de emergencia',7,0,'NFPA 110 5.6.5'],
+ ['ATS','Transferencia automática (ATS)',2,0,'NFPA 110 / NFPA 70 700'],
+ ['UPS','UPS de sistemas de emergencia',1,0,'NFPA 72 cap. 10'],
+ ['PWR','Fuente auxiliar / booster NAC',2,0,'NFPA 72 cap. 10'],
+ ['VCT','Válvula de control (tamper)',1,0,'NFPA 72 17.16; NFPA 25'],
+ ['FLJ','Flujostato de rociadores',1,0,'NFPA 72 17.12; NFPA 13'],
+ ['PRS','Presostato',1,0,'NFPA 72 17.16'],
+ ['TQA','Tanque de agua contra incendio',2,0,'NFPA 72 17.16; NFPA 22'],
+ ['CBP','Cuarto de bombas (ambiental)',1,0,'NFPA 20 4.12'],
+ ['PRE','Preacción / seco / diluvio',2,1,'NFPA 13; NFPA 72 cap. 23'],
+ ['ASC','Ascensor (recall y shunt trip)',1,2,'NFPA 72 cap. 21; ASME A17.1'],
+ ['AHU','Manejadora de aire (paro por alarma)',0,1,'NFPA 72 cap. 21; NFPA 90A'],
+ ['ESC','Presurización de escaleras / extracción',0,1,'NFPA 72 cap. 21; NFPA 92'],
+ ['DMP','Compuerta cortafuego/humo controlada',0,1,'NFPA 105'],
+ ['PTA','Puerta con retenedor magnético',0,1,'NFPA 72 21.9; NFPA 101'],
+ ['KIT','Supresión de cocina / agente limpio',2,0,'NFPA 96; NFPA 17A; UL 300'],
+ ['GAS','Válvula de corte de gas',0,1,'NFPA 54 / NFPA 58']
+];
+
+/* ==========================================================================
+   ESTADO
+   ========================================================================== */
+const E = {
+  recintos:[], marcas:[], disp:[], seq:1,
+  img:null, imgNombre:'', imgM:0, imgX:0, imgY:0,   // plano: m por px y origen en m
+  vista:{x:0,y:0,k:20},                              // k = px de pantalla por metro
+  herr:'sel', borrador:[], sel:null, calib:[], resultados:[], eqCant:{}, chain:'ninguna', cadenaCustom:null
+};
+
+/* ==========================================================================
+   GEOMETRÍA
+   ========================================================================== */
+const $ = id => document.getElementById(id);
+function area(p){let a=0;for(let i=0;i<p.length;i++){const q=p[(i+1)%p.length];a+=p[i].x*q.y-q.x*p[i].y;}return Math.abs(a)/2;}
+function bbox(p){let x0=1e18,y0=1e18,x1=-1e18,y1=-1e18;p.forEach(q=>{x0=Math.min(x0,q.x);y0=Math.min(y0,q.y);x1=Math.max(x1,q.x);y1=Math.max(y1,q.y);});return{x0,y0,x1,y1,w:x1-x0,h:y1-y0};}
+function dentro(pt,p){let c=false;for(let i=0,j=p.length-1;i<p.length;j=i++){if(((p[i].y>pt.y)!==(p[j].y>pt.y))&&(pt.x<(p[j].x-p[i].x)*(pt.y-p[i].y)/(p[j].y-p[i].y)+p[i].x))c=!c;}return c;}
+function distSeg(pt,a,b){const dx=b.x-a.x,dy=b.y-a.y,l=dx*dx+dy*dy;let t=l?((pt.x-a.x)*dx+(pt.y-a.y)*dy)/l:0;t=Math.max(0,Math.min(1,t));const x=a.x+t*dx,y=a.y+t*dy;return{d:Math.hypot(pt.x-x,pt.y-y),x,y};}
+function distBorde(pt,p){let m=1e18;for(let i=0;i<p.length;i++){m=Math.min(m,distSeg(pt,p[i],p[(i+1)%p.length]).d);}return m;}
+function puntoBorde(pt,p){let m=1e18,r=null;for(let i=0;i<p.length;i++){const s=distSeg(pt,p[i],p[(i+1)%p.length]);if(s.d<m){m=s.d;r=s;}}return r;}
+function giro(p,th){const c=Math.cos(th),s=Math.sin(th);return{x:p.x*c+p.y*s,y:-p.x*s+p.y*c};}
+function desgiro(p,th){const c=Math.cos(th),s=Math.sin(th);return{x:p.x*c-p.y*s,y:p.x*s+p.y*c};}
+// Ángulo que minimiza el área del rectángulo envolvente (orienta la malla con el recinto).
+function anguloOptimo(p){let mejor=0,am=1e18;for(let i=0;i<p.length;i++){const q=p[(i+1)%p.length];const th=Math.atan2(q.y-p[i].y,q.x-p[i].x);const b=bbox(p.map(z=>giro(z,th)));const a=b.w*b.h;if(a<am-1e-9){am=a;mejor=th;}}return mejor;}
+// Muestras interiores del recinto (en coordenadas de mundo).
+function muestras(poly,paso,margen){const b=bbox(poly),r=[];for(let x=b.x0+paso/2;x<b.x1;x+=paso)for(let y=b.y0+paso/2;y<b.y1;y+=paso){const pt={x,y};if(dentro(pt,poly)&&(!margen||distBorde(pt,poly)>=margen))r.push(pt);}return r;}
+function masCercano(pt,lista){let m=1e18,r=null;lista.forEach(q=>{const d=Math.hypot(q.x-pt.x,q.y-pt.y);if(d<m){m=d;r=q;}});return{d:m,p:r};}
+function dmin(pt,disps){let m=1e18;for(const q of disps){const d=Math.hypot(q.x-pt.x,q.y-pt.y);if(d<m)m=d;}return m;}
+
+/* ==========================================================================
+   MOTOR DE PREDISEÑO
+   ========================================================================== */
+function cadenaActual(){return (E.chain==='custom'&&E.cadenaCustom)?E.cadenaCustom:(CADENAS[E.chain]||CADENAS.ninguna);}
+function par(){return cadenaActual().parametros||{};}
+function opciones(){return{espH:+$('pEspH').value,espC:+$('pEspC').value,cdMax:+$('pCdMax').value,dba:+$('pDba').value,aud:$('pAud').value,facRec:+$('pFacRec').value,iso:+$('pIso').value,co:$('pCO').value==='1',
+  ocup:OCUPACIONES.find(o=>o.id===$('ocup').value),cob:$('cobDet').value};}
+
+// Relleno voraz: añade puntos hasta que todo punto de P quede a ≤ radio de algún dispositivo.
+function rellenar(P,cands,devs,radio){
+  const nuevos=[];let guard=0;
+  while(guard++<MAX_AGREGADOS){
+    const sin=P.filter(p=>dmin(p,devs.concat(nuevos))>radio);
+    if(!sin.length)break;
+    let mejor=null,mc=-1;
+    for(const c of cands){let n=0;for(const p of sin){if(Math.hypot(p.x-c.x,p.y-c.y)<=radio)n++;}if(n>mc){mc=n;mejor=c;}}
+    if(!mejor||mc<=0){nuevos.push({x:sin[0].x,y:sin[0].y});}else nuevos.push({x:mejor.x,y:mejor.y});
+  }
+  return nuevos;
+}
+
+// Detectores puntuales: malla orientada + relleno. Satisface (1) y (2) de 17.7.4.2.3.1.
+function detectoresRecinto(r,esp){
+  const th=anguloOptimo(r.poly),lp=r.poly.map(p=>giro(p,th)),b=bbox(lp);
+  const lado=esp*FACTOR_RADIO_COBERTURA*RAIZ2;               // cuadro cuyo centro cubre sus esquinas a 0.7·S
+  const nx=Math.max(1,Math.ceil(b.w/lado)),ny=Math.max(1,Math.ceil(b.h/lado));
+  const cand=muestras(r.poly,PASO_CANDIDATOS_M,DIST_MIN_PARED_M);
+  const ini=[];
+  for(let i=0;i<nx;i++)for(let j=0;j<ny;j++){
+    const c=desgiro({x:b.x0+(i+.5)*b.w/nx,y:b.y0+(j+.5)*b.h/ny},th);
+    // sólo celdas con algo de recinto: se ancla al candidato más cercano si el centro cae fuera
+    const q=(dentro(c,r.poly)&&distBorde(c,r.poly)>=DIST_MIN_PARED_M)?c:masCercano(c,cand).p;
+    if(q&&Math.hypot(q.x-c.x,q.y-c.y)<=lado*0.75+0.01)ini.push({x:q.x,y:q.y});
+  }
+  const P=muestras(r.poly,PASO_MUESTRA_M,0);
+  const R=esp*FACTOR_RADIO_COBERTURA;
+  const extra=rellenar(P,cand,ini,R);
+  return ini.concat(extra);
+}
+
+function candelaLookup(tabla,lado){for(const [s,cd] of tabla){if(lado<=s+1e-9)return cd;}return null;}
+function candelaCielo(lado,altura){const k=altura<=3.05?3.05:(altura<=6.1?6.10:9.14);return candelaLookup(TABLA_ESTROBO_CIELO[k],lado);}
+
+// Estrobos: un artefacto de pared por recinto si cabe; si no, malla de estrobos de cielo.
+function estrobosRecinto(r,tipo,o){
+  const P=par(),dormir=!!(tipo.dormir),res={devs:[],notas:[],cd:0,modo:''};
+  const th=anguloOptimo(r.poly),lp=r.poly.map(p=>giro(p,th)),b=bbox(lp);
+  const ancho=Math.min(b.w,b.h),largo=Math.max(b.w,b.h);
+  const cdDorm=(r.h-ESTROBO_ALTURA_ASUMIDA_M)>=DORMIR_DIST_TECHO_M?DORMIR_CD_LEJOS:DORMIR_CD_CERCA;
+  const cdDormMin=dormir?Math.max(cdDorm,P.dormirCd||0):0;
+  // Corredores: sección 18.5.5.8 (sólo si el ancho ≤ 6.1 m).
+  if(tipo.not==='corredor'&&ancho<=CORREDOR_ANCHO_MAX_M){
+    const cd=Math.max(CORREDOR_CD,P.corredorCd||0);
+    const rect=area(r.poly)/(b.w*b.h)>0.8;
+    if(rect){
+      const L=largo,eje=b.w>=b.h?'x':'y',ini=CORREDOR_EXTREMO_MAX_M-CORREDOR_HOLGURA_M;
+      let pos;
+      if(L<=2*CORREDOR_EXTREMO_MAX_M)pos=[L/2];
+      else{const n=Math.ceil((L-2*ini)/CORREDOR_SEP_MAX_M)+1;pos=[];for(let i=0;i<n;i++)pos.push(ini+i*(L-2*ini)/(n-1));}
+      pos.forEach(t=>{const lpPt=eje==='x'?{x:b.x0+t,y:b.y0+DIST_MIN_PARED_M}:{x:b.x0+DIST_MIN_PARED_M,y:b.y0+t};
+        const w=desgiro(lpPt,th);res.devs.push({tipo:'estrobo_pared',x:w.x,y:w.y,cd});});
+      res.modo='Corredor (18.5.5.8): '+pos.length+' × '+cd+' cd';
+    }else{
+      const cand=muestras(r.poly,PASO_CANDIDATOS_M,DIST_MIN_PARED_M);
+      const ext=rellenar(muestras(r.poly,PASO_MUESTRA_M,0),cand,[],CORREDOR_SEP_MAX_M/2);
+      ext.forEach(p=>res.devs.push({tipo:'estrobo_pared',x:p.x,y:p.y,cd}));
+      res.modo='Corredor irregular: '+ext.length+' × '+cd+' cd (aproximado)';
+      res.notas.push('Forma irregular: verifique a mano que haya un estrobo a ≤ 4.5 m de cada extremo (18.5.5.8.5) o trate el corredor como recinto (18.5.5.8.1).');
+    }
+    res.cd=cd;return res;
+  }
+  // Recintos (18.5.5.7). Opción 1: un estrobo de pared a mitad del muro.
+  const lado1=Math.max(b.w,b.h);
+  let mejor=null;
+  const cd1=candelaLookup(TABLA_ESTROBO_PARED,lado1);
+  const cdFin1=cd1==null?null:Math.max(cd1,cdDormMin,(tipo.id==='bano'&&P.banoDormirCd)?P.banoDormirCd:0);
+  if(cdFin1!=null&&cdFin1<=Math.max(o.cdMax,cdDormMin)){
+    // 4 posibles puntos de pared: se elige el más cercano a un punto medio del rectángulo envolvente
+    const mids=[{x:b.x0+b.w/2,y:b.y0},{x:b.x0+b.w/2,y:b.y1},{x:b.x0,y:b.y0+b.h/2},{x:b.x1,y:b.y0+b.h/2}].map(m=>desgiro(m,th));
+    let bm=null,bd=1e18;mids.forEach(m=>{const pb=puntoBorde(m,r.poly);if(pb.d<bd){bd=pb.d;bm=pb;}});
+    const c=masCercano({x:bm.x,y:bm.y},muestras(r.poly,0.25,DIST_MIN_PARED_M)).p||{x:bm.x,y:bm.y};
+    mejor={n:1,devs:[{tipo:'estrobo_pared',x:c.x,y:c.y,cd:cdFin1,lado:lado1}],cd:cdFin1,modo:'Un estrobo de pared (Tabla 18.5.5.7.1(a)), recinto equivalente '+lado1.toFixed(1)+' m'};
+  }
+  if(!mejor){
+    // Opción 2: malla de estrobos de cielo al centro de cada celda (Tabla 18.5.5.7.1(b)).
+    const alt=Math.min(r.h,ALTURA_MAX_ESTROBO_CIELO_M);
+    let sol=null;
+    for(let n=2;n<=MAX_DIV_ESTROBO*MAX_DIV_ESTROBO&&!sol;n++){
+      for(let kx=1;kx<=MAX_DIV_ESTROBO;kx++){const ky=Math.ceil(n/kx);if(kx*ky!==n&&kx*ky>n)continue;if(ky>MAX_DIV_ESTROBO)continue;
+        const lado=Math.max(b.w/kx,b.h/ky),cd=candelaCielo(lado,alt);if(cd==null)continue;
+        const cdF=Math.max(cd,dormir?DORMIR_CD_CERCA:0,(tipo.id==='bano'&&P.banoDormirCd)?P.banoDormirCd:0);
+        if(cdF>Math.max(o.cdMax,dormir?DORMIR_CD_CERCA:0))continue;
+        const devs=[];
+        for(let i=0;i<kx;i++)for(let j=0;j<ky;j++){const c=desgiro({x:b.x0+(i+.5)*b.w/kx,y:b.y0+(j+.5)*b.h/ky},th);
+          const q=(dentro(c,r.poly))?c:masCercano(c,muestras(r.poly,PASO_CANDIDATOS_M,DIST_MIN_PARED_M)).p;
+          if(q)devs.push({tipo:'estrobo_cielo',x:q.x,y:q.y,cd:cdF,lado});}
+        if(devs.length&&(!sol||devs.length<sol.devs.length))sol={devs,cd:cdF,lado};
+      }
+    }
+    if(!sol){// último recurso: cd máximo de la tabla de cielo
+      const kx=Math.ceil(b.w/14),ky=Math.ceil(b.h/14),devs=[];
+      for(let i=0;i<kx;i++)for(let j=0;j<ky;j++){const c=desgiro({x:b.x0+(i+.5)*b.w/kx,y:b.y0+(j+.5)*b.h/ky},th);devs.push({tipo:'estrobo_cielo',x:c.x,y:c.y,cd:75,lado:14});}
+      sol={devs,cd:75,lado:14};res.notas.push('No se halló una malla dentro del cd máximo; se usó malla de 14 m con 75 cd. Revise con el método de desempeño (18.5.5.9).');
+    }
+    mejor={n:sol.devs.length,devs:sol.devs,cd:sol.cd,modo:sol.devs.length+' estrobos de cielo (Tabla 18.5.5.7.1(b)), celda ≤ '+sol.lado.toFixed(1)+' m'};
+    if(r.h>ALTURA_MAX_ESTROBO_CIELO_M)res.notas.push('Cielo > 9.1 m: suspender los estrobos a ≤ 9.1 m (18.5.5.7.6).');
+    if(mejor.n>2)res.notas.push('Más de 2 estrobos en el mismo campo visual: deben flashear sincronizados (18.5.5.7.2).');
+  }
+  res.devs=mejor.devs;res.cd=mejor.cd;res.modo=mejor.modo;
+  if(dormir)res.notas.push('Área de dormir: '+cdDormMin+' cd mínimo (Tabla 18.5.5.10.3) y sonido a nivel de almohada ≥ 75 dBA con señal de baja frecuencia (520 Hz, 18.4.6).');
+  return res;
+}
+
+// Audibilidad: radio efectivo por ley del cuadrado inverso en campo libre.
+function radioAudible(dba3m,req){return AUDIBLE_DIST_REF_M*Math.pow(10,(dba3m-req)/20);}
+
+function planificarRecinto(r,o){
+  const tipo=Object.assign({id:r.tipo},TIPOS[r.tipo]||TIPOS.oficina);
+  const P=par(),cad=cadenaActual(),out={r,tipo,disp:[],notas:[],sup:[],lim:[],det:{},not:{},aud:{}};
+  const mp=muestras(r.poly,PASO_MUESTRA_M,0),cand=muestras(r.poly,PASO_CANDIDATOS_M,DIST_MIN_PARED_M);
+  out.area=area(r.poly);
+  // --- Detección ---
+  let det=tipo.det;
+  if(det==='humo'&&P.sinHumoHumedo&&tipo.humedo)det='calor';
+  if(o.cob==='ninguna')det='ninguno';
+  if(o.cob==='parcial'&&!TIPOS_PARCIAL_VESTIBULO.includes(r.tipo))det='ninguno';
+  if(r.det&&r.det!=='auto')det=r.det;
+  out.det.tipo=det;
+  if(det==='humo'||det==='calor'){
+    const esp=det==='humo'?o.espH:o.espC;
+    const ds=detectoresRecinto(r,esp);
+    ds.forEach(d=>out.disp.push({tipo:det==='humo'?'det_humo':'det_calor',x:d.x,y:d.y,sala:r.nombre,radio:esp*FACTOR_RADIO_COBERTURA}));
+    out.det.n=ds.length;out.det.esp=esp;
+    if(det==='humo'&&r.h>ALTURA_AVISO_HUMO_M)out.notas.push('Cielo '+r.h+' m > '+ALTURA_AVISO_HUMO_M+' m: evalúe detección por haz/aspiración (criterio de prediseño).');
+    if(det==='calor'&&r.h>ALTURA_AVISO_CALOR_M)out.notas.push('Cielo '+r.h+' m > '+ALTURA_AVISO_CALOR_M+' m: el espaciamiento de calor debe reducirse según la tabla de altura de NFPA 72 (no implementada); recalcule.');
+  }
+  // --- CO ---
+  if(o.co&&tipo.co&&(cad!==CADENAS.ninguna||r.co)){
+    const c=masCercano({x:bbox(r.poly).x0+bbox(r.poly).w/2,y:bbox(r.poly).y0+bbox(r.poly).h/2},cand).p;
+    if(c)out.disp.push({tipo:'det_co',x:c.x,y:c.y,sala:r.nombre});out.det.co=1;
+  }
+  if(r.co&&!out.det.co){const c=masCercano({x:bbox(r.poly).x0+bbox(r.poly).w/2,y:bbox(r.poly).y0+bbox(r.poly).h/2},cand).p;if(c){out.disp.push({tipo:'det_co',x:c.x,y:c.y,sala:r.nombre});out.det.co=1;}}
+  // --- Notificación visual ---
+  let notif=tipo.not;
+  if(r.tipo==='oficina1'&&P.oficina1SinNot)notif='no';
+  if(r.not==='no')notif='no';else if(r.not==='si'&&notif==='no')notif='si';
+  out.not.aplica=notif!=='no';
+  if(notif!=='no'){
+    const e=estrobosRecinto(r,tipo,o);
+    out.not.modo=e.modo;out.not.cd=e.cd;out.not.n=e.devs.length;e.notas.forEach(n=>out.notas.push(n));
+    // --- Audible: combos en los puntos de estrobo + relleno por nivel sonoro ---
+    const parl=o.aud==='parlante';
+    const dba3=o.dba>0?o.dba:(parl?PARLANTE_DBA_3M:BOCINA_DBA_3M);   // dato del equipo real, editable
+    const dormir=!!tipo.dormir;
+    let req=Math.max((tipo.amb||0)+AUDIBLE_SOBRE_AMBIENTE_DB,P.dbaMin||0);
+    if(dormir)req=Math.max(req,AUDIBLE_DORMIR_MIN_DBA);
+    const radio=radioAudible(dba3,req);
+    out.aud={req,radio,dba3,parl,ok:true};
+    const combos=e.devs.map(d=>({x:d.x,y:d.y}));
+    if(radio<AUDIBLE_RADIO_MIN_M){out.aud.ok=false;out.notas.push('Nivel audible requerido '+req.toFixed(0)+' dBA no alcanzable con un dispositivo de '+dba3+' dBA a 3 m (radio '+radio.toFixed(1)+' m). Requiere análisis específico (ambiente alto, ≤ 110 dBA).');}
+    else{
+      const extra=rellenar(mp,cand,combos,radio);
+      extra.forEach(p=>out.disp.push({tipo:parl?'parlante':'bocina',x:p.x,y:p.y,sala:r.nombre,radio}));
+      out.aud.extra=extra.length;
+    }
+    e.devs.forEach(d=>out.disp.push({tipo:parl?(d.tipo==='estrobo_cielo'?'parl_estrobo_cielo':'parl_estrobo'):(d.tipo==='estrobo_cielo'?'bocina_estrobo_cielo':'bocina_estrobo'),x:d.x,y:d.y,cd:d.cd,sala:r.nombre,lado:d.lado,radio,pared:d.tipo==='estrobo_pared'}));
+  }else{out.notas.push('Este recinto no lleva dispositivos de notificación según su tipo/estándar de cadena.');}
+  // --- Supuestos y limitaciones del recinto (todo resultado lleva los suyos) ---
+  out.sup=['Cielo liso, plano y horizontal de '+r.h+' m, sin vigas, ni obstrucciones, ni flujo de aire que distorsione el humo.',
+    'Detectores de humo a '+o.espH+' m nominal (0.7×S = '+(o.espH*FACTOR_RADIO_COBERTURA).toFixed(2)+' m); calor a '+o.espC+' m listado.',
+    'Audible en campo libre (−6 dB por duplicar la distancia), sin atenuación por muros ni mobiliario; dispositivo de '+(o.dba)+' dBA a 3 m.',
+    'Ambiente sonoro supuesto: '+(tipo.amb||0)+' dBA (criterio de prediseño por tipo de recinto).',
+    'Recinto tratado como independiente: no se acredita sonido ni luz de recintos vecinos.'];
+  out.lim=['Prediseño: no considera puertas, columnas, plafones, mobiliario alto ni luz ambiente > 500 lx (A.18.5.5.7.1 pide +100 % cd o −30 % de espaciamiento).',
+    'La malla de estrobos de cielo y las posiciones de pared son sugeridas; confirmar contra el método de desempeño (18.5.5.9) y planos reflejados de cielo.',
+    'Las cifras de candela solo valen para las tablas de las secciones citadas; no aplican a cielos > 9.1 m ni a corredores > 6.1 m tratados como recintos sin recalcular.'];
+  return out;
+}
+
+// Pulsadores y marcadores globales.
+function planificarGlobales(o,resRec){
+  const disp=[],notas=[],P=par();
+  const todas=[];E.recintos.forEach(r=>muestras(r.poly,PASO_GLOBAL_M,0.15).forEach(p=>todas.push(p)));
+  const salidas=E.marcas.filter(m=>m.t==='salida');
+  const pulsadores=[];
+  salidas.forEach(m=>{
+    let pos=null;
+    if(todas.length){const mc=masCercano(m,todas);if(mc.p&&mc.d<=PULSADOR_DIST_SALIDA_M*3){const dx=mc.p.x-m.x,dy=mc.p.y-m.y,l=Math.hypot(dx,dy)||1;
+      pos={x:m.x+dx/l*Math.min(PULSADOR_OFFSET_M,l),y:m.y+dy/l*Math.min(PULSADOR_OFFSET_M,l)};}}
+    if(!pos)pos={x:m.x+PULSADOR_OFFSET_M,y:m.y};
+    pulsadores.push(pos);disp.push({tipo:'pulsador',x:pos.x,y:pos.y,sala:'Salida',nota:'≤ '+PULSADOR_DIST_SALIDA_M+' m de la salida'});
+  });
+  if(P.pulsadorRecepcion)E.marcas.filter(m=>m.t==='facp').forEach(m=>{pulsadores.push({x:m.x+PULSADOR_OFFSET_M,y:m.y});disp.push({tipo:'pulsador',x:m.x+PULSADOR_OFFSET_M,y:m.y,sala:'FACP/recepción',nota:'pulsador general (estándar de cadena)'});});
+  const lim=PULSADOR_RECORRIDO_MAX_M/o.facRec;
+  if(!salidas.length)notas.push('No hay salidas marcadas: no se pueden ubicar pulsadores en puertas de salida. Use «+ Salida».');
+  else if(todas.length){
+    const extra=rellenar(todas,todas,pulsadores,lim);
+    extra.forEach(p=>disp.push({tipo:'pulsador',x:p.x,y:p.y,sala:'Adicional',nota:'recorrido ≤ '+PULSADOR_RECORRIDO_MAX_M+' m (17.15.9.5)'}));
+  }
+  // Ascensores: detector de humo en el vestíbulo si no hay otro a ≤ 3.05 m
+  E.marcas.filter(m=>m.t==='asc').forEach(m=>{
+    const humo=resRec.flatMap(x=>x.disp).concat(disp).filter(d=>d.tipo==='det_humo');
+    if(dmin(m,humo)>DIST_HUMO_ASCENSOR_M)disp.push({tipo:'det_humo',x:m.x,y:m.y,sala:'Vestíbulo ascensor',radio:o.espH*FACTOR_RADIO_COBERTURA});
+  });
+  E.marcas.filter(m=>m.t==='ahu').forEach(m=>disp.push({tipo:'det_ducto',x:m.x,y:m.y,sala:'AHU'}));
+  return {disp,notas,lim};
+}
+
+/* ==========================================================================
+   VERIFICACIÓN INDEPENDIENTE (muestreo más fino que el de generación)
+   ========================================================================== */
+function verificar(res,o){
+  res.forEach(x=>{
+    const r=x.r,ch=[],mf=muestras(r.poly,PASO_MUESTRA_M/2,0);
+    const mine=x.disp;
+    ['det_humo','det_calor'].forEach(t=>{
+      const ds=mine.filter(d=>d.tipo===t);if(!ds.length)return;
+      const R=(t==='det_humo'?o.espH:o.espC)*FACTOR_RADIO_COBERTURA;
+      const peor=Math.max(...mf.map(p=>dmin(p,ds)));
+      ch.push({ok:peor<=R+1e-6,txt:(t==='det_humo'?'Humo':'Calor')+': punto más lejano a '+peor.toFixed(2)+' m ≤ '+R.toFixed(2)+' m (0.7·S)'});
+    });
+    if(x.not.aplica){
+      const est=mine.filter(d=>d.cd);
+      const cdOk=est.every(d=>d.cd>=15);
+      ch.push({ok:cdOk&&est.length>0,txt:'Estrobos: '+est.length+' × '+(est[0]?est[0].cd:'-')+' cd (tablas citadas)'});
+      if(x.aud&&x.aud.radio){
+        const aud=mine.filter(d=>/bocina|parl/.test(d.tipo));
+        if(aud.length){const peor=Math.max(...mf.map(p=>dmin(p,aud)));const spl=(x.aud.dba3)-20*Math.log10(Math.max(peor,0.1)/AUDIBLE_DIST_REF_M);
+          ch.push({ok:spl>=x.aud.req-1e-6,txt:'Audible en el punto más lejano: '+spl.toFixed(0)+' dBA ≥ '+x.aud.req.toFixed(0)+' dBA requeridos'});
+          const cerca=(x.aud.dba3)-20*Math.log10(1/AUDIBLE_DIST_REF_M);
+          ch.push({ok:cerca<=AUDIBLE_MAX_DBA,txt:'A 1 m del dispositivo: '+cerca.toFixed(0)+' dBA ≤ '+AUDIBLE_MAX_DBA+' dBA (18.4.1.2)'});}
+      }
+    }
+    x.checks=ch;
+  });
+}
+
+/* ==========================================================================
+   GENERACIÓN
+   ========================================================================== */
+function generar(){
+  if(!E.recintos.length){alert('Primero cree o dibuje al menos un recinto.');return;}
+  const o=opciones();
+  const res=E.recintos.map(r=>planificarRecinto(r,o));
+  const g=planificarGlobales(o,res);
+  verificar(res,o);
+  E.disp=[];res.forEach(x=>x.disp.forEach(d=>E.disp.push(Object.assign({id:E.seq++},d))));
+  g.disp.forEach(d=>E.disp.push(Object.assign({id:E.seq++},d)));
+  E.resultados=res;E.globales=g;
+  mostrarResultados();dibujar();
+}
+
+/* ==========================================================================
+   RESULTADOS EN PANTALLA (cada número con sus supuestos y limitaciones)
+   ========================================================================== */
+const ROT={det_humo:'Detector de humo',det_calor:'Detector de calor',det_co:'Detector de CO',det_ducto:'Detector de humo para ducto',
+ bocina_estrobo:'Bocina/estrobo pared',bocina_estrobo_cielo:'Bocina/estrobo cielo',parl_estrobo:'Parlante/estrobo pared',parl_estrobo_cielo:'Parlante/estrobo cielo',
+ bocina:'Bocina (solo audible)',parlante:'Parlante (solo audible)',pulsador:'Estación manual (pulsador)',aislador:'Módulo aislador',modulo_mon:'Módulo de monitoreo',modulo_ctl:'Módulo de control'};
+function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function bloque(sup,lim){return '<div class="nota"><b>Supuestos</b><ul>'+sup.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ul><b>Limitaciones</b><ul>'+lim.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ul></div>';}
+function conteo(){const c={};E.disp.forEach(d=>{c[d.tipo]=(c[d.tipo]||0)+1;});return c;}
+function modulos(o){
+  const c=conteo(),cant=Object.assign({},E.eqCant);
+  cant.AHU=(cant.AHU||0)+E.marcas.filter(m=>m.t==='ahu').length;
+  cant.ASC=(cant.ASC||0)+E.marcas.filter(m=>m.t==='asc').length;
+  let mon=0,ctl=0;const filas=[];
+  EQUIPOS.forEach(q=>{const n=+cant[q[0]]||0;if(!n)return;mon+=n*q[2];ctl+=n*q[3];filas.push([q[1],n,n*q[2],n*q[3],q[4]]);});
+  const slc=(c.det_humo||0)+(c.det_calor||0)+(c.det_co||0)+(c.det_ducto||0)+(c.pulsador||0)+mon+ctl;
+  const iso=Math.ceil(slc/Math.max(1,o.iso));
+  return {mon,ctl,filas,slc,iso};
+}
+function mostrarResultados(){
+  const o=opciones(),c=conteo(),res=E.resultados,m=modulos(o);let h='';
+  const ed72=$('ed72').value,ed101=$('ed101').value;
+  // Resumen de cantidades
+  const filas=Object.keys(ROT).filter(k=>c[k]).map(k=>'<tr><td>'+ROT[k]+'</td><td>'+c[k]+'</td></tr>').join('');
+  h+='<div class="tarjeta"><h4>Resumen de dispositivos prediseñados</h4><table><tr><th>Dispositivo</th><th>Cantidad</th></tr>'+filas+
+   '<tr><td>Módulos de monitoreo (equipos)</td><td>'+m.mon+'</td></tr><tr><td>Módulos de control (equipos)</td><td>'+m.ctl+'</td></tr>'+
+   '<tr><td>Módulos aisladores (estimado)</td><td>'+m.iso+'</td></tr></table>'+
+   bloque(['Cantidades sumadas de los resultados por recinto de abajo; módulos de equipos de la matriz de supervisión (1 módulo por señal).','Aisladores: 1 cada '+o.iso+' dispositivos de lazo ('+m.slc+' puntos estimados); criterio de prediseño, no normativo.'],
+          ['No incluye ductos, canalización, cableado, fuentes ni cálculo de baterías ('+BATERIA_REPOSO_H+' h + '+BATERIA_ALARMA_MIN+' min según '+citar(CITAS72,'bateria',ed72,'NFPA 72')+').','Los módulos solo cuentan equipos declarados en la sección 5; equipos no declarados no suman.'])+'</div>';
+  // Globales
+  const pul=E.disp.filter(d=>d.tipo==='pulsador').length;
+  h+='<div class="tarjeta"><h4>Estaciones manuales (pulsadores): '+pul+'</h4><div>'+
+    (E.globales.notas.map(n=>'<div class="rev">⚠ '+esc(n)+'</div>').join(''))+'</div>'+
+    bloque(['Uno a ≤ '+PULSADOR_DIST_SALIDA_M+' m de cada salida marcada ('+citar(CITAS72,'pulsador_salida',ed72,'NFPA 72')+'; '+citar(CITAS101,'pulsador_salida',ed101,'NFPA 101')+').',
+      'Pulsadores adicionales hasta que ningún punto quede a más de '+PULSADOR_RECORRIDO_MAX_M+' m de recorrido ('+citar(CITAS72,'pulsador_recorrido',ed72,'NFPA 72')+'; '+citar(CITAS101,'pulsador_recorrido',ed101,'NFPA 101')+'); distancia recta usada = '+PULSADOR_RECORRIDO_MAX_M+'/'+o.facRec+' = '+E.globales.lim.toFixed(1)+' m.',
+      'Altura de montaje '+PULSADOR_ALT_MIN_M+'–'+PULSADOR_ALT_MAX_M+' m ('+citar(CITAS72,'pulsador_altura',ed72,'NFPA 72')+').'],
+     ['El recorrido real depende de muros y mobiliario; el factor '+o.facRec+' es criterio propio, no normativo.','Las salidas válidas las define el diseñador de egreso (NFPA 101); aquí solo se usan los marcadores colocados.','Un solo piso por proyecto en esta herramienta.'])+'</div>';
+  // Por recinto
+  res.forEach(x=>{
+    const okTodos=x.checks&&x.checks.length?x.checks.every(k=>k.ok):null;
+    const cls=okTodos==null?'rev':(okTodos?'ok':'mal');
+    h+='<div class="tarjeta"><h4>'+esc(x.r.nombre)+' <small class="g">('+esc(x.tipo.n)+' · '+x.area.toFixed(1)+' m² · cielo '+x.r.h+' m)</small> <span class="insignia '+cls+'">'+(okTodos==null?'sin verificación':(okTodos?'cumple verificación':'REVISAR'))+'</span></h4>';
+    h+='<div>';
+    if(x.det.tipo==='humo'||x.det.tipo==='calor')h+='• Detección '+x.det.tipo+': <b>'+x.det.n+'</b> detector(es), cita '+esc(citar(CITAS72,x.det.tipo,ed72,'NFPA 72'))+'.<br>';
+    else h+='• Sin detección automática en este recinto (tipo/cobertura/estándar).<br>';
+    if(x.det.co)h+='• Detector de CO: <b>1</b> (con base sonora si lo exige el estándar de cadena).<br>';
+    if(x.not.aplica)h+='• Notificación visual: <b>'+x.not.n+'</b> estrobo(s) — '+esc(x.not.modo)+', cita '+esc(citar(CITAS72,x.not.modo.indexOf('Corredor')===0?'corredor':'estrobo_pared',ed72,'NFPA 72'))+'.<br>'+
+       '• Notificación audible: nivel requerido <b>'+x.aud.req.toFixed(0)+' dBA</b>, radio efectivo '+(x.aud.radio?x.aud.radio.toFixed(1):'—')+' m'+(x.aud.extra?', '+x.aud.extra+' dispositivo(s) audibles adicionales':'')+', cita '+esc(citar(CITAS72,x.tipo.dormir?'audible_dormir':'audible',ed72,'NFPA 72'))+'.<br>';
+    else h+='• Sin notificación en este recinto.<br>';
+    h+='</div>';
+    if(x.checks)h+='<table><tr><th>Verificación independiente</th><th></th></tr>'+x.checks.map(k=>'<tr><td>'+esc(k.txt)+'</td><td class="'+(k.ok?'ok':'mal')+'">'+(k.ok?'CUMPLE':'REVISAR')+'</td></tr>').join('')+'</table>';
+    if(x.notas.length)h+=x.notas.map(n=>'<div class="rev">⚠ '+esc(n)+'</div>').join('');
+    h+=bloque(x.sup,x.lim)+'</div>';
+  });
+  // Módulos
+  if(m.filas.length){
+    h+='<div class="tarjeta"><h4>Módulos por equipos supervisados</h4><table><tr><th>Equipo</th><th>Cant.</th><th>Monitoreo</th><th>Control</th><th>Referencia</th></tr>'+
+      m.filas.map(f=>'<tr>'+f.map(v=>'<td>'+esc(v)+'</td>').join('')+'</tr>').join('')+'</table>'+
+      bloque(['1 módulo de monitoreo por señal supervisada y 1 de control por equipo controlado (Matriz_Supervision_NFPA72).'],['Referencias de equipos de la hoja de cálculo de Sinergia; solo NFPA 20 10.4.7.2.1–.4 figuran como verificadas en ella. Ajuste por proyecto.'])+'</div>';
+  }
+  $('resultados').innerHTML=h;
+}
+
+/* ==========================================================================
+   REQUISITOS OBLIGATORIOS (derivado de «Herramienta_Requisitos_Alarmascontraincendio»)
+   ========================================================================== */
+function dictamen(){
+  const ed72=$('ed72').value,ed101=$('ed101').value,oc=OCUPACIONES.find(x=>x.id===$('ocup').value);
+  const alt=+$('pAlt').value,reun=+$('pReunion').value,hab=+$('pHab').value,niv=+$('pNiveles').value;
+  const gran=alt>22,voz=gran||reun>300,anun=(oc.id==='hotel')&&(hab>50||niv>2);
+  const f=[['Detección y alarma de incendios','OBLIGATORIO','Manual art. 3.5 + cap. 4 por ocupación','Requerido para todas las ocupaciones del cap. 4 del Manual (según la hoja de Sinergia).'],
+   ['Notificación audible y visual','OBLIGATORIO (modo público)',citar(CITAS72,'audible',ed72,'NFPA 72'),'Visual en áreas públicas/comunes y de dormir; la exigencia por ocupación (NFPA 101 cap. 9.6.3 y cap. de ocupación) no se transcribió: confirmar con la AHJ.'],
+   ['Estaciones manuales','OBLIGATORIO si hay detección o flujo de agua',citar(CITAS101,'pulsador_recorrido',ed101,'NFPA 101'),'Ver ubicación en resultados.'],
+   ['Alarmas de humo de estación única por unidad',oc.dormir&&oc.id==='apart'?'OBLIGATORIO':'NO APLICA','Manual 4.2.7 / 4.4.7','Solo viviendas; además del sistema del edificio.'],
+   ['Voceo (EVACS)',voz?'OBLIGATORIO':'NO','NFPA 101 gran altura (>22 m) / Manual 4.1 reunión >300 · '+citar(CITAS101,'voz',ed101,'NFPA 101'),'Altura piso ocupable: '+alt+' m; mayor salón: '+reun+' personas.'],
+   ['Teléfonos de dos vías para bomberos',gran?'OBLIGATORIO':'NO REQUERIDO',citar(CITAS101,'telefonos',ed101,'NFPA 101'),'Solo gran altura.'],
+   ['Anunciador remoto',anun?'OBLIGATORIO':(oc.id==='hotel'?'SEGÚN DISEÑO':'NO APLICA'),'Manual 4.4.7.a','Hoteles de más de 2 pisos o más de 50 habitaciones.'],
+   ['Autonomía de baterías',BATERIA_REPOSO_H+' h en reposo + '+BATERIA_ALARMA_MIN+' min en alarma',citar(CITAS72,'bateria',ed72,'NFPA 72'),'Con voz de emergencia verificar el tiempo de alarma en 10.6.7.2.2.']];
+  return '<table><tr><th>Sistema</th><th>Dictamen</th><th>Referencia</th><th>Criterio / límite</th></tr>'+f.map(r=>'<tr>'+r.map(v=>'<td>'+esc(v)+'</td>').join('')+'</tr>').join('')+'</table>'+
+   bloque(['Base: Manual de Disposiciones Técnicas 2013 (CR), NFPA 101 y NFPA 72 seleccionados arriba; lógica tomada de la herramienta de requisitos de Sinergia.'],['Edición distinta de NFPA 72:2022 / NFPA 101:2015: los números de sección no se verificaron y pueden haber cambiado.','No sustituye la revisión de medios de egreso, rociadores ni normativa local vigente; confirmar con el AHJ.']);
+}
+
+/* ==========================================================================
+   SÍMBOLOS NFPA 170:2018 (Tablas 8.3, 8.4.2) — dibujados con Canvas 2D
+   ========================================================================== */
+function hex(ctx,x,y,r){ctx.beginPath();for(let i=0;i<6;i++){const a=Math.PI/3*i+Math.PI/6;ctx[i?'lineTo':'moveTo'](x+r*Math.cos(a),y+r*Math.sin(a));}ctx.closePath();}
+function sim(ctx,tipo,x,y,s,extra){
+  ctx.save();ctx.lineWidth=Math.max(1.2,s/10);ctx.strokeStyle='#111';ctx.fillStyle='#fff';ctx.font='bold '+Math.round(s*0.7)+'px Arial';ctx.textAlign='center';ctx.textBaseline='middle';
+  const txt=(t,dx,dy,sz,col)=>{ctx.fillStyle=col||'#111';ctx.font='bold '+Math.round(sz||s*0.7)+'px Arial';ctx.fillText(t,x+(dx||0),y+(dy||0));};
+  const cuad=(l,fill)=>{ctx.beginPath();ctx.rect(x-l,y-l,2*l,2*l);if(fill){ctx.fillStyle=fill;ctx.fill();}ctx.stroke();};
+  const tri=(cx,cy,l,rel)=>{ctx.beginPath();ctx.moveTo(cx-l,cy-l*0.8);ctx.lineTo(cx+l,cy-l*0.8);ctx.lineTo(cx,cy+l*0.8);ctx.closePath();ctx.fillStyle=rel?'#111':'#fff';ctx.fill();ctx.stroke();};
+  const cd=(v,dx,dy)=>{if(v){ctx.fillStyle='#a4231f';ctx.font='bold '+Math.round(s*0.62)+'px Arial';ctx.fillText(String(v),x+dx,y+dy);}};
+  switch(tipo){
+    case 'det_humo':hex(ctx,x,y,s);ctx.fill();ctx.stroke();txt('S');break;
+    case 'det_calor':hex(ctx,x,y,s);ctx.fill();ctx.stroke();txt('H');break;
+    case 'det_ducto':hex(ctx,x,y,s);ctx.fill();ctx.stroke();txt('S');ctx.setLineDash([2,2]);ctx.beginPath();ctx.moveTo(x,y-s);ctx.lineTo(x,y-s*1.6);ctx.stroke();break;
+    case 'det_co':hex(ctx,x,y,s);ctx.fillStyle='#111';ctx.fill();ctx.stroke();ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(x-s*.5,y+s*.4);ctx.lineTo(x+s*.5,y+s*.4);ctx.lineTo(x,y-s*.5);ctx.closePath();ctx.fill();txt('CO',s*.2,s*1.45,s*.55);break;
+    case 'pulsador':cuad(s*0.85);txt('F');break;
+    case 'bocina_estrobo':case 'parl_estrobo':{cuad(s*0.85);ctx.beginPath();ctx.moveTo(x-s*.85,y-s*.85);ctx.lineTo(x+s*.85,y+s*.85);ctx.moveTo(x+s*.85,y-s*.85);ctx.lineTo(x-s*.85,y+s*.85);ctx.stroke();
+      tri(x-s*.5,y-s*1.35,s*.4,tipo==='parl_estrobo');cd(extra&&extra.cd,s*.55,-s*1.35);break;}
+    case 'bocina_estrobo_cielo':case 'parl_estrobo_cielo':{ctx.beginPath();ctx.arc(x,y,s*.9,0,7);ctx.fill();ctx.stroke();ctx.beginPath();ctx.moveTo(x-s*.9,y-s*.9);ctx.lineTo(x+s*.9,y+s*.9);ctx.moveTo(x+s*.9,y-s*.9);ctx.lineTo(x-s*.9,y+s*.9);ctx.stroke();
+      tri(x-s*.5,y-s*1.4,s*.4,tipo==='parl_estrobo_cielo');cd(extra&&extra.cd,s*.55,-s*1.4);break;}
+    case 'bocina':case 'parlante':cuad(s*0.7);tri(x,y-s*1.25,s*.45,tipo==='parlante');txt(tipo==='bocina'?'H':'S',0,0,s*.7);break;
+    case 'aislador':cuad(s*0.75);txt('IM',0,0,s*.55);break;
+    case 'modulo_mon':cuad(s*0.75);txt('AIM',0,0,s*.5);break;
+    case 'modulo_ctl':cuad(s*0.75);txt('AOM',0,0,s*.5);break;
+    case 'salida':{ctx.fillStyle='#e8f4ec';ctx.beginPath();ctx.rect(x-s*.9,y-s*.55,s*1.8,s*1.1);ctx.fill();ctx.strokeStyle='#1e7d3c';ctx.stroke();txt('SALIDA',0,0,s*.42,'#1e7d3c');break;}
+    case 'facp':ctx.fillStyle='#e8f0f7';ctx.beginPath();ctx.rect(x-s,y-s*.7,2*s,s*1.4);ctx.fill();ctx.strokeStyle=COLOR.recinto;ctx.stroke();txt('FACP',0,0,s*.55,COLOR.recinto);break;
+    case 'ahu':ctx.fillStyle='#f3ecff';ctx.beginPath();ctx.rect(x-s*.9,y-s*.6,s*1.8,s*1.2);ctx.fill();ctx.strokeStyle='#5a3d99';ctx.stroke();txt('AHU',0,0,s*.5,'#5a3d99');break;
+    case 'asc':ctx.fillStyle='#fff7e0';ctx.beginPath();ctx.rect(x-s*.7,y-s*.7,s*1.4,s*1.4);ctx.fill();ctx.strokeStyle='#8a5a00';ctx.stroke();txt('ASC',0,0,s*.5,'#8a5a00');break;
+  }
+  ctx.restore();
+}
+
+/* ==========================================================================
+   LIENZO: vista, dibujo e interacción
+   ========================================================================== */
+const cv=$('cv'),cx=cv.getContext('2d');
+function aPant(p){return{x:p.x*E.vista.k+E.vista.x,y:p.y*E.vista.k+E.vista.y};}
+function aMundo(px,py){return{x:(px-E.vista.x)/E.vista.k,y:(py-E.vista.y)/E.vista.k};}
+function ajustarLienzo(){const r=cv.getBoundingClientRect(),d=window.devicePixelRatio||1;cv.width=Math.round(r.width*d);cv.height=Math.round(r.height*d);cx.setTransform(d,0,0,d,0,0);dibujar();}
+function ajustarVista(){
+  let b=null;const add=p=>{if(!b)b={x0:p.x,y0:p.y,x1:p.x,y1:p.y};b.x0=Math.min(b.x0,p.x);b.y0=Math.min(b.y0,p.y);b.x1=Math.max(b.x1,p.x);b.y1=Math.max(b.y1,p.y);};
+  E.recintos.forEach(r=>r.poly.forEach(add));
+  if(E.img&&$('vPlano').checked){add({x:E.imgX,y:E.imgY});add({x:E.imgX+E.img.width*E.imgM,y:E.imgY+E.img.height*E.imgM});}
+  if(!b){b={x0:0,y0:0,x1:30,y1:20};}
+  const r=cv.getBoundingClientRect(),w=Math.max(b.x1-b.x0,1),h=Math.max(b.y1-b.y0,1),k=Math.min(r.width/w,r.height/h)*0.92;
+  E.vista.k=k;E.vista.x=(r.width-w*k)/2-b.x0*k;E.vista.y=(r.height-h*k)/2-b.y0*k;dibujar();
+}
+function dibujar(){
+  const r=cv.getBoundingClientRect();cx.clearRect(0,0,r.width,r.height);cx.fillStyle='#fff';cx.fillRect(0,0,r.width,r.height);
+  if(E.img&&$('vPlano').checked){const a=aPant({x:E.imgX,y:E.imgY});cx.globalAlpha=$('vOp').value/100;cx.drawImage(E.img,a.x,a.y,E.img.width*E.imgM*E.vista.k,E.img.height*E.imgM*E.vista.k);cx.globalAlpha=1;}
+  // recintos
+  E.recintos.forEach(rc=>{
+    cx.beginPath();rc.poly.forEach((p,i)=>{const q=aPant(p);cx[i?'lineTo':'moveTo'](q.x,q.y);});cx.closePath();
+    cx.fillStyle=(E.sel===rc.id)?'rgba(224,168,0,0.25)':'rgba(27,74,117,0.08)';cx.fill();cx.strokeStyle=(E.sel===rc.id)?COLOR.sel:COLOR.recinto;cx.lineWidth=(E.sel===rc.id)?3:1.6;cx.stroke();
+    const b=bbox(rc.poly),c=aPant({x:b.x0+b.w/2,y:b.y0+b.h/2});cx.fillStyle='#12314f';cx.font='11px Arial';cx.textAlign='center';cx.fillText(rc.nombre,c.x,c.y-14);
+  });
+  const S=+$('vSim').value;
+  // coberturas
+  if($('vCob').checked)E.disp.forEach(d=>{
+    const p=aPant(d);
+    if(d.tipo==='det_humo'||d.tipo==='det_calor'){cx.beginPath();cx.arc(p.x,p.y,d.radio*E.vista.k,0,7);cx.fillStyle=d.tipo==='det_humo'?COLOR.cob:'rgba(192,90,0,0.08)';cx.fill();cx.strokeStyle=d.tipo==='det_humo'?'rgba(30,125,60,.35)':'rgba(192,90,0,.35)';cx.lineWidth=1;cx.stroke();}
+    else if(d.lado&&(d.tipo.indexOf('estrobo')>0)){const l=d.lado*E.vista.k;cx.strokeStyle='rgba(164,35,31,.35)';cx.setLineDash([5,4]);cx.lineWidth=1;
+      if(d.pared)cx.strokeRect(p.x-l/2,p.y-l/2,l,l);else cx.strokeRect(p.x-l/2,p.y-l/2,l,l);cx.setLineDash([]);}
+  });
+  E.disp.forEach(d=>{const p=aPant(d);sim(cx,d.tipo,p.x,p.y,S,{cd:d.cd});});
+  E.marcas.forEach(m=>{const p=aPant(m);sim(cx,m.t==='salida'?'salida':m.t,p.x,p.y,S);});
+  // borrador
+  if(E.borrador.length){cx.strokeStyle='#e0a800';cx.lineWidth=2;cx.beginPath();E.borrador.forEach((p,i)=>{const q=aPant(p);cx[i?'lineTo':'moveTo'](q.x,q.y);});if(E.cursor){const q=aPant(E.cursor);cx.lineTo(q.x,q.y);}cx.stroke();E.borrador.forEach(p=>{const q=aPant(p);cx.fillStyle='#e0a800';cx.fillRect(q.x-3,q.y-3,6,6);});}
+  if(E.calib.length){cx.fillStyle='#d00';E.calib.forEach(p=>{const q=aPant(p);cx.fillRect(q.x-4,q.y-4,8,8);});if(E.calib.length===2){const a=aPant(E.calib[0]),b=aPant(E.calib[1]);cx.strokeStyle='#d00';cx.beginPath();cx.moveTo(a.x,a.y);cx.lineTo(b.x,b.y);cx.stroke();}}
+  // barra de escala 5 m
+  const k=E.vista.k;cx.fillStyle='#111';cx.fillRect(12,r.height-18,5*k,3);cx.font='11px Arial';cx.textAlign='left';cx.fillText('5 m',12,r.height-24);
+}
+function estado(t){$('estado').textContent=t;}
+function herramienta(h){E.herr=h;E.borrador=[];E.calib=[];['tSel','tRec','tRect','tRell','tSal','tFacp','tAhu','tAsc','tBor'].forEach(id=>$(id).classList.toggle('act',id==={sel:'tSel',rec:'tRec',rect:'tRect',rell:'tRell',salida:'tSal',facp:'tFacp',ahu:'tAhu',asc:'tAsc',bor:'tBor'}[h]));
+  const m={sel:'Clic sobre un recinto para seleccionarlo.',rec:'Clic para cada vértice; doble clic o Enter para cerrar; Esc cancela.',rect:'Clic en dos esquinas opuestas del recinto.',rell:'Clic dentro de un recinto del plano: se rellena hasta los muros.',salida:'Clic para colocar una salida.',facp:'Clic para colocar el FACP/recepción.',ahu:'Clic para colocar una manejadora de aire.',asc:'Clic para colocar un vestíbulo de ascensor.',bor:'Clic sobre un recinto o marcador para borrarlo.',cal:'Clic en 2 puntos de distancia conocida.'}[h];estado(m||'');dibujar();}
+function nuevoRecinto(poly,nombre,tipo,h){const id=E.seq++;E.recintos.push({id,nombre:nombre||('Recinto '+id),tipo:tipo||guessTipo(nombre||''),poly,h:h||+$('mAlto').value||2.7,det:'auto',not:'auto',co:false});E.sel=id;propiedades();dibujar();}
+function guessTipo(n){n=n.toLowerCase();if(/corredor|pasillo|hall|corridor/.test(n))return 'corredor';if(/ba[ñn]o|shower|wc|sshh/.test(n))return 'bano';if(/kitchen|cocina/.test(n))return 'cocina';if(/elect|comms|data|tele/.test(n))return 'tecnico';if(/store|bodega|storage/.test(n))return 'bodega';if(/stair|escal/.test(n))return 'escalera';if(/lobby|lounge|recep/.test(n))return 'lobby';return $('mTipo').value||'oficina';}
+function mundoDeEvento(e){const r=cv.getBoundingClientRect();return aMundo(e.clientX-r.left,e.clientY-r.top);}
+function recintoEn(p){for(let i=E.recintos.length-1;i>=0;i--)if(dentro(p,E.recintos[i].poly))return E.recintos[i];return null;}
+let arr=null,espacio=false;
+cv.addEventListener('mousedown',e=>{if(e.button===1||espacio||e.button===2){arr={x:e.clientX,y:e.clientY,vx:E.vista.x,vy:E.vista.y};e.preventDefault();}});
+window.addEventListener('mouseup',()=>{arr=null;});
+window.addEventListener('mousemove',e=>{if(arr){E.vista.x=arr.vx+e.clientX-arr.x;E.vista.y=arr.vy+e.clientY-arr.y;dibujar();}});
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+cv.addEventListener('wheel',e=>{e.preventDefault();const r=cv.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top,w=aMundo(px,py),f=e.deltaY<0?1.15:1/1.15;E.vista.k*=f;E.vista.x=px-w.x*E.vista.k;E.vista.y=py-w.y*E.vista.k;dibujar();},{passive:false});
+window.addEventListener('keydown',e=>{if(e.code==='Space'&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){espacio=true;e.preventDefault();}if(e.key==='Escape'){E.borrador=[];E.calib=[];dibujar();}if(e.key==='Enter'&&E.herr==='rec')cerrarBorrador();});
+window.addEventListener('keyup',e=>{if(e.code==='Space')espacio=false;});
+cv.addEventListener('mousemove',e=>{E.cursor=mundoDeEvento(e);if(E.borrador.length)dibujar();});
+function cerrarBorrador(){if(E.borrador.length>=3&&area(E.borrador)>=AREA_MIN_RECINTO_M2){nuevoRecinto(E.borrador.slice());}E.borrador=[];dibujar();}
+cv.addEventListener('dblclick',e=>{if(E.herr==='rec'){E.borrador.pop();cerrarBorrador();}});
+cv.addEventListener('click',e=>{
+  if(arr||espacio)return;const p=mundoDeEvento(e);
+  if(E.herr==='sel'){const r=recintoEn(p);E.sel=r?r.id:null;propiedades();dibujar();}
+  else if(E.herr==='rec'){E.borrador.push(p);dibujar();}
+  else if(E.herr==='rect'){E.borrador.push(p);if(E.borrador.length===2){const a=E.borrador[0],b=E.borrador[1];nuevoRecinto([{x:a.x,y:a.y},{x:b.x,y:a.y},{x:b.x,y:b.y},{x:a.x,y:b.y}]);E.borrador=[];}dibujar();}
+  else if(E.herr==='rell'){rellenar_clic(p);}
+  else if(['salida','facp','ahu','asc'].includes(E.herr)){E.marcas.push({id:E.seq++,t:E.herr,x:p.x,y:p.y});tablaEquipos();dibujar();}
+  else if(E.herr==='bor'){
+    const mi=E.marcas.findIndex(m=>Math.hypot(m.x-p.x,m.y-p.y)*E.vista.k<14);
+    if(mi>=0){E.marcas.splice(mi,1);tablaEquipos();}
+    else{const r=recintoEn(p);if(r){E.recintos=E.recintos.filter(x=>x!==r);if(E.sel===r.id)E.sel=null;propiedades();}}
+    E.disp=[];E.resultados=[];$('resultados').innerHTML='';dibujar();
+  }
+  else if(E.herr==='cal'){E.calib.push(p);if(E.calib.length===2){const d=Math.hypot(E.calib[1].x-E.calib[0].x,E.calib[1].y-E.calib[0].y);const v=prompt('Distancia real entre los 2 puntos (m):','10');const real=parseFloat(v);if(real>0&&E.img){const f=real/d;E.imgM*=f;E.imgX=E.calib[0].x-(E.calib[0].x-E.imgX)*f;E.imgY=E.calib[0].y-(E.calib[0].y-E.imgY)*f;
+      E.recintos.forEach(r=>r.poly.forEach(q=>{q.x=E.calib[0].x+(q.x-E.calib[0].x)*f;q.y=E.calib[0].y+(q.y-E.calib[0].y)*f;}));ajustarVista();estado('Escala calibrada: '+E.imgM.toFixed(5)+' m/px.');}
+    E.calib=[];herramienta('sel');}dibujar();}
+});
+
+/* --- Relleno por clic sobre el plano (inundación sobre la imagen binarizada) --- */
+function rellenar_clic(pm){
+  if(!E.img){alert('Cargue primero un plano.');return;}
+  const W0=E.img.width,H0=E.img.height,f=Math.min(1,RELLENO_LADO_MAX_PX/Math.max(W0,H0)),W=Math.round(W0*f),H=Math.round(H0*f);
+  const cv2=document.createElement('canvas');cv2.width=W;cv2.height=H;const c2=cv2.getContext('2d',{willReadFrequently:true});c2.drawImage(E.img,0,0,W,H);
+  const d=c2.getImageData(0,0,W,H).data;let muro=new Uint8Array(W*H);
+  for(let i=0;i<W*H;i++){const g=(d[i*4]+d[i*4+1]+d[i*4+2])/3;muro[i]=(d[i*4+3]>10&&g<RELLENO_UMBRAL_GRIS)?1:0;}
+  const rad=Math.round((+$('rellCierre').value||0)*f);
+  if(rad>0)muro=dilatar(muro,W,H,rad);
+  let sx=Math.round((pm.x-E.imgX)/E.imgM*f),sy=Math.round((pm.y-E.imgY)/E.imgM*f);
+  // Si el clic cae sobre una línea o un texto, se busca el píxel libre más cercano (anillos crecientes).
+  if(sx>=0&&sy>=0&&sx<W&&sy<H&&muro[sy*W+sx]){const R=Math.round(RELLENO_BUSQUEDA_PX*f);let hallado=false;
+    for(let rr=1;rr<=R&&!hallado;rr++)for(let dy=-rr;dy<=rr&&!hallado;dy++)for(let dx=-rr;dx<=rr;dx++){if(Math.max(Math.abs(dx),Math.abs(dy))!==rr)continue;
+      const nx=sx+dx,ny=sy+dy;if(nx>=0&&ny>=0&&nx<W&&ny<H&&!muro[ny*W+nx]){sx=nx;sy=ny;hallado=true;break;}}}
+  if(sx<0||sy<0||sx>=W||sy>=H||muro[sy*W+sx]){estado('El clic cayó sobre un muro/línea; haga clic en un espacio libre del recinto.');return;}
+  const vis=new Uint8Array(W*H),pila=[sy*W+sx];vis[sy*W+sx]=1;let n=0;const lim=W*H*RELLENO_MAX_FRACCION;
+  while(pila.length){const i=pila.pop();n++;if(n>lim){estado('El relleno se escapó (puerta abierta o recinto demasiado grande). Aumente «cierre de huecos» o use «Dibujar recinto».');return;}
+    const x=i%W,y=(i/W)|0;
+    if(x>0&&!vis[i-1]&&!muro[i-1]){vis[i-1]=1;pila.push(i-1);}if(x<W-1&&!vis[i+1]&&!muro[i+1]){vis[i+1]=1;pila.push(i+1);}
+    if(y>0&&!vis[i-W]&&!muro[i-W]){vis[i-W]=1;pila.push(i-W);}if(y<H-1&&!vis[i+W]&&!muro[i+W]){vis[i+W]=1;pila.push(i+W);}}
+  const cont=contorno(vis,W,H,sx,sy);if(!cont||cont.length<3){estado('No se pudo trazar el contorno.');return;}
+  const s=rdp(cont,RELLENO_SIMPL_PX*f);
+  const poly=s.map(p=>({x:E.imgX+p.x/f*E.imgM,y:E.imgY+p.y/f*E.imgM}));
+  if(area(poly)<AREA_MIN_RECINTO_M2){estado('Área demasiado pequeña.');return;}
+  nuevoRecinto(poly);estado('Recinto creado ('+area(poly).toFixed(1)+' m²). Revise nombre y tipo a la izquierda.');
+}
+function dilatar(m,W,H,r){const t=new Uint8Array(W*H),o=new Uint8Array(W*H);
+  for(let y=0;y<H;y++){let c=0;for(let x=0;x<W+r;x++){if(x<W&&m[y*W+x])c++;if(x-2*r-1>=0&&m[y*W+x-2*r-1])c--;const xc=x-r;if(xc>=0&&xc<W)t[y*W+xc]=c>0?1:0;}}
+  for(let x=0;x<W;x++){let c=0;for(let y=0;y<H+r;y++){if(y<H&&t[y*W+x])c++;if(y-2*r-1>=0&&t[(y-2*r-1)*W+x])c--;const yc=y-r;if(yc>=0&&yc<H)o[yc*W+x]=c>0?1:0;}}
+  return o;}
+// Trazado de contorno (Moore) del conjunto rellenado, comenzando por el borde izquierdo en la fila de inicio.
+function contorno(v,W,H,sx,sy){let x=sx;while(x>0&&v[sy*W+x-1])x--;const x0=x,y0=sy;
+  const dx=[1,1,0,-1,-1,-1,0,1],dy=[0,1,1,1,0,-1,-1,-1];let cx_=x0,cy_=y0,dir=6,pts=[],guard=0;
+  const val=(a,b)=>(a>=0&&b>=0&&a<W&&b<H&&v[b*W+a]);
+  do{pts.push({x:cx_,y:cy_});let found=false;
+    for(let k=0;k<8;k++){const nd=(dir+6+k)%8,nx=cx_+dx[nd],ny=cy_+dy[nd];if(val(nx,ny)){cx_=nx;cy_=ny;dir=nd;found=true;break;}}
+    if(!found)break;guard++;}while((cx_!==x0||cy_!==y0)&&guard<W*H);
+  return pts;}
+function rdp(p,e){if(p.length<3)return p;let m=0,idx=0;const a=p[0],b=p[p.length-1];
+  for(let i=1;i<p.length-1;i++){const d=distSeg(p[i],a,b).d;if(d>m){m=d;idx=i;}}
+  if(m>e)return rdp(p.slice(0,idx+1),e).slice(0,-1).concat(rdp(p.slice(idx),e));return [a,b];}
+
+/* --- Cargar plano --- */
+$('btnPlano').onclick=()=>$('filePlano').click();
+$('filePlano').onchange=async ev=>{const f=ev.target.files[0];if(!f)return;E.imgNombre=f.name;
+  if(/\.pdf$/i.test(f.name)){await cargarPDF(f);}else{const url=URL.createObjectURL(f);const im=new Image();im.onload=()=>{ponerImagen(im);};im.src=url;}};
+function ponerImagen(im){E.img=im;E.imgX=0;E.imgY=0;aplicarEscala();ajustarVista();estado('Plano cargado ('+im.width+'×'+im.height+' px). Verifique la escala con «Calibrar con 2 puntos» sobre una cota conocida.');}
+function aplicarEscala(){if(!E.img)return;const N=+$('escN').value,dpi=+$('escDpi').value;if(N>0&&dpi>0)E.imgM=0.0254/dpi*N;ajustarVista();}
+$('btnEscalaAuto').onclick=aplicarEscala;
+$('btnCalibrar').onclick=()=>{if(!E.img){alert('Cargue un plano.');return;}herramienta('cal');};
+// PDF: solo con pdf.js local opcional (sin CDN). Mejor esfuerzo, no probado en esta versión.
+function cargarPDF(f){return new Promise(res=>{
+  const hacer=async()=>{try{const lib=window.pdfjsLib;lib.GlobalWorkerOptions.workerSrc='pdfjs/pdf.worker.min.js';const buf=await f.arrayBuffer();const doc=await lib.getDocument({data:buf}).promise;const pg=await doc.getPage(1);
+      const vp=pg.getViewport({scale:1});const esc=Math.min(2,RELLENO_LADO_MAX_PX/Math.max(vp.width,vp.height));const v2=pg.getViewport({scale:esc});const c=document.createElement('canvas');c.width=v2.width;c.height=v2.height;await pg.render({canvasContext:c.getContext('2d'),viewport:v2}).promise;
+      const im=new Image();im.onload=()=>{$('escDpi').value=Math.round(72*esc);ponerImagen(im);res();};im.src=c.toDataURL('image/png');}catch(err){alert('No se pudo leer el PDF: '+err.message);res();}};
+  if(window.pdfjsLib)return hacer();
+  const s=document.createElement('script');s.src='pdfjs/pdf.min.js';s.onload=hacer;s.onerror=()=>{alert('Para abrir PDF coloque pdf.js (pdf.min.js y pdf.worker.min.js) en la carpeta «pdfjs» junto a este archivo, o exporte la hoja a PNG/JPG y cárguela como imagen. Esta herramienta no usa CDN ni internet.');res();};document.head.appendChild(s);});}
+
+/* ==========================================================================
+   PANELES: propiedades de recinto, equipos, estándar, requisitos
+   ========================================================================== */
+function opcionesTipos(sel){return Object.keys(TIPOS).map(k=>'<option value="'+k+'"'+(k===sel?' selected':'')+'>'+TIPOS[k].n+'</option>').join('');}
+function propiedades(){
+  const r=E.recintos.find(x=>x.id===E.sel);
+  if(!r){$('propRec').innerHTML='<small class="g">Seleccione un recinto en el lienzo.</small>';return;}
+  const b=bbox(r.poly);
+  $('propRec').innerHTML='<label>Nombre</label><input type="text" id="rNom" value="'+esc(r.nombre)+'">'+
+   '<label>Tipo</label><select id="rTipo">'+opcionesTipos(r.tipo)+'</select>'+
+   '<div class="f2"><div><label>Altura de cielo (m)</label><input type="number" id="rAlt" value="'+r.h+'" step="0.1"></div>'+
+   '<div><label>Detección</label><select id="rDet"><option value="auto">Según tipo</option><option value="humo">Humo</option><option value="calor">Calor</option><option value="ninguno">Ninguna</option></select></div>'+
+   '<div><label>Notificación</label><select id="rNot"><option value="auto">Según tipo</option><option value="si">Sí</option><option value="no">No</option></select></div>'+
+   '<div><label>CO</label><select id="rCo"><option value="0">Según tipo</option><option value="1">Forzar</option></select></div></div>'+
+   '<small class="g">'+area(r.poly).toFixed(1)+' m² · caja '+b.w.toFixed(1)+'×'+b.h.toFixed(1)+' m</small>';
+  $('rDet').value=r.det;$('rNot').value=r.not;$('rCo').value=r.co?'1':'0';
+  const g=()=>{r.nombre=$('rNom').value;r.tipo=$('rTipo').value;r.h=+$('rAlt').value||2.7;r.det=$('rDet').value;r.not=$('rNot').value;r.co=$('rCo').value==='1';dibujar();};
+  ['rNom','rTipo','rAlt','rDet','rNot','rCo'].forEach(i=>$(i).onchange=g);
+}
+function tablaEquipos(){
+  const mA=E.marcas.filter(m=>m.t==='ahu').length,mS=E.marcas.filter(m=>m.t==='asc').length;
+  $('equiposTabla').innerHTML='<table><tr><th>Equipo</th><th>Cant.</th><th>M</th><th>C</th></tr>'+EQUIPOS.map(q=>{
+    const auto=q[0]==='AHU'?mA:(q[0]==='ASC'?mS:0);
+    return '<tr><td>'+q[1]+(auto?' <small class="g">(+'+auto+' en plano)</small>':'')+'</td><td><input type="number" min="0" style="width:60px" data-eq="'+q[0]+'" value="'+(E.eqCant[q[0]]||0)+'"></td><td>'+q[2]+'</td><td>'+q[3]+'</td></tr>';}).join('')+'</table>';
+  document.querySelectorAll('[data-eq]').forEach(i=>i.onchange=()=>{E.eqCant[i.dataset.eq]=+i.value||0;if(E.resultados.length)mostrarResultados();});
+}
+function infoCadena(){
+  const c=cadenaActual();
+  $('cadenaInfo').innerHTML=c.reglas&&c.reglas.length?'<table><tr><th>ID</th><th>Regla</th><th>Referencia</th></tr>'+c.reglas.map(r=>'<tr><td>'+esc(r.id||'')+'</td><td>'+esc(r.regla||'')+'</td><td>'+esc(r.ref||'')+'</td></tr>').join('')+'</table>'+
+   bloque(['Reglas condensadas de la «Guía de diseño — Detección y alarma, Hoteles» de Sinergia; el motor aplica los parámetros: '+JSON.stringify(c.parametros)+'.'],['Las reglas no listadas aquí (voz, matriz causa-efecto, documentación) no afectan la ubicación y deben revisarse en la guía completa.','Origen: estándares de la cadena (Hyatt FLS Q1 2024, Marriott Módulo 14) y revisiones de proyecto; verifique la versión vigente con la cadena.']):'<small class="g">Sin reglas de cadena: solo se aplican NFPA 72 / NFPA 101 / Manual.</small>';
+}
+function csvAReglas(t){const L=t.split(/\r?\n/).filter(x=>x.trim());const sep=L[0].includes(';')?';':',';const cols=L.shift().split(sep).map(s=>s.trim().toLowerCase());
+  return L.map(l=>{const v=l.split(sep);const o={};cols.forEach((c,i)=>o[c]=(v[i]||'').trim());return{id:o.id||'',tema:o.tema||'',regla:o.regla||o['regla de diseño']||'',ref:o.referencia||o.ref||''};});}
+$('btnImpEst').onclick=()=>$('fileEst').click();
+$('fileEst').onchange=ev=>{const f=ev.target.files[0];if(!f)return;const fr=new FileReader();fr.onload=()=>{try{let c;
+  if(/\.csv$/i.test(f.name))c={nombre:f.name.replace(/\.csv$/i,''),parametros:{},reglas:csvAReglas(fr.result)};else c=JSON.parse(fr.result);
+  c.parametros=c.parametros||{};c.reglas=c.reglas||[];E.cadenaCustom=c;E.chain='custom';
+  let o=$('cadena').querySelector('option[value=custom]');if(!o){o=document.createElement('option');o.value='custom';$('cadena').appendChild(o);}o.textContent='Cargado: '+(c.nombre||f.name);$('cadena').value='custom';infoCadena();}catch(e){alert('Archivo de estándar inválido: '+e.message);}};fr.readAsText(f);};
+$('btnExpEst').onclick=()=>descargar('plantilla_estandar_cadena.json',JSON.stringify({nombre:'Nueva cadena',parametros:{estroboTodos:true,dormirCd:177,banoDormirCd:15,dbaMin:75,co:true,humoVestAsc:true,pulsadorRecepcion:true,sinHumoHumedo:true,oficina1SinNot:false,corredorCd:15},reglas:[{id:'D-01',tema:'Tema',regla:'Texto de la regla',ref:'Estándar, sección'}]},null,2),'application/json');
+$('cadena').onchange=()=>{E.chain=$('cadena').value;infoCadena();};
+$('btnDict').onclick=()=>{$('dictamen').innerHTML=dictamen();};
+
+/* ==========================================================================
+   ARCHIVOS: borrador, PNG, CSV, informe
+   ========================================================================== */
+function descargar(n,t,m){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:m||'text/plain'}));a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);}
+function recopilar(){
+  const o={version:1,proyecto:{nombre:$('pNombre').value,ed72:$('ed72').value,ed101:$('ed101').value,ocup:$('ocup').value,niveles:$('pNiveles').value,alt:$('pAlt').value,reunion:$('pReunion').value,hab:$('pHab').value,cob:$('cobDet').value},
+   cadena:E.chain,cadenaCustom:E.cadenaCustom,
+   parametros:{espH:$('pEspH').value,espC:$('pEspC').value,cdMax:$('pCdMax').value,dba:$('pDba').value,aud:$('pAud').value,facRec:$('pFacRec').value,iso:$('pIso').value,co:$('pCO').value},
+   recintos:E.recintos,marcas:E.marcas,disp:E.disp,eqCant:E.eqCant,seq:E.seq,
+   plano:{nombre:E.imgNombre,m:E.imgM,x:E.imgX,y:E.imgY},vista:E.vista};
+  if($('chkImg').checked&&E.img){const c=document.createElement('canvas');c.width=E.img.width;c.height=E.img.height;c.getContext('2d').drawImage(E.img,0,0);o.plano.dataUrl=c.toDataURL('image/png');}
+  return o;
+}
+function aplicar(o){
+  const p=o.proyecto||{};$('pNombre').value=p.nombre||'';['ed72','ed101','ocup'].forEach(k=>{if(p[k])$(k).value=p[k];});$('pNiveles').value=p.niveles||1;$('pAlt').value=p.alt||4;$('pReunion').value=p.reunion||0;$('pHab').value=p.hab||0;if(p.cob)$('cobDet').value=p.cob;
+  E.cadenaCustom=o.cadenaCustom||null;E.chain=o.cadena||'ninguna';if(E.chain==='custom'&&E.cadenaCustom){let op=$('cadena').querySelector('option[value=custom]');if(!op){op=document.createElement('option');op.value='custom';$('cadena').appendChild(op);}op.textContent='Cargado: '+(E.cadenaCustom.nombre||'');}
+  $('cadena').value=E.chain;infoCadena();
+  const q=o.parametros||{};[['espH','pEspH'],['espC','pEspC'],['cdMax','pCdMax'],['dba','pDba'],['aud','pAud'],['facRec','pFacRec'],['iso','pIso'],['co','pCO']].forEach(([a,b])=>{if(q[a]!=null)$(b).value=q[a];});
+  E.recintos=o.recintos||[];E.marcas=o.marcas||[];E.disp=o.disp||[];E.eqCant=o.eqCant||{};E.seq=o.seq||1;E.resultados=[];$('resultados').innerHTML='';
+  if(o.plano){E.imgNombre=o.plano.nombre||'';E.imgM=o.plano.m||0;E.imgX=o.plano.x||0;E.imgY=o.plano.y||0;if(o.plano.dataUrl){const im=new Image();im.onload=()=>{E.img=im;dibujar();};im.src=o.plano.dataUrl;}else if(o.plano.nombre)estado('El borrador no incluye la imagen del plano ('+o.plano.nombre+'): vuelva a cargarla y use «Aplicar escala» o calibre; las posiciones se conservan.');}
+  tablaEquipos();propiedades();if(o.vista)E.vista=o.vista;dibujar();
+}
+$('btnGuardar').onclick=()=>descargar('prediseno_alarmas_'+($('pNombre').value||'proyecto').replace(/\W+/g,'_')+'.json',JSON.stringify(recopilar()),'application/json');
+$('btnAbrir').onclick=()=>$('fileBorr').click();
+$('fileBorr').onchange=ev=>{const f=ev.target.files[0];if(!f)return;const fr=new FileReader();fr.onload=()=>{try{aplicar(JSON.parse(fr.result));if(E.disp.length&&E.recintos.length){const o=opciones();}}catch(e){alert('Borrador inválido: '+e.message);}};fr.readAsText(f);};
+$('btnPNG').onclick=()=>{const a=document.createElement('a');a.href=cv.toDataURL('image/png');a.download='plano_alarmas.png';a.click();};
+$('btnCSV').onclick=()=>{const L=['id;tipo;descripcion;recinto;x_m;y_m;cd;nota'];E.disp.forEach(d=>L.push([d.id,d.tipo,ROT[d.tipo]||d.tipo,d.sala||'',d.x.toFixed(2),d.y.toFixed(2),d.cd||'',d.nota||''].join(';')));descargar('dispositivos.csv','﻿'+L.join('\n'),'text/csv');};
+$('btnInforme').onclick=()=>{
+  if(!E.resultados.length){alert('Genere el prediseño primero.');return;}
+  const o=opciones(),png=cv.toDataURL('image/png'),ed72=$('ed72').value,ed101=$('ed101').value;
+  const leyenda=['det_humo','det_calor','det_co','det_ducto','pulsador','bocina_estrobo','bocina_estrobo_cielo','parl_estrobo','bocina','parlante'].map(t=>{const c=document.createElement('canvas');c.width=60;c.height=60;const g=c.getContext('2d');sim(g,t,30,34,14,{});return '<tr><td><img src="'+c.toDataURL()+'"></td><td>'+ROT[t]+'</td></tr>';}).join('');
+  const w=window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Informe de prediseño</title><style>body{font-family:Arial;font-size:11px;margin:18px}h1{font-size:16px}h2{font-size:13px;border-bottom:2px solid #1b4a75}table{border-collapse:collapse;width:100%}td,th{border:1px solid #bbb;padding:3px 5px;text-align:left}.nota{background:#fff4e0;border:1px solid #e0b768;padding:5px 8px;margin:6px 0}img.p{width:100%}</style></head><body>'+
+   '<h1>Prediseño de ubicación de dispositivos de alarma contra incendio</h1><p><b>Proyecto:</b> '+esc($('pNombre').value)+' · NFPA 72:'+ed72+' · NFPA 101:'+ed101+' · Estándar: '+esc(cadenaActual().nombre)+' · '+new Date().toLocaleDateString('es-CR')+'</p>'+
+   '<p class="nota"><b>Naturaleza del documento:</b> prediseño para coordinación entre ingeniero y modelador, con símbolos NFPA 170:2018. No sustituye el diseño firmado ni la revisión de la AHJ. Las citas verificadas lo fueron contra NFPA 72:2022 y NFPA 101:2015; cualquier otra edición debe confirmarse en la copia oficial.</p>'+
+   '<h2>Plano con dispositivos</h2><img class="p" src="'+png+'"><h2>Leyenda (NFPA 170:2018 Tablas 8.3 y 8.4.2)</h2><table>'+leyenda+'</table>'+
+   '<h2>Requisitos obligatorios</h2>'+dictamen()+'<h2>Resultados</h2>'+$('resultados').innerHTML+'</body></html>');
+  w.document.close();setTimeout(()=>w.print(),600);
+};
+
+/* ==========================================================================
+   MODO B: crear recinto con dimensiones
+   ========================================================================== */
+$('btnCrear').onclick=()=>{
+  const w=+$('mAncho').value,h=+$('mFondo').value,alt=+$('mAlto').value;if(!(w>0&&h>0)){alert('Dimensiones inválidas.');return;}
+  // El recinto nuevo se coloca a la derecha del último para no solaparse.
+  let x0=0;E.recintos.forEach(r=>{x0=Math.max(x0,bbox(r.poly).x1+2);});
+  const poly=[{x:x0,y:0},{x:x0+w,y:0},{x:x0+w,y:h},{x:x0,y:h}];
+  nuevoRecinto(poly,$('mNombre').value,$('mTipo').value,alt);
+  const pu=$('mPuerta').value;if(pu){const m={S:{x:x0+w/2,y:h},N:{x:x0+w/2,y:0},E:{x:x0+w,y:h/2},O:{x:x0,y:h/2}}[pu];E.marcas.push({id:E.seq++,t:'salida',x:m.x,y:m.y});tablaEquipos();}
+  $('mNombre').value='Recinto '+(E.recintos.length+1);ajustarVista();
+};
+
+/* ==========================================================================
+   ARRANQUE
+   ========================================================================== */
+function iniciar(){
+  $('ed72').innerHTML=EDICIONES_72.map(e=>'<option'+(e==='2022'?' selected':'')+'>'+e+'</option>').join('');
+  $('ed101').innerHTML=EDICIONES_101.map(e=>'<option'+(e==='2015'?' selected':'')+'>'+e+'</option>').join('');
+  $('ocup').innerHTML=OCUPACIONES.map(o=>'<option value="'+o.id+'">'+o.n+'</option>').join('');
+  $('cadena').innerHTML=Object.keys(CADENAS).map(k=>'<option value="'+k+'">'+CADENAS[k].nombre+'</option>').join('');
+  $('mTipo').innerHTML=opcionesTipos('oficina');
+  $('pCdMax').innerHTML=CATALOGO_CD.map(c=>'<option'+(c===75?' selected':'')+'>'+c+'</option>').join('');
+  $('pEspH').value=ESP_HUMO_M;$('pEspC').value=ESP_CALOR_M;$('pDba').value=BOCINA_DBA_3M;$('pFacRec').value=FACTOR_RECORRIDO_REAL;$('pIso').value=AISLADOR_CADA_N;
+  $('pAud').onchange=()=>{$('pDba').value=$('pAud').value==='parlante'?PARLANTE_DBA_3M:BOCINA_DBA_3M;};
+  $('btnGenerar').onclick=generar;
+  $('btnLimpiar').onclick=()=>{E.disp=[];E.resultados=[];$('resultados').innerHTML='';dibujar();};
+  [['tSel','sel'],['tRec','rec'],['tRect','rect'],['tRell','rell'],['tSal','salida'],['tFacp','facp'],['tAhu','ahu'],['tAsc','asc'],['tBor','bor']].forEach(([i,h])=>$(i).onclick=()=>herramienta(h));
+  $('tAjustar').onclick=ajustarVista;
+  ['vCob','vPlano','vOp','vSim'].forEach(i=>$(i).oninput=dibujar);
+  $('btnDict').click();infoCadena();tablaEquipos();
+  window.addEventListener('resize',ajustarLienzo);ajustarLienzo();ajustarVista();
+}
+iniciar();
+</script>
+</body>
+</html>
