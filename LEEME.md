@@ -98,3 +98,10 @@ Un recinto cuyo contorno cae por completo dentro de otro se trata como subrecint
 ## Leyenda de nivel sonoro y alerta de dispositivos encimados
 - La leyenda del nivel sonoro es un panel plegable encima del lienzo (no tapa la planta). Con la casilla «Mostrar también sobre el plano» se dibuja sobre el plano, en la esquina que se elija, para exportar la imagen.
 - Dispositivos a menos de 0.5 m uno de otro (o en el mismo punto) se marcan con un círculo rojo discontinuo, aparece una alerta arriba de Resultados con la lista de pares y la barra de estado avisa al generar, mover o agregar.
+
+## Precableado (módulo 3)
+- Parte de los dispositivos y del panel (marcador «+ FACP/recepción») ya colocados. Genera lazos SLC (detectores, pulsadores y módulos de los bloques de equipo) y circuitos NAC (estrobos, bocinas, parlantes) recorriendo siempre al dispositivo más cercano desde el panel, con recorrido ortogonal, y cierra cada circuito cuando se incumple el límite (dispositivos máx. por lazo SLC, I máx. NAC 2.4 A o tensión mínima).
+- Clase A (con retorno, anillo completo como peor caso) o B (un recorrido) y cable (catálogo de la memoria) para SLC y para NAC; se pueden cambiar por circuito en la tabla y se recalcula al instante.
+- Fórmulas de la memoria de cálculo de alarmas (Calc.circuito): R lazo = 2·L/1000·Ω/km; caída = I·R; V disponible = V nominal ×  0.000000in de vida − caída (por defecto 24 V × 85 % = 20.4 V; mínimo 16 V). Corrientes en alarma del catálogo Simplex de la memoria.
+- Se ve en el plano con la capa «Precableado» (línea continua = ida, discontinua = retorno clase A). Exporta CSV (circuito, clase, cable, longitud, corriente, caída, estado, dispositivos). Entra en deshacer y en el borrador .json.
+- No sigue canalizaciones ni evita obstáculos; el límite de dispositivos del lazo depende del panel (verificar la ficha). La integración directa con la memoria de cálculo (baterías y caída por circuito) queda pendiente.

@@ -141,7 +141,8 @@
   <nav class="tabs-cm" id="tabs" role="tablist">
    <button class="seccion activa" data-mod="mod1" role="tab">1 · Proyecto y criterios de diseño</button>
    <button class="seccion" data-mod="mod2" role="tab">2 · Ejecución</button>
-   <button class="seccion" data-mod="mod3" role="tab">3 · Glosario de simbología</button>
+   <button class="seccion" data-mod="mod4" role="tab">3 · Precableado</button>
+   <button class="seccion" data-mod="mod3" role="tab">4 · Glosario de simbología</button>
   </nav>
 <div id="mod1" class="modulo">
 <div class="cols2">
@@ -288,6 +289,7 @@
    <label style="margin:0"><input type="checkbox" id="vCobDet" checked style="width:auto"> Detectores</label>
    <label style="margin:0"><input type="checkbox" id="vCobVis" style="width:auto"> Notificación visual</label>
    <label style="margin:0"><input type="checkbox" id="vCobAud" style="width:auto"> Notificación auditiva</label>
+   <label style="margin:0" title="Muestra el precableado generado: lazos SLC y circuitos NAC desde el panel"><input type="checkbox" id="vCable" style="width:auto" checked> Precableado</label>
    <label style="margin:0" title="Dibuja a la par de cada equipo los módulos que pide la matriz (uno por señal), para replicarlos en el modelo"><input type="checkbox" id="vModulos" style="width:auto" checked> Módulos junto a equipos</label>
    <label style="margin:0" title="Muestra, junto a cada equipo del plano, los dispositivos que pide la matriz de supervisión"><input type="checkbox" id="vNotas" style="width:auto" checked> Notas de equipos</label>
    <label style="margin:0" title="Al dibujar recintos, el cursor se engancha a las esquinas y muros del plano. Mantenga Alt para desactivarlo temporalmente"><input type="checkbox" id="vSnap" style="width:auto" checked> Imán a esquinas y muros</label>
@@ -307,6 +309,42 @@
 </div>
 </div>
 
+<div id="mod4" class="modulo" style="display:none">
+<div class="cols2">
+<div>
+<section class="card"><h2>Parámetros del precableado</h2>
+ <small class="g">Parte de los dispositivos y del panel (FACP) ya colocados en el módulo 2. Fórmulas de la memoria de cálculo de alarmas: resistencia de lazo = 2 · L / 1000 · Ω/km; caída = I · R; tensión disponible = tensión de fuente a fin de vida de la batería − caída.</small>
+ <label>Panel (FACP) del que salen los circuitos</label><select id="cabPanel"></select>
+ <div class="f2">
+  <div><label>Clase del lazo SLC</label><select id="cabClaseSLC"><option value="B">Clase B (un solo recorrido)</option><option value="A">Clase A (con retorno)</option></select></div>
+  <div><label>Clase de los circuitos NAC</label><select id="cabClaseNAC"><option value="B">Clase B (un solo recorrido)</option><option value="A">Clase A (con retorno)</option></select></div>
+  <div><label>Cable SLC</label><select id="cabCableSLC"></select></div>
+  <div><label>Cable NAC</label><select id="cabCableNAC"></select></div>
+  <div><label>Tensión nominal (V)</label><input type="number" id="cabVnom" value="24" step="0.5"></div>
+  <div><label>Fuente a fin de vida de batería (%)</label><input type="number" id="cabPct" value="85" min="50" max="100"></div>
+  <div><label>Tensión mínima del dispositivo (V)</label><input type="number" id="cabVmin" value="16" step="0.5"></div>
+  <div><label>Corriente máx. NAC (A)</label><input type="number" id="cabImax" value="2.4" step="0.1"></div>
+  <div><label>Holgura de cable (%)</label><input type="number" id="cabHolg" value="10" min="0"></div>
+  <div><label>Subida/bajada por tendido (m)</label><input type="number" id="cabSubida" value="2.5" step="0.5" min="0"></div>
+  <div><label>Dispositivos máx. por lazo SLC</label><input type="number" id="cabMaxSLC" value="150" min="1"></div>
+ </div>
+ <button class="gran" id="btnCabGenerar">▶ Generar precableado</button>
+ <button class="sec" id="btnCabQuitar">Quitar precableado</button>
+ <button class="sec" id="btnCabVer">Ver en el plano</button>
+ <button class="sec" id="btnCabCSV">Exportar circuitos (CSV)</button>
+ <div class="nota"><b>Supuestos y limitaciones (precableado):</b><ul>
+  <li>Valores de la memoria de cálculo (Calc.PARAMS_DEF): 24 V nominales, fuente al 85 % a fin de vida de batería (20.4 V), tensión mínima del dispositivo 16 V (UL 1971/464) y 2.4 A máximos por NAC (80 % de 3 A). Cables y Ω/km del catálogo de la memoria (BD_CABLES).</li>
+  <li>Carga concentrada al final del circuito (conservador), como en la memoria. Corrientes en alarma del catálogo Simplex de la memoria; los estrobos solo visuales, las bocinas y los parlantes usan valores aproximados: verifique la ficha del equipo real.</li>
+  <li>Recorrido ortogonal (distancia Manhattan) entre dispositivos, ordenado por cercanía desde el panel, más holgura y subida/bajada; no sigue bandejas ni canalizaciones reales ni evita obstáculos. Clase B: un recorrido de ida (R = 2·L). Clase A: el circuito regresa al panel y se toma el anillo completo como peor caso (apertura junto al panel).</li>
+  <li>El corte de lazos por cantidad máxima y por caída es un criterio de prediseño; el límite real de dispositivos y de longitud depende del panel (verifique la ficha). No incluye baterías ni fuentes auxiliares (memoria de cálculo).</li>
+ </ul></div>
+</section>
+</div>
+<div>
+<section class="card"><h2>Circuitos de precableado</h2><div id="cabResultados"><small class="g">Coloque dispositivos y un panel (FACP) en el módulo 2 y pulse «Generar precableado».</small></div></section>
+</div>
+</div>
+</div>
 <div id="mod3" class="modulo" style="display:none">
 <section class="card"><h2>Glosario de simbología</h2>
  <p>Símbolos que dibuja la herramienta en el plano. Las imágenes son las mismas que aparecen en el lienzo y en el informe.</p>
@@ -1413,7 +1451,7 @@ function ajustarVista(){
 // Máximo de pasos que se pueden deshacer (CRITERIO de memoria).
 const UNDO_MAX = 60;
 const U = {pila:[],rehacer:[],actual:null,t:0,bloqueado:false};
-function estadoSerial(){return JSON.stringify({r:E.recintos,m:E.marcas,d:E.disp,q:E.eqCant,s:E.seq});}
+function estadoSerial(){return JSON.stringify({r:E.recintos,m:E.marcas,d:E.disp,q:E.eqCant,s:E.seq,c:E.cableado||null});}
 function actualizarBotonesUndo(){const a=$('btnUndo'),b=$('btnRedo');if(a)a.disabled=!U.pila.length;if(b)b.disabled=!U.rehacer.length;}
 function confirmarCambio(){
   if(U.bloqueado)return;const n=estadoSerial();
@@ -1423,7 +1461,7 @@ function confirmarCambio(){
 function programarConfirmar(){clearTimeout(U.t);U.t=setTimeout(confirmarCambio,0);}   // después de que corran los manejadores del evento
 function restaurarEstado(ser){
   const o=JSON.parse(ser);U.bloqueado=true;
-  E.recintos=o.r;E.marcas=o.m;E.disp=o.d;E.eqCant=o.q;E.seq=o.s;
+  E.recintos=o.r;E.marcas=o.m;E.disp=o.d;E.eqCant=o.q;E.seq=o.s;E.cableado=o.c||null;
   if(!E.recintos.some(r=>r.id===E.sel))E.sel=null;E.edit=null;E.pegando=null;E.borrador=[];E.moverDisp=null;E.moverMarca=null;E._spl=null;
   const dsel=E.selDev;reconstruirResultados();if(E.disp.some(d=>d.id===dsel))E.selDev=dsel;
   tablaEquipos();propiedades();propiedadesDisp();dibujar();
@@ -1469,6 +1507,7 @@ function dibujar(){
     if(verAud&&/bocina|parl/.test(d.tipo)&&d.radio)dibujarAudible(d,p,recorta);
   });
   if($('vSPL').checked){dibujarSPL();leyendaSPL();}else if($('leyendaSPL'))$('leyendaSPL').style.display='none';
+  if($('vCable')&&$('vCable').checked&&E.cableado)dibujarCableado();
   E.disp.forEach(d=>{const p=aPant(d);if(d.giro){cx.save();cx.translate(p.x,p.y);cx.rotate(d.giro*Math.PI/180);sim(cx,d.tipo,0,0,S,{cd:d.cd});cx.restore();}else sim(cx,d.tipo,p.x,p.y,S,{cd:d.cd});if(d.manual){cx.beginPath();cx.arc(p.x,p.y,S*1.15,0,7);cx.strokeStyle='rgba(224,168,0,.9)';cx.lineWidth=2;cx.setLineDash([3,3]);cx.stroke();cx.setLineDash([]);}
     if(d.id===E.selDev){cx.beginPath();cx.arc(p.x,p.y,S*1.45,0,7);cx.strokeStyle='#0a5ad4';cx.lineWidth=2.5;cx.stroke();}});
   {const sol=solapes();if(sol.en.size){cx.save();cx.setLineDash([4,3]);cx.strokeStyle='#d6281c';cx.lineWidth=2.2;sol.en.forEach(d=>{const p=aPant(d);cx.beginPath();cx.arc(p.x,p.y,S*1.6,0,7);cx.stroke();});cx.restore();}}
@@ -1590,6 +1629,134 @@ function dibujarMarca(m,p,S){
 // Bloque (salida, FACP, equipo) bajo el cursor.
 function marcaEn(p,tolPx){const k=E.vista.k,t=Math.max(tolPx||HIT_PX,+$('vSim').value*1.2);let r=null,dm=1e18;
   E.marcas.forEach(m=>{const d=Math.hypot(m.x-p.x,m.y-p.y)*k;if(d<=t&&d<dm){dm=d;r=m;}});return r;}
+/* ==========================================================================
+   PRECABLEADO: lazos SLC y circuitos NAC desde el panel (FACP) hasta los dispositivos, clase A o B, con caída de tensión.
+   Fórmulas de la memoria de cálculo de alarmas (deteccion/js/calc.js, Calc.circuito): R lazo = 2·L/1000·Ω/km; caída = I·R;
+   V disponible = V fuente a fin de vida − caída; OK si V disponible ≥ V mínima y, en NAC, I ≤ I máx.
+   ========================================================================== */
+// Cables del catálogo de la memoria (deteccion/js/catalogo-base.js, BD_CABLES): [id, fabricante, modelo, AWG, Ω/km por conductor, uso]
+const CABLES = [['c01','BELDEN','5020UL',12,5.2,'NAC alta corriente'],['c02','BELDEN','5120UL',14,8.4,'NAC'],['c03','BELDEN','5220UL',16,13.5,'SLC / IDC / NAC / 24VDC'],
+  ['c04','BELDEN','5320UL',18,21,'SLC corto'],['c07','BELDEN','9575',16,13.5,'SLC'],['c08','WEST PENN','AQ225',16,13.5,'Exteriores SLC/NAC/24VDC (húmedo)'],
+  ['c10','GENÉRICO','THHN-12',12,5.21,'NAC (tabla NEC Cap. 9 T. 8)'],['c11','GENÉRICO','THHN-14',14,8.28,'NAC'],['c12','GENÉRICO','THHN-16',16,13.17,'SLC/NAC'],['c13','GENÉRICO','THHN-18',18,20.95,'SLC']];
+// Corriente en alarma (mA) del catálogo Simplex de la memoria: SLC por tipo; NAC por tipo y candelas [[cd, mA]…] (se toma la primera fila con cd ≥ el del aparato).
+const PRE_I_SLC_MA = {det_humo:1,det_calor:1,det_ducto:1,det_co:1,pulsador:1,modulo_mon:1,modulo_ctl:5,aislador:0.5};
+const PRE_I_NAC_MA = {bocina_estrobo:[[15,74],[30,84],[75,140],[110,185]],bocina_estrobo_cielo:[[15,67],[30,95],[75,187],[110,248]],
+  parl_estrobo:[[15,59],[30,67],[75,107],[110,139],[135,166]],parl_estrobo_cielo:[[15,59],[30,67],[75,107]],
+  estrobo:[[15,59],[30,67],[75,107],[110,139],[135,166]],estrobo_cielo:[[15,59],[30,67],[75,107]],bocina:[[15,74]],parlante:[[15,10]]};
+// Tipos cuya corriente es aproximada (no hay ficha equivalente en la memoria): estrobo solo visual, bocina y parlante solos.
+const PRE_APROX = ['estrobo','estrobo_cielo','bocina','parlante'];
+const PRE_COLORES = ['#1b4a75','#a4231f','#1e7d3c','#8a5a00','#5a3d99','#0a7d8c','#b0307a','#4a5a1e'];
+const PRE_CAMPOS = ['cabClaseSLC','cabClaseNAC','cabCableSLC','cabCableNAC','cabVnom','cabPct','cabVmin','cabImax','cabHolg','cabSubida','cabMaxSLC'];
+function manh(a,b){return Math.abs(a.x-b.x)+Math.abs(a.y-b.y);}
+function circuitoDe(d){
+  if(PRE_I_SLC_MA[d.tipo]!=null)return {tipo:'SLC',ma:PRE_I_SLC_MA[d.tipo]};
+  const t=PRE_I_NAC_MA[d.tipo];if(!t)return null;
+  const cd=d.cd||t[0][0],e=t.find(x=>x[0]>=cd)||t[t.length-1];
+  return {tipo:'NAC',ma:e[1],aprox:PRE_APROX.includes(d.tipo)};
+}
+function parametrosCab(){
+  const n=(id,def)=>{const v=parseFloat($(id).value);return isFinite(v)?v:def;};
+  const mk=E.marcas.find(m=>String(m.id)===$('cabPanel').value&&m.t==='facp')||E.marcas.find(m=>m.t==='facp');
+  return {panel:mk?{x:mk.x,y:mk.y}:null,panelId:mk?mk.id:null,claseSLC:$('cabClaseSLC').value,claseNAC:$('cabClaseNAC').value,cableSLC:$('cabCableSLC').value,cableNAC:$('cabCableNAC').value,
+    vNom:n('cabVnom',24),pct:n('cabPct',85)/100,vMin:n('cabVmin',16),iMax:n('cabImax',2.4),holg:n('cabHolg',10)/100,subida:n('cabSubida',2.5),maxSLC:n('cabMaxSLC',150)};
+}
+// Dispositivos del plano que van por cable: SLC (detectores, pulsadores, módulos de los bloques de equipo) y NAC (estrobos, bocinas, parlantes).
+function dispositivosCableables(){
+  const slc=[],nac=[];
+  E.disp.forEach(d=>{const c=circuitoDe(d);if(!c)return;const x={id:d.id,tipo:d.tipo,x:d.x,y:d.y,ma:c.ma,aprox:!!c.aprox,sala:d.sala||''};(c.tipo==='SLC'?slc:nac).push(x);});
+  E.marcas.forEach(m=>{const e=equipoDe(m);if(!e)return;const rc=recintoEn(m);
+    dispositivosEquipo(e).forEach(dp=>{for(let i=1;i<=dp.n;i++){const t=dp.func==='Control'?'modulo_ctl':'modulo_mon';slc.push({id:'M'+m.id+'-'+dp.pn+'-'+i,tipo:t,x:m.x,y:m.y,ma:PRE_I_SLC_MA[t],aprox:false,sala:(rc?rc.nombre:'')+' · '+e});}});});
+  return {slc,nac};
+}
+function claveCableado(){return JSON.stringify([E.disp.map(d=>[d.id,d.tipo,Math.round(d.x*10),Math.round(d.y*10)]),E.marcas.map(m=>[m.id,m.t,m.eq,Math.round(m.x*10),Math.round(m.y*10)])]);}
+// Evalúa un circuito (longitud, corriente, resistencia, caída y estado) con las fórmulas de la memoria.
+function evaluarCircuito(c,P){
+  const cab=CABLES.find(q=>q[0]===c.cable)||CABLES[0];
+  let ida=0;for(let i=0;i+1<c.pts.length;i++)ida+=manh(c.pts[i],c.pts[i+1]);
+  const ret=c.clase==='A'?manh(c.pts[c.pts.length-1],c.pts[0]):0;
+  const L=(ida+ret)*(1+P.holg)+(c.clase==='A'?2:1)*P.subida;
+  const I=c.devs.reduce((t,d)=>t+d.ma,0),rLazo=2*L/1000*cab[4],caida=I/1000*rLazo,vF=P.vNom*P.pct,vDisp=vF-caida;
+  let estado='OK',com='';
+  if(c.tipo==='SLC'&&c.devs.length>P.maxSLC)estado='ERROR: > '+P.maxSLC+' DISP.';
+  else if(c.tipo==='NAC'&&I>P.iMax*1000+1e-9)estado='ERROR: I > I MÁX NAC';
+  else if(vDisp<P.vMin)estado='ERROR: V < V MÍN';
+  if(estado!=='OK')com='AUMENTE CALIBRE, REDUZCA DISTANCIA O DIVIDA EL CIRCUITO';
+  if(c.devs.some(d=>d.aprox)&&!com)com='Incluye corrientes aproximadas: verifique la ficha';
+  Object.assign(c,{L,I,rLazo,caida,vDisp,vF,pct:caida/vF,estado,com,ida,ret});return c;
+}
+// Reparte los dispositivos en circuitos recorriendo siempre al más cercano desde el último; el circuito se cierra al incumplir el límite.
+function construirCircuitos(P,lista,tipo,clase,cable,pref){
+  const rest=lista.slice(),cir=[];let n=1;
+  while(rest.length){
+    const c={id:pref+'-'+n,tipo,clase,cable,pts:[{x:P.panel.x,y:P.panel.y}],devs:[]};let cur=P.panel;
+    while(rest.length){
+      let bi=0,bd=1e18;rest.forEach((d,i)=>{const dd=manh(cur,d);if(dd<bd){bd=dd;bi=i;}});
+      const d=rest[bi];c.pts.push({x:d.x,y:d.y});c.devs.push(d);evaluarCircuito(c,P);
+      if(c.devs.length>1&&c.estado!=='OK'){c.pts.pop();c.devs.pop();evaluarCircuito(c,P);break;}   // no cabe: queda para el siguiente circuito
+      rest.splice(bi,1);cur=d;
+    }
+    cir.push(c);n++;
+  }
+  return cir;
+}
+function generarPrecableado(){
+  const P=parametrosCab();
+  if(!P.panel){alert('No hay panel. En el módulo 2 use «+ FACP/recepción» para colocar el panel del que salen los circuitos.');return;}
+  const dc=dispositivosCableables();
+  if(!dc.slc.length&&!dc.nac.length){alert('No hay dispositivos. Genere el prediseño en el módulo 2 primero.');return;}
+  const cir=construirCircuitos(P,dc.slc,'SLC',P.claseSLC,P.cableSLC,'SLC').concat(construirCircuitos(P,dc.nac,'NAC',P.claseNAC,P.cableNAC,'NAC'));
+  E.cableado={circuitos:cir,clave:claveCableado(),params:P};
+  mostrarCableado();dibujar();programarConfirmar();
+  const err=cir.filter(c=>c.estado!=='OK').length;
+  estado('Precableado generado: '+cir.filter(c=>c.tipo==='SLC').length+' lazo(s) SLC y '+cir.filter(c=>c.tipo==='NAC').length+' circuito(s) NAC'+(err?' · ⚠ '+err+' con error de caída o límites':' · todos cumplen')+'. Se ve en el plano con la capa «Precableado».');
+}
+function recalcularCableado(){
+  if(!E.cableado)return;const P=parametrosCab();P.panel=E.cableado.params.panel;P.panelId=E.cableado.params.panelId;
+  E.cableado.params=P;E.cableado.circuitos.forEach(c=>evaluarCircuito(c,P));mostrarCableado();dibujar();
+}
+function mostrarCableado(){
+  const R=$('cabResultados');if(!R)return;const C=E.cableado;
+  if(!C){R.innerHTML='<small class="g">Coloque dispositivos y un panel (FACP) en el módulo 2 y pulse «Generar precableado».</small>';return;}
+  const obsoleto=C.clave!==claveCableado(),err=C.circuitos.filter(c=>c.estado!=='OK').length;
+  const nSlc=C.circuitos.filter(c=>c.tipo==='SLC').length,nNac=C.circuitos.length-nSlc,tot={};
+  C.circuitos.forEach(c=>{const cab=CABLES.find(q=>q[0]===c.cable)||CABLES[0],k=cab[1]+' '+cab[2]+' ('+cab[3]+' AWG)';tot[k]=(tot[k]||0)+c.L;});
+  const optCab=sel=>CABLES.map(q=>'<option value="'+q[0]+'"'+(q[0]===sel?' selected':'')+'>'+q[1]+' '+q[2]+' · '+q[3]+' AWG · '+q[4]+' Ω/km</option>').join('');
+  R.innerHTML=(obsoleto?'<div class="rev">⚠ El precableado es anterior a los últimos cambios de dispositivos o equipos: vuelva a generarlo.</div>':'')+
+    '<div class="resumen-obl"><b>'+nSlc+' lazo(s) SLC · '+nNac+' circuito(s) NAC</b> · '+(err?'<b class="mal">'+err+' con error</b>':'<b class="ok">todos cumplen</b>')+'<br><small class="g">Cable total (par, con holgura y subidas): '+Object.keys(tot).map(k=>k+' '+tot[k].toFixed(0)+' m').join(' · ')+'</small></div>'+
+    '<div style="overflow-x:auto"><table><tr><th>Circuito</th><th>Clase</th><th>Cable</th><th>Disp.</th><th>L (m)</th><th>I (mA)</th><th>R lazo (Ω)</th><th>Caída (V)</th><th>V disp. (V)</th><th>%</th><th>Estado</th></tr>'+
+    C.circuitos.map((c,i)=>'<tr><td><b style="color:'+PRE_COLORES[i%PRE_COLORES.length]+'">'+c.id+'</b></td>'+
+      '<td><select data-cc="'+i+'" data-k="clase" style="width:auto"><option value="B"'+(c.clase==='B'?' selected':'')+'>B</option><option value="A"'+(c.clase==='A'?' selected':'')+'>A</option></select></td>'+
+      '<td><select data-cc="'+i+'" data-k="cable" style="width:auto;max-width:190px">'+optCab(c.cable)+'</select></td>'+
+      '<td>'+c.devs.length+'</td><td>'+c.L.toFixed(0)+'</td><td>'+c.I.toFixed(c.I<10?1:0)+'</td><td>'+c.rLazo.toFixed(2)+'</td><td>'+c.caida.toFixed(2)+'</td><td>'+c.vDisp.toFixed(2)+'</td><td>'+(c.pct*100).toFixed(1)+'</td>'+
+      '<td class="'+(c.estado==='OK'?'ok':'mal')+'">'+esc(c.estado)+(c.com?'<br><small class="g">'+esc(c.com)+'</small>':'')+'</td></tr>').join('')+'</table></div>'+
+    '<small class="g">Tensión de fuente a fin de vida: '+(C.params.vNom*C.params.pct).toFixed(1)+' V · mínima del dispositivo '+C.params.vMin+' V · I máx. NAC '+C.params.iMax+' A. Cambie la clase o el cable de un circuito en su fila: se recalcula al instante.</small>';
+  R.querySelectorAll('select[data-cc]').forEach(sl=>sl.onchange=()=>{const c=C.circuitos[+sl.dataset.cc];c[sl.dataset.k]=sl.value;evaluarCircuito(c,C.params);mostrarCableado();dibujar();programarConfirmar();});
+}
+function dibujarCableado(){
+  const C=E.cableado;if(!C)return;cx.save();cx.lineWidth=2;cx.lineJoin='round';cx.font='bold 10px Arial';
+  const ruta=(a,b)=>{const p=aPant(a),q=aPant(b);cx.lineTo(q.x,p.y);cx.lineTo(q.x,q.y);};   // recorrido ortogonal: horizontal y luego vertical
+  C.circuitos.forEach((c,i)=>{const col=PRE_COLORES[i%PRE_COLORES.length];cx.strokeStyle=col;cx.setLineDash([]);
+    cx.beginPath();const p0=aPant(c.pts[0]);cx.moveTo(p0.x,p0.y);for(let k=1;k<c.pts.length;k++)ruta(c.pts[k-1],c.pts[k]);cx.stroke();
+    if(c.clase==='A'&&c.pts.length>1){cx.setLineDash([7,4]);cx.beginPath();const pl=aPant(c.pts[c.pts.length-1]);cx.moveTo(pl.x,pl.y);ruta(c.pts[c.pts.length-1],c.pts[0]);cx.stroke();cx.setLineDash([]);}
+    const a=aPant(c.pts[1]||c.pts[0]);cx.fillStyle=col;cx.fillText(c.id+' · '+c.clase+(c.estado!=='OK'?' ⚠':''),a.x+5,a.y-5);});
+  cx.restore();
+}
+function actualizarPanelesCab(){
+  const sel=$('cabPanel'),act=sel.value,fa=E.marcas.filter(m=>m.t==='facp');
+  sel.innerHTML=fa.length?fa.map((m,i)=>'<option value="'+m.id+'">FACP / recepción '+(i+1)+' — x '+m.x.toFixed(1)+', y '+m.y.toFixed(1)+' m</option>').join(''):'<option value="">Sin panel: use «+ FACP/recepción» en el módulo 2</option>';
+  if(fa.some(m=>String(m.id)===act))sel.value=act;
+}
+$('btnCabGenerar').onclick=generarPrecableado;
+$('btnCabQuitar').onclick=()=>{E.cableado=null;mostrarCableado();dibujar();programarConfirmar();};
+$('btnCabVer').onclick=()=>{$('vCable').checked=true;irModulo('mod2');dibujar();};
+$('btnCabCSV').onclick=()=>{
+  if(!E.cableado){alert('Genere el precableado primero.');return;}
+  const L=['circuito;tipo;clase;cable;n_dispositivos;longitud_m;corriente_mA;R_lazo_ohm;caida_V;V_disponible_V;porcentaje;estado;dispositivos'];
+  E.cableado.circuitos.forEach(c=>{const cab=CABLES.find(q=>q[0]===c.cable)||CABLES[0];
+    L.push([c.id,c.tipo,c.clase,cab[1]+' '+cab[2]+' '+cab[3]+' AWG',c.devs.length,c.L.toFixed(1),c.I.toFixed(1),c.rLazo.toFixed(2),c.caida.toFixed(2),c.vDisp.toFixed(2),(c.pct*100).toFixed(1),c.estado,c.devs.map(d=>d.id).join(' ')].join(';'));});
+  descargar('precableado.csv','\ufeff'+L.join('\n'),'text/csv');
+};
+PRE_CAMPOS.forEach(i=>{$(i).addEventListener('change',recalcularCableado);});
 function recEdit(){return E.recintos.find(r=>r.id===E.edit);}
 function ocultarMenu(){$('menuCtx').style.display='none';}
 function distBordeIdx(pt,poly){let m=1e18,idx=-1,pr=null;for(let i=0;i<poly.length;i++){const sg=distSeg(pt,poly[i],poly[(i+1)%poly.length]);if(sg.d<m){m=sg.d;idx=i;pr=sg;}}return{d:m,i:idx,p:pr};}
@@ -2406,6 +2573,7 @@ function recopilar(completo){
   if((completo||$('chkImg').checked)&&E.img)o.plano.dataUrl=dataUrlDe(E.img,'img');
   if(completo&&E.imgMuros)o.plano.murosUrl=dataUrlDe(E.imgMuros,'muros');
   o.textosPdf=E.textosPdf||[];o.escala={n:$('escN').value,dpi:$('escDpi').value};
+  o.cableado=E.cableado||null;o.cabCampos={};PRE_CAMPOS.forEach(i=>{o.cabCampos[i]=$(i).value;});
   return o;
 }
 function aplicar(o){
@@ -2416,6 +2584,7 @@ function aplicar(o){
   E.recintos=o.recintos||[];E.marcas=o.marcas||[];E.disp=o.disp||[];E.eqCant=o.eqCant||{};E.seq=o.seq||1;E.resultados=[];$('resultados').innerHTML='';
   if(o.plano){E.imgNombre=o.plano.nombre||'';E.imgM=o.plano.m||0;E.imgX=o.plano.x||0;E.imgY=o.plano.y||0;if(o.plano.dataUrl){const im=new Image();im.onload=()=>{E.img=im;dibujar();};im.src=o.plano.dataUrl;}else if(o.plano.nombre)estado('El borrador no incluye la imagen del plano ('+o.plano.nombre+'): vuelva a cargarla y use «Aplicar escala» o calibre; las posiciones se conservan.');}
   if(o.textosPdf)E.textosPdf=o.textosPdf;
+  E.cableado=o.cableado||null;if(o.cabCampos)PRE_CAMPOS.forEach(i=>{if(o.cabCampos[i]!=null&&$(i))$(i).value=o.cabCampos[i];});
   if(o.escala){if(o.escala.n)$('escN').value=o.escala.n;if(o.escala.dpi)$('escDpi').value=o.escala.dpi;}
   if(o.plano&&o.plano.murosUrl){const im2=new Image();im2.onload=()=>{E.imgMuros=im2;};im2.src=o.plano.murosUrl;}
   tablaEquipos();reconstruirResultados();propiedades();if(o.vista)E.vista=o.vista;dibujar();
@@ -2520,6 +2689,8 @@ function aplicarJurisdiccion(){
 function iniciar(){
   $('pais').innerHTML=Object.keys(JURISDICCIONES).map(k=>'<option value="'+k+'"'+(k===JURISDICCION_DEFECTO?' selected':'')+'>'+JURISDICCIONES[k].nombre+'</option>').join('');
   $('pais').onchange=aplicarJurisdiccion;
+  ['cabCableSLC','cabCableNAC'].forEach(i=>{$(i).innerHTML=CABLES.map(q=>'<option value="'+q[0]+'">'+q[1]+' '+q[2]+' · '+q[3]+' AWG · '+q[4]+' Ω/km — '+q[5]+'</option>').join('');});
+  $('cabCableSLC').value='c03';$('cabCableNAC').value='c02';
   $('eqTipo').innerHTML=EQUIPOS.map(q=>'<option value="'+q[0]+'">'+q[0]+' · '+q[1]+'</option>').join('');
   $('devTipo').innerHTML=Object.keys(ROT).map(k=>'<option value="'+k+'"'+(k==='det_humo'?' selected':'')+'>'+ROT[k]+'</option>').join('');
   $('ed72').innerHTML=EDICIONES_72.map(e=>'<option>'+e+'</option>').join('');
@@ -2538,7 +2709,7 @@ function iniciar(){
   $('btnLimpiar').onclick=()=>{invalidar();dibujar();};
   [['tSel','sel'],['tRec','rec'],['tRect','rect'],['tRell','rell'],['tSal','salida'],['tFacp','facp'],['tAhu','ahu'],['tAsc','asc'],['tEq','eq'],['tBor','bor'],['tDev','dev']].forEach(([i,h])=>$(i).onclick=()=>herramienta(h));
   $('tAjustar').onclick=ajustarVista;
-  ['vCobDet','vCobVis','vCobAud','vSPL','vNotas','vModulos','vPlano','vOp','vSim'].forEach(i=>$(i).oninput=dibujar);
+  ['vCobDet','vCobVis','vCobAud','vSPL','vNotas','vModulos','vCable','vPlano','vOp','vSim'].forEach(i=>$(i).oninput=dibujar);
   $('btnDict').click();infoCadena();tablaEquipos();
   window.addEventListener('resize',ajustarLienzo);ajustarLienzo();ajustarVista();restaurarGuardado();
 }
@@ -2586,14 +2757,15 @@ function glosario(){
 }
 // Tarjetas plegables: clic en el título para cerrar lo que no se necesita (queda solo el título) y volver a abrirlo.
 function plegables(){
-  document.querySelectorAll('#mod1 .card,#mod2 #lateral .card').forEach(c=>{const h=c.querySelector(':scope>h2');if(!h)return;
+  document.querySelectorAll('#mod1 .card,#mod2 #lateral .card,#mod4 .card').forEach(c=>{const h=c.querySelector(':scope>h2');if(!h)return;
     h.classList.add('plegable');h.title='Clic para plegar o desplegar';h.onclick=()=>c.classList.toggle('cerrada');});
-  const todo=cerrar=>document.querySelectorAll('#mod1 .card,#mod2 #lateral .card').forEach(c=>c.classList.toggle('cerrada',cerrar));
+  const todo=cerrar=>document.querySelectorAll('#mod1 .card,#mod2 #lateral .card,#mod4 .card').forEach(c=>c.classList.toggle('cerrada',cerrar));
   $('plegarTodo').onclick=()=>todo(true);$('desplegarTodo').onclick=()=>todo(false);
 }
 let _lienzoInicial=true;
 function irModulo(id){
-  ['mod1','mod2','mod3'].forEach(m=>{$(m).style.display=(m===id)?'':'none';});
+  ['mod1','mod2','mod3','mod4'].forEach(m=>{$(m).style.display=(m===id)?'':'none';});
+  if(id==='mod4'){actualizarPanelesCab();mostrarCableado();}
   document.querySelectorAll('#tabs .seccion').forEach(b=>b.classList.toggle('activa',b.dataset.mod===id));
   if(id==='mod2'){ajustarLienzo();if(_lienzoInicial){_lienzoInicial=false;ajustarVista();}}
   window.scrollTo(0,0);
