@@ -103,7 +103,7 @@ Un recinto cuyo contorno cae por completo dentro de otro se trata como subrecint
 - Parte de los dispositivos y del panel (marcador «+ FACP/recepción») ya colocados. Genera lazos SLC (detectores, pulsadores y módulos de los bloques de equipo) y circuitos NAC (estrobos, bocinas, parlantes) recorriendo siempre al dispositivo más cercano desde el panel, con recorrido ortogonal, y cierra cada circuito cuando se incumple el límite (dispositivos máx. por lazo SLC, I máx. NAC 2.4 A o tensión mínima).
 - Clase A (con retorno, anillo completo como peor caso) o B (un recorrido) y cable (catálogo de la memoria) para SLC y para NAC; se pueden cambiar por circuito en la tabla y se recalcula al instante.
 - Fórmulas de la memoria de cálculo de alarmas (Calc.circuito): R lazo = 2·L/1000·Ω/km; caída = I·R; V disponible = V nominal ×  0.000000in de vida − caída (por defecto 24 V × 85 % = 20.4 V; mínimo 16 V). Corrientes en alarma del catálogo Simplex de la memoria.
-- Se ve en el plano con la capa «Precableado» (línea continua = ida, discontinua = retorno clase A). Exporta CSV (circuito, clase, cable, longitud, corriente, caída, estado, dispositivos). Entra en deshacer y en el borrador .json.
+- Se ve en el plano de la misma pestaña (línea continua = ida, discontinua = retorno clase A); en Ejecución no se dibuja el cableado. Exporta CSV (circuito, clase, cable, longitud, corriente, caída, estado, dispositivos). Entra en deshacer y en el borrador .json.
 - No sigue canalizaciones ni evita obstáculos; el límite de dispositivos del lazo depende del panel (verificar la ficha). La integración directa con la memoria de cálculo (baterías y caída por circuito) queda pendiente.
 
 ## Exportar a CAD (.dxf)
@@ -119,3 +119,8 @@ Un recinto cuyo contorno cae por completo dentro de otro se trata como subrecint
 - Módulo 3 (Precableado): tarjeta «Plano con dispositivos y precableado» con la misma vista del módulo 2 (plano, recintos, dispositivos, bloques de equipo y cableado; sin coberturas ni notas), con zoom por rueda, desplazamiento por arrastre y su propio «Ajustar vista». Se actualiza al generar, recalcular o quitar el precableado.
 - Símbolo de CO como en la simbología CDCLH-001S: hexágono negro con triángulo blanco y «CO» abajo a la derecha (también en el .dxf). Esa leyenda indica base de CO Simplex 4098-9771 con módulo TC4 4905-9835.
 - Cada detector/base de CO lleva su módulo TC4 4905-9835 (simbología CDCLH-001S): se dibuja a la par del detector (casilla «Módulos junto a equipos»), se totaliza por P/N en el resumen, sale en el CSV y en el .dxf (bloque SIM_MODULO_TC4) y cuenta como un punto más del lazo SLC en el precableado. La memoria no tiene su corriente: se toma como 0 mA y queda marcada «aproximada»; verifique la ficha del TC4.
+
+## Cobertura auditiva por recinto o combinada
+- Barra de capas, junto a «Nivel sonoro (dBA)»: modo «por recinto» (solo los dispositivos de cada recinto) o «combinado» (los de los recintos vecinos también aportan, con una pérdida por cada muro que cruza el sonido: 10 a 30 dB, 15 dB por defecto). Se cuentan los muros como cambios de recinto a lo largo del trayecto recto del dispositivo al punto.
+- El modo elegido gobierna el mapa de nivel sonoro, la leyenda, la lectura bajo el cursor y la verificación «Audible» de cada recinto, y se guarda en el borrador. La pérdida por muro es un criterio de prediseño (no normativo); la real depende del muro, las puertas y las rejillas.
+- No quita automáticamente las bocinas que queden redundantes: muestra si los recintos vecinos cubren y el diseñador decide.

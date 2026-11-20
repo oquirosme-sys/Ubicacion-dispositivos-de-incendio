@@ -303,11 +303,12 @@
    <label style="margin:0"><input type="checkbox" id="vCobDet" checked style="width:auto"> Detectores</label>
    <label style="margin:0"><input type="checkbox" id="vCobVis" style="width:auto"> Notificación visual</label>
    <label style="margin:0"><input type="checkbox" id="vCobAud" style="width:auto"> Notificación auditiva</label>
-   <label style="margin:0" title="Muestra el precableado generado: lazos SLC y circuitos NAC desde el panel"><input type="checkbox" id="vCable" style="width:auto" checked> Precableado</label>
    <label style="margin:0" title="Dibuja a la par de cada equipo los módulos que pide la matriz (uno por señal), para replicarlos en el modelo"><input type="checkbox" id="vModulos" style="width:auto" checked> Módulos junto a equipos</label>
    <label style="margin:0" title="Muestra, junto a cada equipo del plano, los dispositivos que pide la matriz de supervisión"><input type="checkbox" id="vNotas" style="width:auto" checked> Notas de equipos</label>
    <label style="margin:0" title="Al dibujar recintos, el cursor se engancha a las esquinas y muros del plano. Mantenga Alt para desactivarlo temporalmente"><input type="checkbox" id="vSnap" style="width:auto" checked> Imán a esquinas y muros</label>
    <label style="margin:0" title="Rojo: por debajo del nivel requerido; verde: cumple; naranja: sobre 110 dBA"><input type="checkbox" id="vSPL" style="width:auto"> Nivel sonoro (dBA)</label>
+   <select id="splModo" title="Con qué dispositivos se calcula el nivel sonoro de cada recinto" style="width:auto"><option value="rec">Nivel sonoro: por recinto (solo sus dispositivos)</option><option value="comb">Nivel sonoro: combinado (recintos vecinos, con pérdida por muros)</option></select>
+   <label style="margin:0" title="dB que se pierden por cada muro que atraviesa el sonido en el modo combinado">pérdida por muro <select id="splPerd" style="width:auto"></select></label>
    <label style="margin:0"><input type="checkbox" id="vPlano" checked style="width:auto"> Plano</label>
    <label style="margin:0">Opacidad plano <input type="range" id="vOp" min="10" max="100" value="55" style="width:90px"></label>
    <label style="margin:0">Tamaño símbolos <input type="range" id="vSim" min="8" max="40" value="16" style="width:90px"></label>
@@ -344,7 +345,6 @@
  </div>
  <button class="gran" id="btnCabGenerar">▶ Generar precableado</button>
  <button class="sec" id="btnCabQuitar">Quitar precableado</button>
- <button class="sec" id="btnCabVer">Ver en el plano</button>
  <button class="sec" id="btnCabCSV">Exportar circuitos (CSV)</button>
  <div class="nota"><b>Supuestos y limitaciones (precableado):</b><ul>
   <li>Valores de la memoria de cálculo (Calc.PARAMS_DEF): 24 V nominales, fuente al 85 % a fin de vida de batería (20.4 V), tensión mínima del dispositivo 16 V (UL 1971/464) y 2.4 A máximos por NAC (80 % de 3 A). Cables y Ω/km del catálogo de la memoria (BD_CABLES).</li>
@@ -506,6 +506,11 @@ const AUDIBLE_MAPA_PASO_MIN_M = 1, AUDIBLE_MAPA_CELDAS_MAX = 4000;
 const AUDIBLE_MAPA_ETIQUETA_PX = 34;
 // Niveles dBA a 3 m ofrecidos al editar un dispositivo (dato de catálogo del equipo, CRITERIO).
 const CATALOGO_DBA = [75, 80, 85, 90, 95];
+// Cobertura auditiva combinada (CRITERIOS de prediseño, no normativos): pérdida por cada muro que atraviesa el sonido (dB) y valores
+// ofrecidos (la atenuación real depende del muro, de las puertas y de las rejillas; NFPA 72 no fija un valor único: verifique el anexo
+// de atenuación de la edición adoptada), resolución del mapa de recintos para contar muros (m) y nivel por debajo del cual un aporte se ignora (dBA).
+const AUDIBLE_PERDIDA_MURO_DB = 15, AUDIBLE_PERDIDAS_DB = [10, 15, 20, 25, 30];
+const AUDIBLE_RASTER_M = 0.5, AUDIBLE_PISO_DBA = 20;
 // Pulsadores: dentro de 1.5 m (5 ft) de cada salida. NFPA 72:2022 §17.15.9.4 (V22);
 // NFPA 101:2015 9.6.2.x (V15).
 const PULSADOR_DIST_SALIDA_M = 1.5;
@@ -993,12 +998,48 @@ function planificarGlobales(o,resRec,prev){
 function splSuma(p,devs){let t=0;for(const d of devs){const dist=Math.max(Math.hypot(p.x-d.x,p.y-d.y),AUDIBLE_DIST_MIN_M);t+=Math.pow(10,(d.dba3-20*Math.log10(dist/AUDIBLE_DIST_REF_M))/10);}return t>0?10*Math.log10(t):-Infinity;}
 function audibles(rid){return E.disp.filter(d=>d.rid===rid&&d.dba3&&/bocina|parl/.test(d.tipo));}
 function recintoMin(p){let m=null;E.recintos.forEach(r=>{if(enRecinto(p,r.poly)&&(!m||area(r.poly)<area(m.poly)))m=r;});return m;}
+// Mapa de recintos (resolución AUDIBLE_RASTER_M): id del recinto más pequeño que contiene cada celda; sirve para contar los muros que cruza el sonido.
+function rasterRecintos(){
+  const R=AUDIBLE_RASTER_M,sig=E.recintos.map(r=>r.id+':'+r.poly.length+':'+area(r.poly).toFixed(1)+':'+(r.poly[0]?r.poly[0].x.toFixed(1)+','+r.poly[0].y.toFixed(1):'')).join('|');
+  if(E._rr&&E._rr.sig===sig)return E._rr;
+  if(!E.recintos.length)return (E._rr={sig,vacio:true});
+  let b=null;E.recintos.forEach(r=>{const q=bbox(r.poly);b=b?{x0:Math.min(b.x0,q.x0),y0:Math.min(b.y0,q.y0),x1:Math.max(b.x1,q.x1),y1:Math.max(b.y1,q.y1)}:{x0:q.x0,y0:q.y0,x1:q.x1,y1:q.y1};});
+  const W=Math.ceil((b.x1-b.x0)/R)+1,H=Math.ceil((b.y1-b.y0)/R)+1,id=new Int32Array(W*H).fill(-1);
+  E.recintos.slice().sort((p,q)=>area(q.poly)-area(p.poly)).forEach(r=>{   // grandes primero: el subrecinto pisa a su contenedor
+    const q=bbox(r.poly),i0=Math.max(0,Math.floor((q.x0-b.x0)/R)),i1=Math.min(W-1,Math.ceil((q.x1-b.x0)/R)),j0=Math.max(0,Math.floor((q.y0-b.y0)/R)),j1=Math.min(H-1,Math.ceil((q.y1-b.y0)/R));
+    for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++)if(dentro({x:b.x0+(i+.5)*R,y:b.y0+(j+.5)*R},r.poly))id[j*W+i]=r.id;});
+  return (E._rr={sig,b,W,H,id});
+}
+function idEn(rr,p){const R=AUDIBLE_RASTER_M,i=Math.floor((p.x-rr.b.x0)/R),j=Math.floor((p.y-rr.b.y0)/R);return (i<0||j<0||i>=rr.W||j>=rr.H)?-1:rr.id[j*rr.W+i];}
+function todosAudibles(){return E.disp.filter(d=>d.dba3&&/bocina|parl/.test(d.tipo));}
+// Nivel sonoro combinado (dBA) en p: suma de potencias de todos los dispositivos audibles, cada uno con −6 dB por duplicar la distancia y
+// «perd» dB por cada muro (cambio de recinto) que cruza el trayecto recto del dispositivo al punto.
+function nivelSonoroComb(p,devs,perd,rr){
+  let t=0;
+  for(const d of devs){
+    const dist=Math.max(Math.hypot(p.x-d.x,p.y-d.y),AUDIBLE_DIST_MIN_M),base=d.dba3-20*Math.log10(dist/AUDIBLE_DIST_REF_M);
+    if(base<AUDIBLE_PISO_DBA)continue;
+    let muros=0;
+    if(perd>0&&rr&&!rr.vacio){const n=Math.max(1,Math.ceil(dist/AUDIBLE_RASTER_M));let prev=d.rid!=null?d.rid:idEn(rr,d);
+      for(let k=1;k<=n;k++){const id=idEn(rr,{x:d.x+(p.x-d.x)*k/n,y:d.y+(p.y-d.y)*k/n});if(id>=0&&id!==prev){muros++;prev=id;}}}   // los huecos entre recintos (grosor del muro) no cuentan aparte
+    t+=Math.pow(10,(base-muros*perd)/10);
+  }
+  return t>0?10*Math.log10(t):-Infinity;
+}
+// Nivel sonoro en p para el recinto «rid» según el modo elegido: solo sus dispositivos, o combinado con los de los recintos vecinos.
+function nivelSonoroEn(p,rid){
+  if($('splModo').value==='comb')return nivelSonoroComb(p,todosAudibles(),+$('splPerd').value||0,rasterRecintos());
+  return splSuma(p,audibles(rid));
+}
+function textoModoSPL(){return $('splModo').value==='comb'?'combinado con recintos vecinos, '+($('splPerd').value||0)+' dB de pérdida por muro':'solo los dispositivos de cada recinto';}
 function mapaSPL(){
-  if(E._spl)return E._spl;
-  const celdas=[];
-  E.recintos.forEach(r=>{const A=E.audPorRec&&E.audPorRec[r.id];if(!A)return;const ds=audibles(r.id),b=bbox(r.poly),paso=Math.max(AUDIBLE_MAPA_PASO_MIN_M,Math.sqrt(b.w*b.h/AUDIBLE_MAPA_CELDAS_MAX));
-    for(let x=b.x0+paso/2;x<b.x1;x+=paso)for(let y=b.y0+paso/2;y<b.y1;y+=paso){const p={x,y};if(!enRecinto(p,r.poly))continue;celdas.push({x,y,paso,v:splSuma(p,ds),req:A.req,rid:r.id});}});
-  return (E._spl=celdas);
+  const modo=$('splModo').value,perd=+$('splPerd').value||0,llave=modo+'|'+perd;
+  if(E._spl&&E._splK===llave)return E._spl;
+  const celdas=[],comb=modo==='comb',rr=comb?rasterRecintos():null,todos=comb?todosAudibles():null;
+  E.recintos.forEach(r=>{const A=E.audPorRec&&E.audPorRec[r.id];if(!A)return;const ds=comb?null:audibles(r.id),b=bbox(r.poly),paso=Math.max(AUDIBLE_MAPA_PASO_MIN_M,Math.sqrt(b.w*b.h/AUDIBLE_MAPA_CELDAS_MAX));
+    for(let x=b.x0+paso/2;x<b.x1;x+=paso)for(let y=b.y0+paso/2;y<b.y1;y+=paso){const p={x,y};if(!enRecinto(p,r.poly))continue;
+      celdas.push({x,y,paso,v:comb?nivelSonoroComb(p,todos,perd,rr):splSuma(p,ds),req:A.req,rid:r.id});}});
+  E._splK=llave;return (E._spl=celdas);
 }
 // Cobertura visual como en NFPA 72:2022: estrobo de PARED = cuadrados anidados que parten del muro donde está montado
 // (Figura 18.5.5.7.1, Tabla 18.5.5.7.1(a)); estrobo de CIELO = cuadrados anidados centrados en el aparato (Exhibit 18.27,
@@ -1056,7 +1097,7 @@ function leyendaSPL(){
   const filas=filasLeyendaSPL(),pan=$('leyendaSPL');
   pan.style.display=filas.length?'':'none';if(!filas.length)return;
   const fuera=filas.filter(f=>f.mal).length;
-  $('leyendaSPLcuerpo').innerHTML='<div style="margin-bottom:4px"><b>Máximo permitido '+AUDIBLE_MAX_DBA+' dBA</b> · <b style="color:#1e7d3c">■</b> cumple (≥ requerido y ≤ '+AUDIBLE_MAX_DBA+') · <b style="color:#d6281c">■</b> fuera de parámetros (bajo el requerido o sobre '+AUDIBLE_MAX_DBA+')'+(fuera?' — <b class="mal">'+fuera+' recinto(s) fuera de parámetros</b>':'')+'</div>'+
+  $('leyendaSPLcuerpo').innerHTML='<div style="margin-bottom:4px"><b>Modo: '+textoModoSPL()+'.</b> <b>Máximo permitido '+AUDIBLE_MAX_DBA+' dBA</b> · <b style="color:#1e7d3c">■</b> cumple (≥ requerido y ≤ '+AUDIBLE_MAX_DBA+') · <b style="color:#d6281c">■</b> fuera de parámetros (bajo el requerido o sobre '+AUDIBLE_MAX_DBA+')'+(fuera?' — <b class="mal">'+fuera+' recinto(s) fuera de parámetros</b>':'')+'</div>'+
     '<ul style="margin:0 0 6px 18px;padding:0;font-size:.78rem">'+filas.map(f=>'<li'+(f.mal?' class="mal"':'')+'>'+esc(f.t)+'</li>').join('')+'</ul>'+
     '<label style="margin:0;font-weight:600"><input type="checkbox" id="vLeyPlano" style="width:auto"'+(_leyPlano.on?' checked':'')+'> Mostrar también sobre el plano (para exportar la imagen)</label> '+
     '<select id="leyEsq" style="width:auto"><option value="si">arriba a la izquierda</option><option value="sd">arriba a la derecha</option><option value="ii">abajo a la izquierda</option><option value="id">abajo a la derecha</option></select>';
@@ -1230,10 +1271,10 @@ function verificar(res,o){
       mine.filter(d=>esEstroboPared(d)&&d.lado).forEach(d=>{const need=ladoNecesarioPared(d,r);
         ch.push({ok:need<=d.lado+1e-6,txt:'Estrobo de pared de '+d.cd+' cd: el recinto necesita un cuadrado de '+need.toFixed(1)+' m desde el muro y el aparato cubre '+d.lado.toFixed(1)+' m'});});
       if(x.aud&&x.aud.radio){
-        const aud=mine.filter(d=>d.dba3&&/bocina|parl/.test(d.tipo));
-        if(aud.length&&mf.length){const peor=Math.min(...mf.map(p=>splSuma(p,aud)));
-          ch.push({ok:peor>=x.aud.req-1e-6,txt:'Audible: nivel mínimo en el recinto '+peor.toFixed(0)+' dBA ≥ '+x.aud.req.toFixed(0)+' dBA requeridos (suma de dispositivos, campo libre)'});
-          const cerca=Math.max(...aud.map(d=>d.dba3))-20*Math.log10(AUDIBLE_DIST_MIN_M/AUDIBLE_DIST_REF_M);
+        const aud=mine.filter(d=>d.dba3&&/bocina|parl/.test(d.tipo)),comb=$('splModo').value==='comb',todos=comb?res.flatMap(z=>z.disp).filter(d=>d.dba3&&/bocina|parl/.test(d.tipo)):null,rr=comb?rasterRecintos():null,perd=+$('splPerd').value||0;
+        if((aud.length||(comb&&todos.length))&&mf.length){const peor=Math.min(...mf.map(p=>comb?nivelSonoroComb(p,todos,perd,rr):splSuma(p,aud)));
+          ch.push({ok:peor>=x.aud.req-1e-6,txt:'Audible: nivel mínimo en el recinto '+peor.toFixed(0)+' dBA ≥ '+x.aud.req.toFixed(0)+' dBA requeridos ('+(comb?'combinado con recintos vecinos, '+perd+' dB por muro; campo libre':'suma de dispositivos del recinto, campo libre')+')'});
+          const cerca=Math.max(...(aud.length?aud:[{dba3:0}]).map(d=>d.dba3))-20*Math.log10(AUDIBLE_DIST_MIN_M/AUDIBLE_DIST_REF_M);
           ch.push({ok:cerca<=AUDIBLE_MAX_DBA,txt:'A '+AUDIBLE_DIST_MIN_M+' m del dispositivo: '+cerca.toFixed(0)+' dBA ≤ '+AUDIBLE_MAX_DBA+' dBA (18.4.1.2)'});}
         else ch.push({ok:false,txt:'Sin dispositivos audibles en el recinto'});
       }
@@ -1537,7 +1578,7 @@ function dibujarBase(){
     if(verAud&&/bocina|parl/.test(d.tipo)&&d.radio)dibujarAudible(d,p,recorta);
   });
   if(!E._modoCable&&$('vSPL').checked){dibujarSPL();leyendaSPL();}else if(!E._modoCable&&$('leyendaSPL'))$('leyendaSPL').style.display='none';
-  if((E._modoCable||($('vCable')&&$('vCable').checked))&&E.cableado)dibujarCableado();
+  if(E._modoCable&&E.cableado)dibujarCableado();   // el cableado solo se ve en la vista del módulo 3, no en Ejecución
   if($('vModulos')&&$('vModulos').checked)E.disp.forEach(d=>{if(d.tipo==='det_co'){const p=aPant(d);sim(cx,'modulo_tc4',p.x+S*1.9,p.y,S);}});   // módulo TC4 de la base de CO
   E.disp.forEach(d=>{const p=aPant(d);if(d.giro){cx.save();cx.translate(p.x,p.y);cx.rotate(d.giro*Math.PI/180);sim(cx,d.tipo,0,0,S,{cd:d.cd});cx.restore();}else sim(cx,d.tipo,p.x,p.y,S,{cd:d.cd});if(d.manual){cx.beginPath();cx.arc(p.x,p.y,S*1.15,0,7);cx.strokeStyle='rgba(224,168,0,.9)';cx.lineWidth=2;cx.setLineDash([3,3]);cx.stroke();cx.setLineDash([]);}
     if(d.id===E.selDev){cx.beginPath();cx.arc(p.x,p.y,S*1.45,0,7);cx.strokeStyle='#0a5ad4';cx.lineWidth=2.5;cx.stroke();}});
@@ -1740,7 +1781,7 @@ function generarPrecableado(){
   E.cableado={circuitos:cir,clave:claveCableado(),params:P};
   mostrarCableado();dibujar();programarConfirmar();
   const err=cir.filter(c=>c.estado!=='OK').length;
-  estado('Precableado generado: '+cir.filter(c=>c.tipo==='SLC').length+' lazo(s) SLC y '+cir.filter(c=>c.tipo==='NAC').length+' circuito(s) NAC'+(err?' · ⚠ '+err+' con error de caída o límites':' · todos cumplen')+'. Se ve en el plano con la capa «Precableado».');
+  estado('Precableado generado: '+cir.filter(c=>c.tipo==='SLC').length+' lazo(s) SLC y '+cir.filter(c=>c.tipo==='NAC').length+' circuito(s) NAC'+(err?' · ⚠ '+err+' con error de caída o límites':' · todos cumplen')+'. Se ve en el plano de esta pestaña.');
 }
 function recalcularCableado(){
   if(!E.cableado)return;const P=parametrosCab();P.panel=E.cableado.params.panel;P.panelId=E.cableado.params.panelId;
@@ -1780,7 +1821,6 @@ function actualizarPanelesCab(){
 }
 $('btnCabGenerar').onclick=generarPrecableado;
 $('btnCabQuitar').onclick=()=>{E.cableado=null;mostrarCableado();dibujar();programarConfirmar();};
-$('btnCabVer').onclick=()=>{$('vCable').checked=true;irModulo('mod2');dibujar();};
 $('btnCabCSV').onclick=()=>{
   if(!E.cableado){alert('Genere el precableado primero.');return;}
   const L=['circuito;tipo;clase;cable;n_dispositivos;longitud_m;corriente_mA;R_lazo_ohm;caida_V;V_disponible_V;porcentaje;estado;dispositivos'];
@@ -2116,7 +2156,7 @@ cv.addEventListener('mousemove',e=>{E.cursor=mundoDeEvento(e);
   if((E.borrador.length||E.pegando)&&!(E.herr==='rec'||E.herr==='rect'))dibujar();
   if(!arrD){cv.style.cursor=(E.herr==='sel'&&!E.edit&&!E.pegando&&(devEn(E.cursor)||marcaEn(E.cursor)))?'move':'crosshair';}
   if($('vSPL').checked&&E.audPorRec&&!E.borrador.length&&!arrD){const rr=recintoMin(E.cursor),A=rr&&E.audPorRec[rr.id];
-    if(A){const v=splSuma(E.cursor,audibles(rr.id));estado('Nivel sonoro aquí: '+(isFinite(v)?v.toFixed(0):'—')+' dBA · requerido '+A.req.toFixed(0)+' dBA en «'+rr.nombre+'» · máx. permitido '+AUDIBLE_MAX_DBA+' dBA (NFPA 72 §18.4)');}}});
+    if(A){const v=nivelSonoroEn(E.cursor,rr.id);estado('Nivel sonoro aquí: '+(isFinite(v)?v.toFixed(0):'—')+' dBA · requerido '+A.req.toFixed(0)+' dBA en «'+rr.nombre+'» · máx. permitido '+AUDIBLE_MAX_DBA+' dBA (NFPA 72 §18.4)');}}});
 function crearRect(a,b){
   if(Math.abs(b.x-a.x)*Math.abs(b.y-a.y)<AREA_MIN_RECINTO_M2){E.borrador=[];dibujar();estado('Rectángulo demasiado pequeño.');return;}
   nuevoRecinto([{x:a.x,y:a.y},{x:b.x,y:a.y},{x:b.x,y:b.y},{x:a.x,y:b.y}]);E.borrador=[];dibujar();
@@ -2774,6 +2814,7 @@ function recopilar(completo){
   if((completo||$('chkImg').checked)&&E.img)o.plano.dataUrl=dataUrlDe(E.img,'img');
   if(completo&&E.imgMuros)o.plano.murosUrl=dataUrlDe(E.imgMuros,'muros');
   o.textosPdf=E.textosPdf||[];o.escala={n:$('escN').value,dpi:$('escDpi').value};
+  o.splOpc={modo:$('splModo').value,perd:$('splPerd').value};
   o.cableado=E.cableado||null;o.cabCampos={};PRE_CAMPOS.forEach(i=>{o.cabCampos[i]=$(i).value;});
   return o;
 }
@@ -2785,6 +2826,7 @@ function aplicar(o){
   E.recintos=o.recintos||[];E.marcas=o.marcas||[];E.disp=o.disp||[];E.eqCant=o.eqCant||{};E.seq=o.seq||1;E.resultados=[];$('resultados').innerHTML='';
   if(o.plano){E.imgNombre=o.plano.nombre||'';E.imgM=o.plano.m||0;E.imgX=o.plano.x||0;E.imgY=o.plano.y||0;if(o.plano.dataUrl){const im=new Image();im.onload=()=>{E.img=im;dibujar();};im.src=o.plano.dataUrl;}else if(o.plano.nombre)estado('El borrador no incluye la imagen del plano ('+o.plano.nombre+'): vuelva a cargarla y use «Aplicar escala» o calibre; las posiciones se conservan.');}
   if(o.textosPdf)E.textosPdf=o.textosPdf;
+  if(o.splOpc){$('splModo').value=o.splOpc.modo||'rec';if(o.splOpc.perd)$('splPerd').value=o.splOpc.perd;}
   E.cableado=o.cableado||null;if(o.cabCampos)PRE_CAMPOS.forEach(i=>{if(o.cabCampos[i]!=null&&$(i))$(i).value=o.cabCampos[i];});
   if(o.escala){if(o.escala.n)$('escN').value=o.escala.n;if(o.escala.dpi)$('escDpi').value=o.escala.dpi;}
   if(o.plano&&o.plano.murosUrl){const im2=new Image();im2.onload=()=>{E.imgMuros=im2;};im2.src=o.plano.murosUrl;}
@@ -2891,6 +2933,8 @@ function aplicarJurisdiccion(){
 function iniciar(){
   $('pais').innerHTML=Object.keys(JURISDICCIONES).map(k=>'<option value="'+k+'"'+(k===JURISDICCION_DEFECTO?' selected':'')+'>'+JURISDICCIONES[k].nombre+'</option>').join('');
   $('pais').onchange=aplicarJurisdiccion;
+  $('splPerd').innerHTML=AUDIBLE_PERDIDAS_DB.map(v=>'<option value="'+v+'"'+(v===AUDIBLE_PERDIDA_MURO_DB?' selected':'')+'>'+v+' dB</option>').join('');
+  ['splModo','splPerd'].forEach(i=>$(i).addEventListener('change',()=>{E._spl=null;reverificar();dibujar();}));
   ['cabCableSLC','cabCableNAC'].forEach(i=>{$(i).innerHTML=CABLES.map(q=>'<option value="'+q[0]+'">'+q[1]+' '+q[2]+' · '+q[3]+' AWG · '+q[4]+' Ω/km — '+q[5]+'</option>').join('');});
   $('cabCableSLC').value='c03';$('cabCableNAC').value='c02';
   $('eqTipo').innerHTML=EQUIPOS.map(q=>'<option value="'+q[0]+'">'+q[0]+' · '+q[1]+'</option>').join('');
@@ -2912,7 +2956,7 @@ function iniciar(){
   $('btnLimpiar').onclick=()=>{invalidar();dibujar();};
   [['tSel','sel'],['tRec','rec'],['tRect','rect'],['tRell','rell'],['tSal','salida'],['tFacp','facp'],['tAhu','ahu'],['tAsc','asc'],['tEq','eq'],['tBor','bor'],['tDev','dev']].forEach(([i,h])=>$(i).onclick=()=>herramienta(h));
   $('tAjustar').onclick=ajustarVista;
-  ['vCobDet','vCobVis','vCobAud','vSPL','vNotas','vModulos','vCable','vPlano','vOp','vSim'].forEach(i=>$(i).oninput=dibujar);
+  ['vCobDet','vCobVis','vCobAud','vSPL','vNotas','vModulos','vPlano','vOp','vSim'].forEach(i=>$(i).oninput=dibujar);
   $('btnDict').click();infoCadena();tablaEquipos();
   window.addEventListener('resize',ajustarLienzo);window.addEventListener('resize',ajustarLienzo2);ajustarLienzo();ajustarVista();restaurarGuardado();
 }
