@@ -302,6 +302,8 @@
    <b>Cobertura:</b>
    <label style="margin:0"><input type="checkbox" id="vCobDet" checked style="width:auto"> Detectores</label>
    <label style="margin:0"><input type="checkbox" id="vCobVis" style="width:auto"> Notificación visual</label>
+   <label style="margin:0" title="Mapa de las zonas cubiertas por algún estrobo de cualquier recinto (verde) y las que no (rojo)"><input type="checkbox" id="vVisComb" style="width:auto"> Visual combinada</label>
+   <label style="margin:0" title="Muros que puede atravesar la luz de un estrobo hacia el recinto vecino (puerta abierta, vidrio, vano)">muros que atraviesa la luz <select id="visMuros" style="width:auto"></select></label>
    <label style="margin:0"><input type="checkbox" id="vCobAud" style="width:auto"> Notificación auditiva</label>
    <label style="margin:0" title="Dibuja a la par de cada equipo los módulos que pide la matriz (uno por señal), para replicarlos en el modelo"><input type="checkbox" id="vModulos" style="width:auto" checked> Módulos junto a equipos</label>
    <label style="margin:0" title="Muestra, junto a cada equipo del plano, los dispositivos que pide la matriz de supervisión"><input type="checkbox" id="vNotas" style="width:auto" checked> Notas de equipos</label>
@@ -316,6 +318,7 @@
     <span style="margin-left:auto;display:flex;gap:4px"><button class="sec" id="btnCobOcultarTodas" title="Oculta la cobertura de todos los recintos (los dispositivos se quedan)" style="padding:3px 8px;font-size:.74rem">👁 Ocultar todas</button><button class="sec" id="btnCobMostrarTodas" title="Muestra la cobertura de todos los recintos" style="padding:3px 8px;font-size:.74rem">👁 Mostrar todas</button></span>
 </div>
   <canvas id="cv"></canvas>
+  <details class="panel" id="leyendaVIS" open style="display:none"><summary>Cobertura visual combinada</summary><div id="leyendaVIScuerpo"></div></details>
   <details class="panel" id="leyendaSPL" open style="display:none"><summary>Leyenda de nivel sonoro</summary><div id="leyendaSPLcuerpo"></div></details>
   <div id="estado">Cargue un plano o cree un recinto con dimensiones. Rueda = zoom · arrastrar con botón central o Espacio = desplazar · Enter/doble clic = cerrar polígono · Esc = cancelar.</div>
  </div>
@@ -442,6 +445,8 @@ const ALTURA_AVISO_CALOR_M = 3.0;
 const ALTURA_AVISO_HUMO_M = 9.1;
 // Distancia mínima de un detector a una pared (en el prediseño). CRITERIO (≈4 in);
 // SIN VERIFICAR contra el texto de NFPA 72.
+// Si un estrobo de pared está a más de esta distancia del muro (m) se toma su posición como inicio del cuadrado de cobertura.
+const GEOM_PARED_LEJOS_M = 0.6;
 const DIST_MIN_PARED_M = 0.10;
 // Distancia entre detector de humo y ascensor/vestíbulo (Hyatt, informe FLS, D-43).
 const DIST_HUMO_ASCENSOR_M = 3.05;
@@ -511,6 +516,8 @@ const CATALOGO_DBA = [75, 80, 85, 90, 95];
 // de atenuación de la edición adoptada), resolución del mapa de recintos para contar muros (m) y nivel por debajo del cual un aporte se ignora (dBA).
 const AUDIBLE_PERDIDA_MURO_DB = 15, AUDIBLE_PERDIDAS_DB = [10, 15, 20, 25, 30];
 const AUDIBLE_RASTER_M = 0.5, AUDIBLE_PISO_DBA = 20;
+// Cobertura visual combinada (CRITERIO de prediseño): la luz no atraviesa muros; se ofrece permitir 0 muros (solo el recinto propio) o 1 (puertas abiertas, vidrio, vanos).
+const VISUAL_MUROS_OPC = [0, 1], VISUAL_MUROS_DEF = 0;
 // Pulsadores: dentro de 1.5 m (5 ft) de cada salida. NFPA 72:2022 §17.15.9.4 (V22);
 // NFPA 101:2015 9.6.2.x (V15).
 const PULSADOR_DIST_SALIDA_M = 1.5;
@@ -1046,10 +1053,10 @@ function mapaSPL(){
 // (Figura 18.5.5.7.1, Tabla 18.5.5.7.1(a)); estrobo de CIELO = cuadrados anidados centrados en el aparato (Exhibit 18.27,
 // Tabla 18.5.5.7.1(b)). El cuadro exterior es el lado que cubre las candelas del aparato; los rótulos son tenues a propósito.
 function dibujarCobVis(d,p,recorta){
-  const k=E.vista.k,cielo=/cielo/.test(d.tipo),rc=E.recintos.find(x=>x.id===d.rid);
+  const k=E.vista.k,cielo=/cielo/.test(d.tipo),rc=recGeom(d);
   let centrado=cielo,base=p,u={x:1,y:0},v={x:0,y:1};
   if(!cielo){
-    if(rc){const g=geomPared(d,rc);v=g.v;u=g.u;base=aPant(g.pb);}else centrado=true;   // v: hacia el interior del recinto
+    if(rc){const g=geomPared(d,rc);v=g.v;u=g.u;base=aPant(g.base);}else centrado=true;   // v: hacia el interior del recinto
   }
   const insuf=!d.lado,Lx=d.lado||d.ladoInsuf;
   const lados=insuf?[Lx]:COBERTURA_VISUAL_LADOS_M.filter(s=>s<Lx-0.05).concat([Lx]);
@@ -1119,6 +1126,44 @@ function leyendaSPL(){
   cx.restore();
 }
 const _leyPlano = {on:false,esq:'si'};
+// ¿La cobertura de este estrobo (cuadrado de lado d.lado, o círculo d.radioVis) contiene el punto p? (misma geometría que el dibujo)
+function cobVisContiene(d,rc,p){
+  if(d.radioVis)return Math.hypot(p.x-d.x,p.y-d.y)<=d.radioVis;
+  if(!d.lado)return false;
+  const h=d.lado/2;
+  if(/cielo/.test(d.tipo)||!rc)return Math.abs(p.x-d.x)<=h&&Math.abs(p.y-d.y)<=h;
+  const g=geomPared(d,rc),lat=(p.x-g.base.x)*g.u.x+(p.y-g.base.y)*g.u.y,prof=(p.x-g.base.x)*g.v.x+(p.y-g.base.y)*g.v.y;
+  return Math.abs(lat)<=h&&prof>=0&&prof<=d.lado;
+}
+// Muros (cambios de recinto) que cruza la línea recta de a hacia p
+function murosEntre(rr,a,p,ridA){
+  if(!rr||rr.vacio)return 0;
+  if(ridA>=0&&idEn(rr,p)===ridA)return 0;   // dentro de su propio recinto no hay muro de por medio
+  const n=Math.max(1,Math.ceil(Math.hypot(p.x-a.x,p.y-a.y)/AUDIBLE_RASTER_M));let prev=ridA>=0?ridA:idEn(rr,a),m=0;
+  for(let k=1;k<=n;k++){const id=idEn(rr,{x:a.x+(p.x-a.x)*k/n,y:a.y+(p.y-a.y)*k/n});if(id>=0&&id!==prev){m++;prev=id;}}
+  return m;
+}
+// Mapa visual combinado: cada celda de cada recinto queda cubierta si algún estrobo (de cualquier recinto) la cubre atravesando como máximo «muros» muros.
+function mapaVisComb(){
+  const muros=+$('visMuros').value||0,estr=E.disp.filter(d=>/estrobo/.test(d.tipo)&&(d.lado||d.radioVis));
+  const sig=muros+'|'+estr.map(d=>[d.id,d.x.toFixed(2),d.y.toFixed(2),d.rid,d.lado,d.radioVis,d.tipo].join(',')).join(';')+'|'+E.recintos.map(r=>r.id+':'+area(r.poly).toFixed(1)).join(',');
+  if(E._visK===sig&&E._visM)return E._visM;
+  const rr=rasterRecintos(),celdas=[];
+  E.recintos.forEach(r=>{const b=bbox(r.poly),paso=Math.max(AUDIBLE_MAPA_PASO_MIN_M,Math.sqrt(b.w*b.h/AUDIBLE_MAPA_CELDAS_MAX));
+    for(let x=b.x0+paso/2;x<b.x1;x+=paso)for(let y=b.y0+paso/2;y<b.y1;y+=paso){const p={x,y};if(!enRecinto(p,r.poly))continue;
+      let ok=false;for(const d of estr){const rcD=recGeom(d);if(!cobVisContiene(d,rcD,p))continue;if(murosEntre(rr,d,p,d.rid!=null?d.rid:-1)<=muros){ok=true;break;}}
+      celdas.push({x,y,paso,ok,rid:r.id});}});
+  E._visK=sig;return (E._visM=celdas);
+}
+function dibujarVisComb(){
+  const k=E.vista.k,ocultos=new Set(E.recintos.filter(r=>r.ocultaCob).map(r=>r.id)),C=mapaVisComb(),tot={},cub={};
+  C.forEach(c=>{tot[c.rid]=(tot[c.rid]||0)+1;if(c.ok)cub[c.rid]=(cub[c.rid]||0)+1;
+    if(ocultos.has(c.rid))return;const a=aPant({x:c.x-c.paso/2,y:c.y-c.paso/2}),w=c.paso*k+0.6;
+    cx.fillStyle=c.ok?'rgba(30,150,70,.30)':'rgba(220,30,30,.45)';cx.fillRect(a.x,a.y,w,w);});
+  const pan=$('leyendaVIS'),filas=E.recintos.filter(r=>tot[r.id]).map(r=>{const pc=Math.round(100*(cub[r.id]||0)/tot[r.id]);return {t:r.nombre+': '+pc+' % del área cubierta por estrobos',mal:pc<100};});
+  pan.style.display=filas.length?'':'none';
+  $('leyendaVIScuerpo').innerHTML='<div style="margin-bottom:4px"><b style="color:#1e7d3c">■</b> cubierto por algún estrobo · <b style="color:#d6281c">■</b> sin cobertura visual · la luz atraviesa como máximo '+(+$('visMuros').value||0)+' muro(s) (criterio, no NFPA). Una cobertura al 100 % exige además que cada recinto cumpla su propia tabla de NFPA 72 §18.5.</div><ul style="margin:0 0 6px 18px;padding:0;font-size:.78rem">'+filas.map(f=>'<li'+(f.mal?' class="mal"':'')+'>'+esc(f.t)+'</li>').join('')+'</ul>';
+}
 function dibujarSPL(){
   const k=E.vista.k;
   const ocultos=new Set(E.recintos.filter(r=>r.ocultaCob).map(r=>r.id));
@@ -1155,11 +1200,14 @@ function avisarSolapes(agregar){
 // Estrobo de pared (no de corredor): va montado en un muro, como en la Figura 18.5.5.7.1 de NFPA 72:2022.
 function esEstroboPared(d){return /estrobo/.test(d.tipo)&&!/cielo/.test(d.tipo)&&!d.radioVis;}
 // Geometría del muro donde va el estrobo: punto del muro más cercano, sentido hacia el interior del recinto y eje a lo largo del muro.
+// Recinto que se usa para la geometría de la cobertura: el que contiene hoy al dispositivo (si lo movieron a otro recinto), y si no, el suyo.
+function recGeom(d){return recintoMin(d)||E.recintos.find(x=>x.id===d.rid)||null;}
 function geomPared(d,rc){
   const pb=puntoBorde(d,rc.poly);let dx=d.x-pb.x,dy=d.y-pb.y,m=Math.hypot(dx,dy);
   if(m<1e-6){const b=bbox(rc.poly);dx=b.x0+b.w/2-pb.x;dy=b.y0+b.h/2-pb.y;m=Math.hypot(dx,dy)||1;}
   else if(!enRecinto(d,rc.poly)){dx=-dx;dy=-dy;}   // arrastrado fuera del recinto: el interior queda del otro lado
-  const v={x:dx/m,y:dy/m};return {pb:{x:pb.x,y:pb.y},v,u:{x:-v.y,y:v.x}};
+  const v={x:dx/m,y:dy/m},lejos=m>GEOM_PARED_LEJOS_M;   // «lejos»: movido a mano, el cuadrado parte del propio dispositivo (no salta al muro)
+  return {pb:{x:pb.x,y:pb.y},base:lejos?{x:d.x,y:d.y}:{x:pb.x,y:pb.y},v,u:{x:-v.y,y:v.x}};
 }
 // Pega el estrobo de pared al muro más cercano (a la distancia mínima de pared) para que el cuadrado de cobertura parta del muro.
 function pegarAPared(d){
@@ -1169,7 +1217,7 @@ function pegarAPared(d){
 // Lado del cuadrado, medido desde el muro y centrado en el aparato, que necesita el recinto para quedar cubierto (Tabla 18.5.5.7.1(a)).
 function ladoNecesarioPared(d,rc){
   const g=geomPared(d,rc);let prof=0,lat=0;
-  rc.poly.forEach(q=>{prof=Math.max(prof,(q.x-g.pb.x)*g.v.x+(q.y-g.pb.y)*g.v.y);lat=Math.max(lat,Math.abs((q.x-d.x)*g.u.x+(q.y-d.y)*g.u.y));});
+  rc.poly.forEach(q=>{prof=Math.max(prof,(q.x-g.base.x)*g.v.x+(q.y-g.base.y)*g.v.y);lat=Math.max(lat,Math.abs((q.x-d.x)*g.u.x+(q.y-d.y)*g.u.y));});
   return Math.max(prof,2*lat);
 }
 // Gira el SÍMBOLO del dispositivo sobre su propio eje (no lo mueve ni cambia su cobertura): grados, 0–359.
@@ -1569,7 +1617,7 @@ function dibujarBase(){
   // Capas de cobertura seleccionables; las de notificación se recortan al recinto que las contiene.
   const V2=!!E._modoCable;   // vista del precableado: solo plano, recintos, dispositivos y cableado (sin coberturas ni notas)
   const verDet=!V2&&$('vCobDet').checked,verVis=!V2&&$('vCobVis').checked,verAud=!V2&&$('vCobAud').checked;
-  const recorta=(d,fn)=>{const rc=E.recintos.find(x=>x.id===d.rid);cx.save();if(rc){cx.beginPath();[rc.poly].concat(rc.poly.huecos||[]).forEach(pl=>{pl.forEach((q,i)=>{const a=aPant(q);cx[i?'lineTo':'moveTo'](a.x,a.y);});cx.closePath();});cx.clip('evenodd');}fn();cx.restore();};
+  const recorta=(d,fn)=>{const rc=recGeom(d);cx.save();if(rc){cx.beginPath();[rc.poly].concat(rc.poly.huecos||[]).forEach(pl=>{pl.forEach((q,i)=>{const a=aPant(q);cx[i?'lineTo':'moveTo'](a.x,a.y);});cx.closePath();});cx.clip('evenodd');}fn();cx.restore();};
   E.disp.forEach(d=>{
     const p=aPant(d);
     const rcO=E.recintos.find(x=>x.id===d.rid);if(rcO&&rcO.ocultaCob)return;   // cobertura oculta en ese recinto (clic derecho)
@@ -1578,6 +1626,7 @@ function dibujarBase(){
     if(verVis&&d.radioVis){recorta(d,()=>{cx.beginPath();cx.arc(p.x,p.y,d.radioVis*E.vista.k,0,7);cx.fillStyle=COLOR.cobE;cx.fill();cx.strokeStyle='rgba(200,30,30,.9)';cx.setLineDash([6,4]);cx.lineWidth=1.5;cx.stroke();cx.setLineDash([]);});}
     if(verAud&&/bocina|parl/.test(d.tipo)&&d.radio)dibujarAudible(d,p,recorta);
   });
+  if(!E._modoCable&&$('vVisComb')&&$('vVisComb').checked)dibujarVisComb();else if(!E._modoCable&&$('leyendaVIS'))$('leyendaVIS').style.display='none';
   if(!E._modoCable&&$('vSPL').checked){dibujarSPL();leyendaSPL();}else if(!E._modoCable&&$('leyendaSPL'))$('leyendaSPL').style.display='none';
   if(E._modoCable&&E.cableado)dibujarCableado();   // el cableado solo se ve en la vista del módulo 3, no en Ejecución
   if($('vModulos')&&$('vModulos').checked)E.disp.forEach(d=>{if(d.tipo==='det_co'){const p=aPant(d);sim(cx,'modulo_tc4',p.x+S*1.9,p.y,S);}});   // módulo TC4 de la base de CO
@@ -1933,9 +1982,9 @@ function exportarDXF(){
       if(/bocina|parl/.test(d.tipo)&&d.radio)circulo('ALARMA-COB-AUD',d.x,d.y,d.radio);
       if(/estrobo/.test(d.tipo)){
         if(d.radioVis)circulo('ALARMA-COB-VIS',d.x,d.y,d.radioVis);
-        else if(d.lado){const L=d.lado,rc=E.recintos.find(r=>r.id===d.rid);
+        else if(d.lado){const L=d.lado,rc=recGeom(d);
           if(/cielo/.test(d.tipo)||!rc)poli('ALARMA-COB-VIS',[{x:d.x-L/2,y:d.y-L/2},{x:d.x+L/2,y:d.y-L/2},{x:d.x+L/2,y:d.y+L/2},{x:d.x-L/2,y:d.y+L/2}],true);
-          else{const gm=geomPared(d,rc),a={x:gm.pb.x-gm.u.x*L/2,y:gm.pb.y-gm.u.y*L/2},b={x:gm.pb.x+gm.u.x*L/2,y:gm.pb.y+gm.u.y*L/2};
+          else{const gm=geomPared(d,rc),a={x:gm.base.x-gm.u.x*L/2,y:gm.base.y-gm.u.y*L/2},b={x:gm.base.x+gm.u.x*L/2,y:gm.base.y+gm.u.y*L/2};
             poli('ALARMA-COB-VIS',[a,b,{x:b.x+gm.v.x*L,y:b.y+gm.v.y*L},{x:a.x+gm.v.x*L,y:a.y+gm.v.y*L}],true);}}
       }
     });
@@ -2815,7 +2864,7 @@ function recopilar(completo){
   if((completo||$('chkImg').checked)&&E.img)o.plano.dataUrl=dataUrlDe(E.img,'img');
   if(completo&&E.imgMuros)o.plano.murosUrl=dataUrlDe(E.imgMuros,'muros');
   o.textosPdf=E.textosPdf||[];o.escala={n:$('escN').value,dpi:$('escDpi').value};
-  o.splOpc={modo:$('splModo').value,perd:$('splPerd').value};
+  o.splOpc={modo:$('splModo').value,perd:$('splPerd').value};o.visOpc={on:$('vVisComb').checked,muros:$('visMuros').value};
   o.cableado=E.cableado||null;o.cabCampos={};PRE_CAMPOS.forEach(i=>{o.cabCampos[i]=$(i).value;});
   return o;
 }
@@ -2827,6 +2876,7 @@ function aplicar(o){
   E.recintos=o.recintos||[];E.marcas=o.marcas||[];E.disp=o.disp||[];E.eqCant=o.eqCant||{};E.seq=o.seq||1;E.resultados=[];$('resultados').innerHTML='';
   if(o.plano){E.imgNombre=o.plano.nombre||'';E.imgM=o.plano.m||0;E.imgX=o.plano.x||0;E.imgY=o.plano.y||0;if(o.plano.dataUrl){const im=new Image();im.onload=()=>{E.img=im;dibujar();};im.src=o.plano.dataUrl;}else if(o.plano.nombre)estado('El borrador no incluye la imagen del plano ('+o.plano.nombre+'): vuelva a cargarla y use «Aplicar escala» o calibre; las posiciones se conservan.');}
   if(o.textosPdf)E.textosPdf=o.textosPdf;
+  if(o.visOpc){$('vVisComb').checked=!!o.visOpc.on;if(o.visOpc.muros!=null)$('visMuros').value=o.visOpc.muros;}
   if(o.splOpc){$('splModo').value=o.splOpc.modo||'rec';if(o.splOpc.perd)$('splPerd').value=o.splOpc.perd;}
   E.cableado=o.cableado||null;if(o.cabCampos)PRE_CAMPOS.forEach(i=>{if(o.cabCampos[i]!=null&&$(i))$(i).value=o.cabCampos[i];});
   if(o.escala){if(o.escala.n)$('escN').value=o.escala.n;if(o.escala.dpi)$('escDpi').value=o.escala.dpi;}
@@ -2935,6 +2985,8 @@ function iniciar(){
   $('pais').innerHTML=Object.keys(JURISDICCIONES).map(k=>'<option value="'+k+'"'+(k===JURISDICCION_DEFECTO?' selected':'')+'>'+JURISDICCIONES[k].nombre+'</option>').join('');
   $('pais').onchange=aplicarJurisdiccion;
   $('splPerd').innerHTML=AUDIBLE_PERDIDAS_DB.map(v=>'<option value="'+v+'"'+(v===AUDIBLE_PERDIDA_MURO_DB?' selected':'')+'>'+v+' dB</option>').join('');
+  $('visMuros').innerHTML=VISUAL_MUROS_OPC.map(v=>'<option value="'+v+'"'+(v===VISUAL_MUROS_DEF?' selected':'')+'>'+v+'</option>').join('');
+  ['vVisComb','visMuros'].forEach(i=>$(i).addEventListener('change',()=>{E._visK=null;dibujar();}));
   ['splModo','splPerd'].forEach(i=>$(i).addEventListener('change',()=>{E._spl=null;reverificar();dibujar();}));
   ['cabCableSLC','cabCableNAC'].forEach(i=>{$(i).innerHTML=CABLES.map(q=>'<option value="'+q[0]+'">'+q[1]+' '+q[2]+' · '+q[3]+' AWG · '+q[4]+' Ω/km — '+q[5]+'</option>').join('');});
   $('cabCableSLC').value='c03';$('cabCableNAC').value='c02';

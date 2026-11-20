@@ -124,3 +124,10 @@ Un recinto cuyo contorno cae por completo dentro de otro se trata como subrecint
 - Barra de capas, junto a «Nivel sonoro (dBA)»: modo «por recinto» (solo los dispositivos de cada recinto) o «combinado» (los de los recintos vecinos también aportan, con una pérdida por cada muro que cruza el sonido: 10 a 30 dB, 15 dB por defecto). Se cuentan los muros como cambios de recinto a lo largo del trayecto recto del dispositivo al punto.
 - El modo elegido gobierna el mapa de nivel sonoro, la leyenda, la lectura bajo el cursor y la verificación «Audible» de cada recinto, y se guarda en el borrador. La pérdida por muro es un criterio de prediseño (no normativo); la real depende del muro, las puertas y las rejillas.
 - No quita automáticamente las bocinas que queden redundantes: muestra si los recintos vecinos cubren y el diseñador decide.
+
+## Cobertura visual combinada
+
+En la barra de capas del módulo 2 hay una casilla **Visual combinada** y un selector **muros que atraviesa la luz** (0 o 1). Pinta cada zona de todos los recintos en verde si algún estrobo (de cualquier recinto) la cubre y en rojo si ninguno. Debajo del plano, junto a la leyenda de nivel sonoro, aparece el porcentaje de área cubierta por recinto.
+
+- La geometría de cada estrobo es la del dibujo: cuadrado de la Tabla 18.5.5.7.1 (de cielo centrado, de pared desde el muro) o círculo en corredores.
+- **Supuestos y limitaciones:** la luz no atraviesa muros; el valor 1 es un criterio de prediseño para puertas abiertas, vidrio o vanos, no un valor de NFPA. El plano no trae datos de puertas: se cuentan cambios de recinto, igual que en el modo sonoro combinado. Esta capa no reemplaza la verificación de cada recinto contra NFPA 72 §18.5. Se guarda en el borrador. Probado con dos recintos de prueba; no probado con un plano real.
