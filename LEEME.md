@@ -94,3 +94,7 @@ Un recinto cuyo contorno cae por completo dentro de otro se trata como subrecint
 - Ctrl+Z deshace y Ctrl+Y (o Ctrl+Mayús+Z) rehace, también con los botones ↶ ↷ de «Herramientas». Cada acción es un paso: generar prediseño, mover, editar, borrar, agregar equipos, rotar… (hasta 60 pasos).
 - Cada bloque de equipo dibuja a la par un símbolo por módulo requerido (AIM monitoreo / AOM control) y su nota con los P/N; casilla «Módulos junto a equipos». El resumen de resultados totaliza los módulos por P/N y el CSV de dispositivos incluye cada equipo y cada módulo (con P/N, recinto y la ubicación del bloque) para que el modelador los replique en Revit.
 - Giro del símbolo sobre su propio eje: campo «Giro del símbolo (°)» y botones ↺ −15° / ↻ +15° / ⟳ 90° en el panel, clic derecho → «Girar símbolo 90°», o tecla G (Mayús+G en sentido contrario). Es solo rotación del dispositivo: no cambia su posición ni su cobertura (la rotación de pared/muro sigue con R).
+
+## Leyenda de nivel sonoro y alerta de dispositivos encimados
+- La leyenda del nivel sonoro es un panel plegable encima del lienzo (no tapa la planta). Con la casilla «Mostrar también sobre el plano» se dibuja sobre el plano, en la esquina que se elija, para exportar la imagen.
+- Dispositivos a menos de 0.5 m uno de otro (o en el mismo punto) se marcan con un círculo rojo discontinuo, aparece una alerta arriba de Resultados con la lista de pares y la barra de estado avisa al generar, mover o agregar.

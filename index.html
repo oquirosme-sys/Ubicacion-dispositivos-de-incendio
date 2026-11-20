@@ -298,6 +298,7 @@
    <label style="margin:0">Cierre de huecos de puerta (px) <input type="number" id="rellCierre" value="10" min="0" max="40" style="width:56px"></label>
     <span style="margin-left:auto;display:flex;gap:4px"><button class="sec" id="btnCobOcultarTodas" title="Oculta la cobertura de todos los recintos (los dispositivos se quedan)" style="padding:3px 8px;font-size:.74rem">👁 Ocultar todas</button><button class="sec" id="btnCobMostrarTodas" title="Muestra la cobertura de todos los recintos" style="padding:3px 8px;font-size:.74rem">👁 Mostrar todas</button></span>
 </div>
+  <details class="panel" id="leyendaSPL" open style="display:none"><summary>Leyenda de nivel sonoro</summary><div id="leyendaSPLcuerpo"></div></details>
   <canvas id="cv"></canvas>
   <div id="estado">Cargue un plano o cree un recinto con dimensiones. Rueda = zoom · arrastrar con botón central o Espacio = desplazar · Enter/doble clic = cerrar polígono · Esc = cancelar.</div>
  </div>
@@ -986,25 +987,37 @@ function nivelAudibleRequerido(tipoId){
   return {amb:t.amb||0,req,dormir:!!t.dormir,nombre:t.n||tipoId};
 }
 // Leyenda del mapa de nivel sonoro: qué es rojo y qué nivel requiere cada recinto, con lo que alcanza hoy.
-function leyendaSPL(){
-  const cel=mapaSPL();if(!cel.length)return;
-  const est={};cel.forEach(c=>{const e=est[c.rid]=est[c.rid]||{min:1e9,max:-1e9,req:c.req};if(c.v<e.min)e.min=c.v;if(c.v>e.max)e.max=c.v;});
-  const filas=E.recintos.filter(r=>est[r.id]&&!r.ocultaCob).map(r=>{const e=est[r.id],t=TIPOS[r.tipo]||{};
+// Va en un panel fuera del plano; sobre el plano solo si se marca la casilla (para exportar la imagen), en la esquina elegida.
+function filasLeyendaSPL(){
+  const cel=mapaSPL(),est={};cel.forEach(c=>{const e=est[c.rid]=est[c.rid]||{min:1e9,max:-1e9,req:c.req};if(c.v<e.min)e.min=c.v;if(c.v>e.max)e.max=c.v;});
+  return E.recintos.filter(r=>est[r.id]&&!r.ocultaCob).map(r=>{const e=est[r.id],t=TIPOS[r.tipo]||{};
     return {t:r.nombre+' ('+(t.n||r.tipo)+'): requiere ≥ '+Math.round(e.req)+' dBA · hoy mín. '+(isFinite(e.min)?Math.round(e.min):'—')+' / máx. '+(isFinite(e.max)?Math.round(e.max):'—'),mal:e.min<e.req-1e-6||e.max>AUDIBLE_MAX_DBA};});
+}
+function leyendaSPL(){
+  const filas=filasLeyendaSPL(),pan=$('leyendaSPL');
+  pan.style.display=filas.length?'':'none';if(!filas.length)return;
+  const fuera=filas.filter(f=>f.mal).length;
+  $('leyendaSPLcuerpo').innerHTML='<div style="margin-bottom:4px"><b>Máximo permitido '+AUDIBLE_MAX_DBA+' dBA</b> · <b style="color:#1e7d3c">■</b> cumple (≥ requerido y ≤ '+AUDIBLE_MAX_DBA+') · <b style="color:#d6281c">■</b> fuera de parámetros (bajo el requerido o sobre '+AUDIBLE_MAX_DBA+')'+(fuera?' — <b class="mal">'+fuera+' recinto(s) fuera de parámetros</b>':'')+'</div>'+
+    '<ul style="margin:0 0 6px 18px;padding:0;font-size:.78rem">'+filas.map(f=>'<li'+(f.mal?' class="mal"':'')+'>'+esc(f.t)+'</li>').join('')+'</ul>'+
+    '<label style="margin:0;font-weight:600"><input type="checkbox" id="vLeyPlano" style="width:auto"'+(_leyPlano.on?' checked':'')+'> Mostrar también sobre el plano (para exportar la imagen)</label> '+
+    '<select id="leyEsq" style="width:auto"><option value="si">arriba a la izquierda</option><option value="sd">arriba a la derecha</option><option value="ii">abajo a la izquierda</option><option value="id">abajo a la derecha</option></select>';
+  $('leyEsq').value=_leyPlano.esq;
+  $('vLeyPlano').onchange=()=>{_leyPlano.on=$('vLeyPlano').checked;dibujar();};$('leyEsq').onchange=()=>{_leyPlano.esq=$('leyEsq').value;dibujar();};
+  if(!_leyPlano.on)return;
   const MAXF=8,vis=filas.slice(0,MAXF),extra=filas.length-vis.length;
-  const enc='Nivel sonoro (dBA)  ·  máximo permitido '+AUDIBLE_MAX_DBA+' dBA';
-  cx.save();cx.font='11px Arial';
-  const lin=[enc,'■ Cumple (≥ requerido y ≤ '+AUDIBLE_MAX_DBA+')    ■ Fuera de parámetros (bajo el requerido o sobre '+AUDIBLE_MAX_DBA+')'].concat(vis.map(f=>f.t),extra>0?['… y '+extra+' recinto(s) más']:[]);
-  cx.font='bold 11px Arial';   // se mide en negrita (la fila fuera de parámetros va en negrita)
-  const w=Math.max(...lin.map(t=>cx.measureText(t).width))+16,h=lin.length*15+10;
-  cx.fillStyle='rgba(255,255,255,.93)';cx.fillRect(8,8,w,h);cx.strokeStyle='rgba(18,49,79,.45)';cx.lineWidth=1;cx.strokeRect(8,8,w,h);
+  cx.save();cx.font='bold 11px Arial';
+  const lin=['Nivel sonoro (dBA)  ·  máximo permitido '+AUDIBLE_MAX_DBA+' dBA','■ Cumple    ■ Fuera de parámetros'].concat(vis.map(f=>f.t),extra>0?['… y '+extra+' recinto(s) más']:[]);
+  const w=Math.max(...lin.map(t=>cx.measureText(t).width))+16,h=lin.length*15+10,r=cv.getBoundingClientRect();
+  const x0=_leyPlano.esq[1]==='d'?r.width-w-8:8,y0=_leyPlano.esq[0]==='i'?r.height-h-8:8;
+  cx.fillStyle='rgba(255,255,255,.93)';cx.fillRect(x0,y0,w,h);cx.strokeStyle='rgba(18,49,79,.45)';cx.lineWidth=1;cx.strokeRect(x0,y0,w,h);
   cx.textAlign='left';cx.textBaseline='top';
-  lin.forEach((t,i)=>{const y=14+i*15;
-    if(i===0){cx.font='bold 11px Arial';cx.fillStyle='#12314f';cx.fillText(t,16,y);cx.font='11px Arial';}
-    else if(i===1){let x=16;[['■ ','rgba(30,150,70,.85)','Cumple (≥ requerido y ≤ '+AUDIBLE_MAX_DBA+')    '],['■ ','rgba(220,30,30,.85)','Fuera de parámetros (bajo el requerido o sobre '+AUDIBLE_MAX_DBA+')']].forEach(p=>{cx.fillStyle=p[1];cx.fillText(p[0],x,y);x+=cx.measureText(p[0]).width;cx.fillStyle='#2b2f36';cx.fillText(p[2],x,y);x+=cx.measureText(p[2]).width;});}
-    else{const f=vis[i-2];cx.fillStyle=f&&f.mal?'#a4231f':'#2b2f36';if(f&&f.mal)cx.font='bold 11px Arial';cx.fillText(t,16,y);cx.font='11px Arial';}});
+  lin.forEach((t,i)=>{const y=y0+6+i*15;
+    if(i===0){cx.fillStyle='#12314f';cx.fillText(t,x0+8,y);}
+    else if(i===1){cx.font='11px Arial';cx.fillStyle='rgba(30,150,70,.9)';cx.fillText('■',x0+8,y);cx.fillStyle='#2b2f36';cx.fillText(' Cumple',x0+17,y);cx.fillStyle='rgba(220,30,30,.9)';cx.fillText('■',x0+68,y);cx.fillStyle='#2b2f36';cx.fillText(' Fuera de parámetros',x0+77,y);}
+    else{const f=vis[i-2];cx.font=f&&f.mal?'bold 11px Arial':'11px Arial';cx.fillStyle=f&&f.mal?'#a4231f':'#2b2f36';cx.fillText(t,x0+8,y);}});
   cx.restore();
 }
+const _leyPlano = {on:false,esq:'si'};
 function dibujarSPL(){
   const k=E.vista.k;
   const ocultos=new Set(E.recintos.filter(r=>r.ocultaCob).map(r=>r.id));
@@ -1012,6 +1025,31 @@ function dibujarSPL(){
     cx.fillStyle=(c.v<c.req-1e-6||c.v>AUDIBLE_MAX_DBA)?'rgba(220,30,30,.55)':'rgba(30,150,70,'+(0.16+0.30*Math.min(1,(c.v-c.req)/20)).toFixed(2)+')';   // rojo = fuera de parámetros
     cx.fillRect(a.x,a.y,w,w);
     if(w>=AUDIBLE_MAPA_ETIQUETA_PX){cx.fillStyle='rgba(18,49,79,.6)';cx.font='10px Arial';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(isFinite(c.v)?Math.round(c.v):'—',a.x+w/2,a.y+w/2);}});
+}
+// Dispositivos encimados: a menos de SOLAPE_DIST_M uno de otro (o en el mismo punto) un símbolo tapa al otro en el plano y quedarían
+// superpuestos en el modelo. Se marcan con un círculo rojo discontinuo y se listan en Resultados.
+const SOLAPE_DIST_M = 0.5;
+function solapes(){
+  const mapa=new Map(),pares=[],en=new Set();
+  E.disp.forEach(d=>{
+    const kx=Math.floor(d.x/SOLAPE_DIST_M),ky=Math.floor(d.y/SOLAPE_DIST_M);
+    for(let i=-1;i<=1;i++)for(let j=-1;j<=1;j++)(mapa.get((kx+i)+','+(ky+j))||[]).forEach(o=>{
+      const dist=Math.hypot(o.x-d.x,o.y-d.y);if(dist<SOLAPE_DIST_M){pares.push({a:o,b:d,dist});en.add(o);en.add(d);}});
+    const k=kx+','+ky;if(!mapa.has(k))mapa.set(k,[]);mapa.get(k).push(d);
+  });
+  return {pares,en};
+}
+function alertasHTML(){
+  const {pares,en}=solapes();if(!pares.length)return '';
+  const nom=d=>(ROT[d.tipo]||d.tipo)+(d.sala?' ('+d.sala+')':'');
+  return '<div class="tarjeta" style="border-color:#a4231f;background:#fbe9e8"><h4 class="mal">⚠ Alerta: '+en.size+' dispositivo(s) encimados o en la misma ubicación (a menos de '+SOLAPE_DIST_M+' m)</h4><ul style="margin:4px 0 4px 18px;padding:0;font-size:.8rem">'+
+    pares.slice(0,12).map(p=>'<li>'+esc(nom(p.a))+' ↔ '+esc(nom(p.b))+' · '+p.dist.toFixed(2)+' m · x '+p.a.x.toFixed(1)+', y '+p.a.y.toFixed(1)+'</li>').join('')+(pares.length>12?'<li>… y '+(pares.length-12)+' par(es) más</li>':'')+'</ul>'+
+    '<small class="g">Se ven con un círculo rojo discontinuo en el plano. Sepárelos con el arrastre o bórrelos: el símbolo de uno tapa al otro y en Revit quedarían superpuestos.</small></div>';
+}
+function avisarSolapes(agregar){
+  const n=solapes().en.size;if(!n)return;
+  const t='⚠ '+n+' dispositivo(s) encimados o en la misma ubicación (< '+SOLAPE_DIST_M+' m): marcados con un círculo rojo discontinuo; vea la lista en Resultados.';
+  $('estado').textContent=(agregar&&$('estado').textContent?$('estado').textContent+' ':'')+t;
 }
 // Estrobo de pared (no de corredor): va montado en un muro, como en la Figura 18.5.5.7.1 de NFPA 72:2022.
 function esEstroboPared(d){return /estrobo/.test(d.tipo)&&!/cielo/.test(d.tipo)&&!d.radioVis;}
@@ -1114,7 +1152,7 @@ function aplicarDisp(){
   }
   d.manual=true;E._spl=null;propiedadesDisp();dibujar();reverificar();
 }
-function reverificar(){if(!E.resultados.length)return;verificar(E.resultados,opciones());mostrarResultados();}
+function reverificar(){if(!E.resultados.length)return;verificar(E.resultados,opciones());mostrarResultados();avisarSolapes(true);}
 function verificar(res,o){
   res.forEach(x=>{
     const r=x.r,ch=[],mf=muestras(r.poly,PASO_MUESTRA_M/2,0);
@@ -1172,6 +1210,7 @@ function generar(todo){
   E.resultados=res;E.globales=g;
   mostrarResultados();propiedadesDisp();dibujar();
   estado(todo?'Prediseño regenerado para todos los recintos ('+res.length+').':(nuevos?'Prediseño generado solo para '+nuevos+' recinto(s) nuevo(s) o modificado(s); los otros '+(res.length-nuevos)+' no se movieron. «Regenerar todo» recalcula todo.':'No hay recintos nuevos: lo ya acomodado no se movió (solo se revisaron pulsadores y marcadores). Use «Regenerar todo» o clic derecho → «Regenerar este recinto» para recalcular.'));
+  avisarSolapes(true);
 }
 
 /* ==========================================================================
@@ -1194,7 +1233,7 @@ function modulos(o){
   return {mon,ctl,filas,slc,iso,pn};
 }
 function mostrarResultados(){
-  const o=opciones(),c=conteo(),res=E.resultados,m=modulos(o);let h='';
+  const o=opciones(),c=conteo(),res=E.resultados,m=modulos(o);let h=alertasHTML();
   const ed72=$('ed72').value,ed101=$('ed101').value;
   // Resumen de cantidades
   const filas=Object.keys(ROT).filter(k=>c[k]).map(k=>'<tr><td>'+ROT[k]+'</td><td>'+c[k]+'</td></tr>').join('');
@@ -1429,9 +1468,10 @@ function dibujar(){
     if(verVis&&d.radioVis){recorta(d,()=>{cx.beginPath();cx.arc(p.x,p.y,d.radioVis*E.vista.k,0,7);cx.fillStyle=COLOR.cobE;cx.fill();cx.strokeStyle='rgba(200,30,30,.9)';cx.setLineDash([6,4]);cx.lineWidth=1.5;cx.stroke();cx.setLineDash([]);});}
     if(verAud&&/bocina|parl/.test(d.tipo)&&d.radio)dibujarAudible(d,p,recorta);
   });
-  if($('vSPL').checked){dibujarSPL();leyendaSPL();}
+  if($('vSPL').checked){dibujarSPL();leyendaSPL();}else if($('leyendaSPL'))$('leyendaSPL').style.display='none';
   E.disp.forEach(d=>{const p=aPant(d);if(d.giro){cx.save();cx.translate(p.x,p.y);cx.rotate(d.giro*Math.PI/180);sim(cx,d.tipo,0,0,S,{cd:d.cd});cx.restore();}else sim(cx,d.tipo,p.x,p.y,S,{cd:d.cd});if(d.manual){cx.beginPath();cx.arc(p.x,p.y,S*1.15,0,7);cx.strokeStyle='rgba(224,168,0,.9)';cx.lineWidth=2;cx.setLineDash([3,3]);cx.stroke();cx.setLineDash([]);}
     if(d.id===E.selDev){cx.beginPath();cx.arc(p.x,p.y,S*1.45,0,7);cx.strokeStyle='#0a5ad4';cx.lineWidth=2.5;cx.stroke();}});
+  {const sol=solapes();if(sol.en.size){cx.save();cx.setLineDash([4,3]);cx.strokeStyle='#d6281c';cx.lineWidth=2.2;sol.en.forEach(d=>{const p=aPant(d);cx.beginPath();cx.arc(p.x,p.y,S*1.6,0,7);cx.stroke();});cx.restore();}}
   E.marcas.forEach(m=>{dibujarMarca(m,aPant(m),S);});
   // borrador
   if(E.herr==='rect'&&E.borrador.length===1&&E.cursor){const a=aPant(E.borrador[0]),b=aPant(E.cursor);cx.strokeStyle='#e0a800';cx.lineWidth=2;cx.setLineDash([6,4]);cx.fillStyle='rgba(224,168,0,.15)';cx.fillRect(a.x,a.y,b.x-a.x,b.y-a.y);cx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);cx.setLineDash([]);}
@@ -1538,7 +1578,7 @@ function dibujarMarca(m,p,S){
   // Módulos requeridos a la par del equipo: un símbolo por módulo (AIM = monitoreo, AOM = control), en filas a la derecha del bloque.
   if($('vModulos')&&$('vModulos').checked){
     const mods=[];dispositivosEquipo(eq).forEach(d=>{for(let i=0;i<d.n;i++)mods.push(d.func==='Control'?'modulo_ctl':'modulo_mon');});
-    const por=8,sp=S*1.25;mods.forEach((t,i)=>{sim(cx,t,p.x+S*1.5+(i%por)*sp,p.y+Math.floor(i/por)*sp,S*0.55);});
+    const por=8,sp=S*1.75;mods.forEach((t,i)=>{sim(cx,t,p.x+S*1.9+(i%por)*sp,p.y+Math.floor(i/por)*sp,S);});   // mismo tamaño que los demás símbolos (control «Tamaño símbolos»)
   }
   if($('vNotas')&&$('vNotas').checked){
     const L=dispositivosEquipo(eq).map(d=>d.n+'× '+d.pn+' ('+d.func+')');if(!L.length)L.push('sin módulos en la matriz');
