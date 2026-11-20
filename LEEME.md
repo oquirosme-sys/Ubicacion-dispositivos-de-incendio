@@ -141,3 +141,10 @@ El selector de la barra de capas gobierna a la vez el nivel sonoro (dBA) y el **
 - **Sin recintos asignados:** usa todos los dispositivos sin contar muros ni recortar por recinto; funciona aunque no haya ningún recinto dibujado. Solo se pintan las zonas cubiertas (el área sin cubrir no se marca en rojo, porque sin recintos no hay límite que comparar). Sin recintos no hay verificación por recinto; los estrobos de pared sin recinto cubren hacia su propia dirección (tecla R la gira 90°) y las bocinas sin recinto toman 15 dBA sobre un ambiente de 0 dBA.
 
 El modo se guarda en el borrador. Probado con recintos de prueba; no probado con un plano real.
+
+## Área de diseño (para trabajar sin recintos)
+
+Si carga un plano y no dibuja recintos, aparece sobre el plano un aviso pidiendo **delimitar el área de la estructura a diseñar** (botón «Delimitar área (dos esquinas)»). El área se dibuja con línea punteada azul y limita los mapas de cobertura sonora y visual del modo «sin recintos asignados»: solo se calculan dentro de ella, para que no salgan del edificio. Sin área de diseño, esos mapas se extienden alrededor de todos los dispositivos.
+
+- Se puede **redefinir** o **quitar** desde el mismo aviso. Se guarda en el borrador y entra en deshacer/rehacer.
+- **Supuestos y limitaciones:** es un rectángulo de dos esquinas (no un polígono libre); no cambia los modos «por recinto» ni «recintos combinados»; no es un recinto, no se verifica contra NFPA 72 ni se exporta como recinto. Probado con dispositivos sueltos de prueba; no probado con un plano real.

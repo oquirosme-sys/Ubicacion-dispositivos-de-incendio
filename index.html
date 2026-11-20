@@ -318,6 +318,7 @@
     <span style="margin-left:auto;display:flex;gap:4px"><button class="sec" id="btnCobOcultarTodas" title="Oculta la cobertura de todos los recintos (los dispositivos se quedan)" style="padding:3px 8px;font-size:.74rem">👁 Ocultar todas</button><button class="sec" id="btnCobMostrarTodas" title="Muestra la cobertura de todos los recintos" style="padding:3px 8px;font-size:.74rem">👁 Mostrar todas</button></span>
   <div id="notaModoCob" style="flex-basis:100%;display:none;font-size:.74rem;color:#5a6472;border-top:1px dashed #cfd6df;padding-top:4px"></div>
 </div>
+  <div id="avisoZona" style="display:none"></div>
   <canvas id="cv"></canvas>
   <details class="panel" id="leyendaVIS" open style="display:none"><summary>Cobertura visual combinada</summary><div id="leyendaVIScuerpo"></div></details>
   <details class="panel" id="leyendaSPL" open style="display:none"><summary>Leyenda de nivel sonoro</summary><div id="leyendaSPLcuerpo"></div></details>
@@ -741,7 +742,8 @@ function dispositivosEquipo(id){
    ESTADO
    ========================================================================== */
 const E = {
-  recintos:[], marcas:[], disp:[], seq:1,
+  recintos:[], marcas:[], disp:[], seq:1, zona:null, modoZona:false,   // zona: área de diseño (polígono) que limita los mapas del modo «sin recintos asignados»
+
   img:null, imgNombre:'', imgM:0, imgX:0, imgY:0,   // plano: m por px y origen en m
   vista:{x:0,y:0,k:20},                              // k = px de pantalla por metro
   herr:'sel', borrador:[], sel:null, calib:[], resultados:[], eqCant:{}, chain:'ninguna', cadenaCustom:null
@@ -1052,7 +1054,7 @@ function notaModoCob(){
   const m=$('splModo').value,n=$('notaModoCob');if(!n)return;
   const T={
    comb:'<b>Supuestos y limitaciones (recintos combinados):</b> la pérdida por muro del sonido (10–30 dB) y los muros que atraviesa la luz (0 o 1) son criterios de prediseño, no valores de NFPA. El plano no trae puertas ni vidrios: se cuentan cambios de recinto. El programa no quita bocinas redundantes ni reemplaza la verificación de cada recinto contra NFPA 72 §18.4 y §18.5.',
-   libre:'<b>Supuestos y limitaciones (sin recintos asignados):</b> se usan todos los dispositivos sin contar muros ni recortar por recinto, en campo libre. Solo se pinta la zona cubierta: el área sin cubrir no se marca en rojo porque sin recintos no hay límite que comparar. No hay verificación por recinto ni porcentaje por recinto contra las tablas de NFPA 72. Una bocina sin recinto asume 15 dBA sobre un ambiente de 0 dBA: ajuste su nivel a mano. Un estrobo de pared sin recinto cubre hacia su propia dirección (tecla R la gira 90°) y, si se aleja del muro, la cobertura parte del dispositivo y deja de cumplir la Figura 18.5.5.7.1.'
+   libre:'<b>Supuestos y limitaciones (sin recintos asignados):</b> se usan todos los dispositivos sin contar muros ni recortar por recinto, en campo libre. Solo se pinta la zona cubierta: el área sin cubrir no se marca en rojo porque sin recintos no hay límite que comparar. Sin «área de diseño» el mapa se extiende alrededor de todos los dispositivos y puede salirse del edificio: delimítela con el aviso sobre el plano. No hay verificación por recinto ni porcentaje por recinto contra las tablas de NFPA 72. Una bocina sin recinto asume 15 dBA sobre un ambiente de 0 dBA: ajuste su nivel a mano. Un estrobo de pared sin recinto cubre hacia su propia dirección (tecla R la gira 90°) y, si se aleja del muro, la cobertura parte del dispositivo y deja de cumplir la Figura 18.5.5.7.1.'
   };
   n.style.display=T[m]?'':'none';
   if(E._notaModo===m)return;   // no se reescribe en cada redibujo: así conserva si el usuario la dejó abierta o plegada
@@ -1061,15 +1063,36 @@ function notaModoCob(){
   n.innerHTML=T[m]?'<details'+(abierta?' open':'')+'><summary style="cursor:pointer;color:#7a4a00">'+t.slice(0,i)+' (clic para ver)</summary>'+t.slice(i)+'</details>':'';
 }
 function textoModoSPL(){if($('splModo').value==='libre')return 'sin recintos asignados (todos los dispositivos, sin contar muros)';return $('splModo').value==='comb'?'combinado con recintos vecinos, '+($('splPerd').value||0)+' dB de pérdida por muro':'solo los dispositivos de cada recinto';}
+// Aviso cuando hay plano y no hay recintos: pedir que se delimite el área de la estructura a diseñar.
+function avisoZona(){
+  const n=$('avisoZona');if(!n)return;
+  const hay=!!E.img&&!E.recintos.length;
+  if(!hay&&!E.zona){n.style.display='none';return;}
+  n.style.display='';
+  n.style.cssText='display:block;margin:0 0 6px;padding:6px 10px;border-radius:6px;font-size:.8rem;'+(E.zona?'background:#eef6ff;border:1px solid #9cc3ee':'background:#fff4dd;border:1px solid #e0a800');
+  n.innerHTML=E.zona
+   ?'<b>Área de diseño:</b> '+area(E.zona).toFixed(0)+' m². Los mapas del modo «sin recintos asignados» solo se calculan dentro de ella. <button class="sec" data-zona="def">Redefinir</button> <button class="sec" data-zona="quitar">Quitar</button>'
+   :'<b>Delimite el área de la estructura a diseñar.</b> Aún no hay recintos ni área de diseño: sin ellos, las coberturas del modo «sin recintos asignados» se calculan alrededor de todos los dispositivos y pueden salirse del edificio. <button class="sec" data-zona="def">Delimitar área (dos esquinas)</button>';
+}
+$('avisoZona').addEventListener('click',e=>{const b=e.target.closest('[data-zona]');if(!b)return;
+  if(b.dataset.zona==='quitar'){E.zona=null;E._spl=null;E._visK=null;dibujar();programarConfirmar();estado('Área de diseño quitada.');return;}
+  E.modoZona=true;herramienta('rect');estado('Área de diseño: haga clic (o arrastre) en dos esquinas opuestas de la estructura a diseñar.');});
+function dibujarZona(){
+  if(!E.zona||E.zona.length<3)return;
+  cx.save();cx.setLineDash([10,5]);cx.lineWidth=2;cx.strokeStyle='rgba(20,70,160,.85)';cx.beginPath();
+  E.zona.forEach((q,i)=>{const a=aPant(q);cx[i?'lineTo':'moveTo'](a.x,a.y);});cx.closePath();cx.stroke();
+  const a=aPant(E.zona[0]);cx.setLineDash([]);cx.fillStyle='rgba(20,70,160,.85)';cx.font='11px Arial';cx.textAlign='left';cx.textBaseline='bottom';cx.fillText('Área de diseño',a.x+4,a.y-3);cx.restore();
+}
+function zonaSig(){return E.zona?E.zona.map(q=>q.x.toFixed(2)+','+q.y.toFixed(2)).join(';'):'';}
 // Rejilla de puntos alrededor de unos dispositivos (sin depender de recintos): caja de los dispositivos ampliada «ext» metros.
 function rejillaLibre(devs,ext){
   if(!devs.length)return {pts:[],paso:1};
-  const xs=devs.map(d=>d.x),ys=devs.map(d=>d.y),x0=Math.min(...xs)-ext,x1=Math.max(...xs)+ext,y0=Math.min(...ys)-ext,y1=Math.max(...ys)+ext,paso=Math.max(AUDIBLE_MAPA_PASO_MIN_M,Math.sqrt((x1-x0)*(y1-y0)/AUDIBLE_MAPA_CELDAS_MAX)),pts=[];
-  for(let x=x0+paso/2;x<x1;x+=paso)for(let y=y0+paso/2;y<y1;y+=paso)pts.push({x,y});
+  const z=E.zona&&E.zona.length>2?bbox(E.zona):null,xs=devs.map(d=>d.x),ys=devs.map(d=>d.y),x0=z?z.x0:Math.min(...xs)-ext,x1=z?z.x1:Math.max(...xs)+ext,y0=z?z.y0:Math.min(...ys)-ext,y1=z?z.y1:Math.max(...ys)+ext,paso=Math.max(AUDIBLE_MAPA_PASO_MIN_M,Math.sqrt((x1-x0)*(y1-y0)/AUDIBLE_MAPA_CELDAS_MAX)),pts=[];
+  for(let x=x0+paso/2;x<x1;x+=paso)for(let y=y0+paso/2;y<y1;y+=paso){const p={x,y};if(!z||dentro(p,E.zona))pts.push(p);}   // con área de diseño: solo dentro de ella
   return {pts,paso};
 }
 function mapaSPL(){
-  const modo=$('splModo').value,perd=+$('splPerd').value||0,llave=modo+'|'+perd;
+  const modo=$('splModo').value,perd=+$('splPerd').value||0,llave=modo+'|'+perd+'|'+zonaSig();
   if(E._spl&&E._splK===llave)return E._spl;
   if(modo==='libre'){   // sin recintos: solo se pintan las zonas donde algún dispositivo llega al nivel requerido
     const todos=todosAudibles(),ext=Math.max(0,...todos.map(d=>d.radio||0)),req=todos.length?Math.min(...todos.map(d=>d.req||AUDIBLE_SOBRE_AMBIENTE_DB)):0,g=rejillaLibre(todos,ext),celdas=[];
@@ -1178,7 +1201,7 @@ function murosEntre(rr,a,p,ridA){
 // Mapa visual combinado: cada celda de cada recinto queda cubierta si algún estrobo (de cualquier recinto) la cubre atravesando como máximo «muros» muros.
 function mapaVisComb(){
   const modo=$('splModo').value,muros=+$('visMuros').value||0,estr=E.disp.filter(d=>/estrobo/.test(d.tipo)&&(d.lado||d.radioVis));
-  const sig=modo+'|'+muros+'|'+estr.map(d=>[d.id,d.x.toFixed(2),d.y.toFixed(2),d.rid,d.lado,d.radioVis,d.tipo,d.dirV?d.dirV.x+':'+d.dirV.y:'',d.giro].join(',')).join(';')+'|'+E.recintos.map(r=>r.id+':'+area(r.poly).toFixed(1)).join(',');
+  const sig=modo+'|'+muros+'|'+zonaSig()+'|'+estr.map(d=>[d.id,d.x.toFixed(2),d.y.toFixed(2),d.rid,d.lado,d.radioVis,d.tipo,d.dirV?d.dirV.x+':'+d.dirV.y:'',d.giro].join(',')).join(';')+'|'+E.recintos.map(r=>r.id+':'+area(r.poly).toFixed(1)).join(',');
   if(E._visK===sig&&E._visM)return E._visM;
   const celdas=[];
   if(modo==='libre'){   // sin recintos: zonas cubiertas por cualquier estrobo, sin muros ni recorte
@@ -1612,7 +1635,7 @@ function ajustarVista(){
 // Máximo de pasos que se pueden deshacer (CRITERIO de memoria).
 const UNDO_MAX = 60;
 const U = {pila:[],rehacer:[],actual:null,t:0,bloqueado:false};
-function estadoSerial(){return JSON.stringify({r:E.recintos,m:E.marcas,d:E.disp,q:E.eqCant,s:E.seq,c:E.cableado||null});}
+function estadoSerial(){return JSON.stringify({r:E.recintos,m:E.marcas,d:E.disp,q:E.eqCant,s:E.seq,c:E.cableado||null,z:E.zona||null});}
 function actualizarBotonesUndo(){const a=$('btnUndo'),b=$('btnRedo');if(a)a.disabled=!U.pila.length;if(b)b.disabled=!U.rehacer.length;}
 function confirmarCambio(){
   if(U.bloqueado)return;const n=estadoSerial();
@@ -1622,7 +1645,7 @@ function confirmarCambio(){
 function programarConfirmar(){clearTimeout(U.t);U.t=setTimeout(confirmarCambio,0);}   // después de que corran los manejadores del evento
 function restaurarEstado(ser){
   const o=JSON.parse(ser);U.bloqueado=true;
-  E.recintos=o.r;E.marcas=o.m;E.disp=o.d;E.eqCant=o.q;E.seq=o.s;E.cableado=o.c||null;
+  E.recintos=o.r;E.marcas=o.m;E.disp=o.d;E.eqCant=o.q;E.seq=o.s;E.cableado=o.c||null;E.zona=o.z||null;E._visK=null;
   if(!E.recintos.some(r=>r.id===E.sel))E.sel=null;E.edit=null;E.pegando=null;E.borrador=[];E.moverDisp=null;E.moverMarca=null;E._spl=null;
   const dsel=E.selDev;reconstruirResultados();if(E.disp.some(d=>d.id===dsel))E.selDev=dsel;
   tablaEquipos();propiedades();propiedadesDisp();dibujar();
@@ -1665,6 +1688,8 @@ function dibujarBase(){
   // Capas de cobertura seleccionables; las de notificación se recortan al recinto que las contiene.
   const V2=!!E._modoCable;   // vista del precableado: solo plano, recintos, dispositivos y cableado (sin coberturas ni notas)
   const verDet=!V2&&$('vCobDet').checked,verVis=!V2&&$('vCobVis').checked,verAud=!V2&&$('vCobAud').checked;
+  dibujarZona();
+  if(!E._modoCable)avisoZona();
   const recorta=(d,fn)=>{const rc=recGeom(d);cx.save();if(rc){cx.beginPath();[rc.poly].concat(rc.poly.huecos||[]).forEach(pl=>{pl.forEach((q,i)=>{const a=aPant(q);cx[i?'lineTo':'moveTo'](a.x,a.y);});cx.closePath();});cx.clip('evenodd');}fn();cx.restore();};
   E.disp.forEach(d=>{
     const p=aPant(d);
@@ -2259,6 +2284,10 @@ cv.addEventListener('mousemove',e=>{E.cursor=mundoDeEvento(e);
     if(A){const v=nivelSonoroEn(E.cursor,rr.id);estado('Nivel sonoro aquí: '+(isFinite(v)?v.toFixed(0):'—')+' dBA · requerido '+A.req.toFixed(0)+' dBA en «'+rr.nombre+'» · máx. permitido '+AUDIBLE_MAX_DBA+' dBA (NFPA 72 §18.4)');}}});
 function crearRect(a,b){
   if(Math.abs(b.x-a.x)*Math.abs(b.y-a.y)<AREA_MIN_RECINTO_M2){E.borrador=[];dibujar();estado('Rectángulo demasiado pequeño.');return;}
+  if(E.modoZona){   // área de diseño: limita los mapas sin recintos; no es un recinto
+    E.zona=[{x:a.x,y:a.y},{x:b.x,y:a.y},{x:b.x,y:b.y},{x:a.x,y:b.y}];E.modoZona=false;E.borrador=[];E._spl=null;E._visK=null;herramienta('sel');
+    estado('Área de diseño definida ('+area(E.zona).toFixed(0)+' m²). Los mapas del modo «sin recintos asignados» solo se calculan dentro de ella.');programarConfirmar();return;
+  }
   nuevoRecinto([{x:a.x,y:a.y},{x:b.x,y:a.y},{x:b.x,y:b.y},{x:a.x,y:b.y}]);E.borrador=[];dibujar();
   estado('Recinto rectangular creado'+(E.recintos.length&&E.recintos[E.recintos.length-1].nombre.indexOf('Recinto ')!==0?' con el nombre del plano: «'+E.recintos[E.recintos.length-1].nombre+'»':'')+'. Puede arrastrar de una esquina a la otra o hacer clic en dos esquinas.');
 }
@@ -2909,7 +2938,7 @@ function recopilar(completo){
   const o={version:1,proyecto:{nombre:$('pNombre').value,pais:$('pais').value,ed72:$('ed72').value,ed101:$('ed101').value,ocup:$('ocup').value,niveles:$('pNiveles').value,alt:$('pAlt').value,reunion:$('pReunion').value,hab:$('pHab').value,cob:$('cobDet').value,areaEdif:$('pAreaEdif').value,areaPlanta:$('pAreaPlanta').value,sup:$('pSup').value},
    cadena:E.chain,cadenaCustom:E.cadenaCustom,
    parametros:{espH:$('pEspH').value,espC:$('pEspC').value,cdMax:$('pCdMax').value,dba:$('pDba').value,aud:$('pAud').value,facRec:$('pFacRec').value,iso:$('pIso').value,co:$('pCO').value},
-   recintos:E.recintos,marcas:E.marcas,disp:E.disp,eqCant:E.eqCant,seq:E.seq,
+   recintos:E.recintos,marcas:E.marcas,disp:E.disp,eqCant:E.eqCant,seq:E.seq,zona:E.zona||null,
    plano:{nombre:E.imgNombre,m:E.imgM,x:E.imgX,y:E.imgY},vista:E.vista};
   if((completo||$('chkImg').checked)&&E.img)o.plano.dataUrl=dataUrlDe(E.img,'img');
   if(completo&&E.imgMuros)o.plano.murosUrl=dataUrlDe(E.imgMuros,'muros');
@@ -2923,7 +2952,7 @@ function aplicar(o){
   E.cadenaCustom=o.cadenaCustom||null;E.chain=o.cadena||'ninguna';if(E.chain==='custom'&&E.cadenaCustom){let op=$('cadena').querySelector('option[value=custom]');if(!op){op=document.createElement('option');op.value='custom';$('cadena').appendChild(op);}op.textContent='Cargado: '+(E.cadenaCustom.nombre||'');}
   $('cadena').value=E.chain;infoCadena();
   const q=o.parametros||{};[['espH','pEspH'],['espC','pEspC'],['cdMax','pCdMax'],['dba','pDba'],['aud','pAud'],['facRec','pFacRec'],['iso','pIso'],['co','pCO']].forEach(([a,b])=>{if(q[a]!=null)$(b).value=q[a];});
-  E.recintos=o.recintos||[];E.marcas=o.marcas||[];E.disp=o.disp||[];E.eqCant=o.eqCant||{};E.seq=o.seq||1;E.resultados=[];$('resultados').innerHTML='';
+  E.zona=o.zona||null;E._visK=null;E._spl=null;E.recintos=o.recintos||[];E.marcas=o.marcas||[];E.disp=o.disp||[];E.eqCant=o.eqCant||{};E.seq=o.seq||1;E.resultados=[];$('resultados').innerHTML='';
   if(o.plano){E.imgNombre=o.plano.nombre||'';E.imgM=o.plano.m||0;E.imgX=o.plano.x||0;E.imgY=o.plano.y||0;if(o.plano.dataUrl){const im=new Image();im.onload=()=>{E.img=im;dibujar();};im.src=o.plano.dataUrl;}else if(o.plano.nombre)estado('El borrador no incluye la imagen del plano ('+o.plano.nombre+'): vuelva a cargarla y use «Aplicar escala» o calibre; las posiciones se conservan.');}
   if(o.textosPdf)E.textosPdf=o.textosPdf;
   if(o.visOpc){$('vVisComb').checked=!!o.visOpc.on;if(o.visOpc.muros!=null)$('visMuros').value=o.visOpc.muros;}
