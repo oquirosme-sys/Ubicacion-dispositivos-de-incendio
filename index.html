@@ -89,7 +89,12 @@
   .card.cerrada>h2{margin-bottom:0}
   .card>h2.plegable:hover{color:var(--az)}
   .plegar-todo{display:flex;gap:6px;margin-bottom:8px}.plegar-todo button{padding:4px 9px;font-size:.74rem}
-  #dlgBorrar{border:1px solid var(--gb);border-radius:10px;padding:16px;max-width:520px;width:92vw;color:var(--tx)}
+  #dlgBorrar,#dlgEquipo,#dlgSenales{border:1px solid var(--gb);border-radius:10px;padding:16px;max-width:520px;width:92vw;color:var(--tx)}
+  #dlgSenales{max-width:900px}#dlgEquipo::backdrop,#dlgSenales::backdrop{background:rgba(0,0,0,.35)}
+  #dlgEqLista{max-height:55vh;overflow:auto;border:1px solid var(--gb);border-radius:6px;margin-top:8px}
+  #dlgEqLista button{display:block;width:100%;text-align:left;background:#fff;color:var(--tx);border:0;border-bottom:1px solid #eef1f4;border-radius:0;margin:0;padding:7px 10px;font-weight:600}
+  #dlgEqLista button:hover{background:var(--azc)}#dlgEqLista small{display:block;font-weight:400;color:#5a6472}
+  #dlgSenCuerpo{max-height:60vh;overflow:auto}
   #dlgBorrar::backdrop{background:rgba(0,0,0,.35)}
   #dlgLista{max-height:46vh;overflow:auto;border:1px solid var(--gb);border-radius:6px;padding:4px 8px}
   #dlgLista label{display:flex;align-items:center;gap:8px;margin:0;padding:5px 2px;font-weight:600;border-bottom:1px solid #eef1f4}
@@ -157,21 +162,15 @@
   <div class="f2">
    <div><label>Área agregada de incendio del edificio (m², todos los niveles)</label><input type="number" id="pAreaEdif" value="0" min="0"></div>
    <div><label>Área de la planta a trabajar (m²)</label><input type="number" id="pAreaPlanta" value="0" min="0"></div>
-   <div><label>Carga total de ocupantes (personas)</label><input type="number" id="pOcupTot" value="0" min="0"></div>
-   <div><label>Máx. ocupantes en un piso sobre o bajo el nivel de descarga</label><input type="number" id="pOcupPiso" value="0" min="0"></div>
   </div>
   <small class="g" id="areaAuto"></small>
-  <label>¿El edificio o la planta lleva supresión (rociadores automáticos)?</label>
+  <label>¿Lleva rociadores automáticos? (solo para el efecto sobre la alarma)</label>
   <select id="pSup">
    <option value="no" selected>No lleva supresión</option>
    <option value="total">Sí — rociadores automáticos en todo el edificio (NFPA 13)</option>
    <option value="parcial">Sí — rociadores solo en la planta o áreas a trabajar</option>
    <option value="otra">Otra supresión (agente limpio, cocina…) en áreas específicas</option>
   </select>
-  <div class="f2">
-   <div><label>Tubería vertical (NFPA 14)</label><select id="pTV"><option value="no" selected>No lleva</option><option value="c1">Sí — húmeda automática Clase 1</option><option value="otra">Sí — otra clase</option></select></div>
-   <div><label>Riesgo de los contenidos (industrial / almacén)</label><select id="pRiesgo"><option value="leve">Leve</option><option value="ordinario" selected>Ordinario</option><option value="elevado">Elevado</option></select></div>
-  </div>
   <label>Cobertura de detección automática</label>
   <select id="cobDet">
     <option value="total">Total (todas las áreas ocupables) — criterio de prediseño</option>
@@ -227,6 +226,7 @@
    <button id="tFacp" class="sec">+ FACP/recepción</button>
    <button id="tAhu" class="sec">+ Manejadora (AHU)</button>
    <button id="tAsc" class="sec">+ Ascensor</button>
+   <button id="tEq" class="sec" title="Colocar un equipo de la matriz de supervisión (bomba, generador, damper…)">+ Equipo</button><select id="eqTipo" title="Equipo de la matriz a colocar" style="width:auto;max-width:100%"></select>
    <span class="sep"></span>
    <button id="tBor" class="peligro">Borrar</button>
    <button id="tBorTodos" class="peligro" title="Elegir con casillas qué recintos borrar">Borrar recintos…</button>
@@ -286,6 +286,7 @@
    <label style="margin:0"><input type="checkbox" id="vCobDet" checked style="width:auto"> Detectores</label>
    <label style="margin:0"><input type="checkbox" id="vCobVis" style="width:auto"> Notificación visual</label>
    <label style="margin:0"><input type="checkbox" id="vCobAud" style="width:auto"> Notificación auditiva</label>
+   <label style="margin:0" title="Muestra, junto a cada equipo del plano, los dispositivos que pide la matriz de supervisión"><input type="checkbox" id="vNotas" style="width:auto" checked> Notas de equipos</label>
    <label style="margin:0" title="Al dibujar recintos, el cursor se engancha a las esquinas y muros del plano. Mantenga Alt para desactivarlo temporalmente"><input type="checkbox" id="vSnap" style="width:auto" checked> Imán a esquinas y muros</label>
    <label style="margin:0" title="Rojo: por debajo del nivel requerido; verde: cumple; naranja: sobre 110 dBA"><input type="checkbox" id="vSPL" style="width:auto"> Nivel sonoro (dBA)</label>
    <label style="margin:0"><input type="checkbox" id="vPlano" checked style="width:auto"> Plano</label>
@@ -332,6 +333,17 @@
   <footer class="pie"><b>Sinergia Ingeniería Latinoamérica</b><span>Costa Rica</span><span>Panamá</span><span>República Dominicana</span><span>Guatemala</span></footer>
 </div>
 
+<dialog id="dlgEquipo">
+  <h3 style="margin:0 0 6px">Elegir bloque o equipo</h3>
+  <small class="g">Matriz de supervisión de Sinergia: el bloque mostrará en planta los dispositivos que pide su fila.</small>
+  <div id="dlgEqLista"></div>
+  <div style="margin-top:10px;text-align:right"><button class="sec" id="dlgEqCerrar">Cerrar</button></div>
+</dialog>
+<dialog id="dlgSenales">
+  <h3 style="margin:0 0 6px" id="dlgSenTit">Señales y dispositivos requeridos</h3>
+  <div id="dlgSenCuerpo"></div>
+  <div style="margin-top:10px;text-align:right"><button class="sec" id="dlgSenCerrar">Cerrar</button></div>
+</dialog>
 <dialog id="dlgBorrar">
   <h3 style="margin:0 0 6px">Borrar recintos</h3>
   <small class="g">Marque los recintos que desea borrar. Al borrar, se quitan también los dispositivos prediseñados y hay que volver a generar. No se puede deshacer.</small>
@@ -339,7 +351,7 @@
   <div id="dlgLista"></div>
   <div style="margin-top:10px;text-align:right"><button class="sec" id="dlgCancelar">Cancelar</button><button class="peligro" id="dlgBorrarSel">Borrar seleccionados</button></div>
 </dialog>
-<div id="menuCtx"><div class="titulo" id="menuTit"></div><button id="mDevMover">✥ Mover (clic en el nuevo lugar)</button><button id="mDevClon">⧉ Agregar similares</button><button id="mDevCambiar">✎ Cambiar tipo / propiedades</button><button id="mDevAud">🔊 Agregar bocina</button><button id="mDevBor" style="color:var(--ro)">🗑 Borrar dispositivo</button><button id="mAgregar">＋ Agregar punto aquí</button><button id="mQuitar">− Eliminar punto</button><button id="mUltimo">↶ Quitar último punto</button><button id="mCerrar">✔ Cerrar polígono</button><button id="mCancelar">✖ Cancelar dibujo</button><button id="mCob">👁 Ocultar cobertura de este recinto</button><button id="mRegen">↻ Regenerar este recinto</button><button id="mRenombrar">✎ Cambiar nombre…</button><button id="mAjustar">✎ Ajustar polígono</button><button id="mCopiar">⧉ Copiar</button><button id="mBorrar" style="color:var(--ro)">🗑 Borrar</button></div>
+<div id="menuCtx"><div class="titulo" id="menuTit"></div><button id="mMkCambiar">✎ Cambiar equipo / bloque…</button><button id="mMkSenales">📋 Ver dispositivos requeridos</button><button id="mMkMover">✥ Mover (clic en el nuevo lugar)</button><button id="mMkBorrar" style="color:var(--ro)">🗑 Borrar bloque</button><button id="mDevMover">✥ Mover (clic en el nuevo lugar)</button><button id="mDevClon">⧉ Agregar similares</button><button id="mDevCambiar">✎ Cambiar tipo / propiedades</button><button id="mDevAud">🔊 Agregar bocina</button><button id="mDevBor" style="color:var(--ro)">🗑 Borrar dispositivo</button><button id="mAgregar">＋ Agregar punto aquí</button><button id="mQuitar">− Eliminar punto</button><button id="mUltimo">↶ Quitar último punto</button><button id="mCerrar">✔ Cerrar polígono</button><button id="mCancelar">✖ Cancelar dibujo</button><button id="mCob">👁 Ocultar cobertura de este recinto</button><button id="mRegen">↻ Regenerar este recinto</button><button id="mRenombrar">✎ Cambiar nombre…</button><button id="mAjustar">✎ Ajustar polígono</button><button id="mCopiar">⧉ Copiar</button><button id="mBorrar" style="color:var(--ro)">🗑 Borrar</button></div>
 
 <script>
 "use strict";
@@ -528,10 +540,6 @@ const EDICIONES_101 = ['2015','2018','2021','2024'];
 // equivalente más reciente en español o inglés: por eso los años siguen siendo seleccionables.
 // Reglamento Nacional de Protección contra Incendios, Versión 2023 (Bomberos de CR), leído en la copia provista. Umbrales:
 const RNPCI_GRAN_ALTURA_M = 23;                                   // §4.2 definición 38: 23 m o más hasta el último nivel ocupado
-const RNPCI_ROC_REUNION_M2 = 1500, RNPCI_ROC_MERCANTIL_M2 = 2500;  // §13.2.2 b), c): rociadores por área agregada de incendio
-const RNPCI_ROC_RIESGO_ELEVADO_M2 = 1500, RNPCI_ROC_HOTEL_HAB = 16; // §13.2.2 d), e), h)
-const RNPCI_TV_AREA_M2 = 2500;                                    // §13.3.6: tubería vertical clase 1 desde esta área agregada
-const RNPCI_TV_EXC_AREA_M2 = 7000, RNPCI_TV_EXC_ALTURA_M = 15, RNPCI_TV_EXC_PISOS = 3; // §13.3.6.2 a .4: excepción con rociadores completos
 const RNPCI_ZONA_AREA_M2 = 2000, RNPCI_ZONA_LARGO_M = 91;          // §11.6.2: zonificación de alarma por piso
 const RNPCI_REUNION_OCUPANTES = 300;                               // §11.7.1: alarma en reunión pública con más de 300 ocupantes
 const RNPCI_NEG_PISOS = 3, RNPCI_NEG_OCUP_PISO = 50, RNPCI_NEG_OCUP_TOTAL = 300; // §11.7.11: alarma en negocios
@@ -628,29 +636,24 @@ const CADENAS = {
 
 /* Equipos supervisados → módulos (extracto de «Matriz_Supervision_NFPA72_2.xlsx»):
    [id, nombre, módulos de monitoreo por equipo, módulos de control por equipo, referencia] */
-const EQUIPOS = [
- ['BPE','Bomba contra incendio eléctrica',8,0,'NFPA 20 10.4.7.2.1–.4'],
- ['BPD','Bomba contra incendio diésel',8,0,'NFPA 20 cap. 11 y 12'],
- ['BJK','Bomba jockey',1,0,'NFPA 20 cap. 10'],
- ['TFP','Transferencia automática de bomba',3,0,'NFPA 20 10.8.3.12'],
- ['GEN','Generador de emergencia',7,0,'NFPA 110 5.6.5'],
- ['ATS','Transferencia automática (ATS)',2,0,'NFPA 110 / NFPA 70 700'],
- ['UPS','UPS de sistemas de emergencia',1,0,'NFPA 72 cap. 10'],
- ['PWR','Fuente auxiliar / booster NAC',2,0,'NFPA 72 cap. 10'],
- ['VCT','Válvula de control (tamper)',1,0,'NFPA 72 17.16; NFPA 25'],
- ['FLJ','Flujostato de rociadores',1,0,'NFPA 72 17.12; NFPA 13'],
- ['PRS','Presostato',1,0,'NFPA 72 17.16'],
- ['TQA','Tanque de agua contra incendio',2,0,'NFPA 72 17.16; NFPA 22'],
- ['CBP','Cuarto de bombas (ambiental)',1,0,'NFPA 20 4.12'],
- ['PRE','Preacción / seco / diluvio',2,1,'NFPA 13; NFPA 72 cap. 23'],
- ['ASC','Ascensor (recall y shunt trip)',1,2,'NFPA 72 cap. 21; ASME A17.1'],
- ['AHU','Manejadora de aire (paro por alarma)',0,1,'NFPA 72 cap. 21; NFPA 90A'],
- ['ESC','Presurización de escaleras / extracción',0,1,'NFPA 72 cap. 21; NFPA 92'],
- ['DMP','Compuerta cortafuego/humo controlada',0,1,'NFPA 105'],
- ['PTA','Puerta con retenedor magnético',0,1,'NFPA 72 21.9; NFPA 101'],
- ['KIT','Supresión de cocina / agente limpio',2,0,'NFPA 96; NFPA 17A; UL 300'],
- ['GAS','Válvula de corte de gas',0,1,'NFPA 54 / NFPA 58']
-];
+// Matriz de señales y módulos para supervisión de equipos (NFPA 72): Matriz_Supervision_NFPA72_2.xlsx de Sinergia
+// (hojas Equipos, Matriz y Dispositivos). NFPA 72 no lista señales por equipo: es práctica común; el AHJ puede pedir otra clasificación.
+// Equipos: [ID, nombre, notas]
+const EQUIPOS_BASE = [["BPE","Bomba contra incendio eléctrica (controlador listado)","Contactos secos del controlador (NFPA 20 cap. 10)"],["BPD","Bomba contra incendio diésel (controlador listado)","Aplica solo si el proyecto tiene bomba diésel (NFPA 20 cap. 11 y 12)"],["BJK","Bomba jockey","Opcional; usualmente solo falla de energía/fuera de auto"],["TFP","Transferencia automática de bomba contra incendio","NFPA 20 10.8; ATS integrado o independiente al controlador"],["GEN","Generador de emergencia","Anunciador remoto NFPA 110 5.6.5"],["ATS","Transferencia automática (ATS) de cargas de emergencia","Una por cada ATS de sistemas de seguridad humana"],["UPS","UPS / fuente de respaldo de sistemas de emergencia","Si alimenta equipos de seguridad humana"],["PWR","Fuente auxiliar / booster de circuitos NAC","Una por cada fuente remota al panel"],["VCT","Válvula de control (OS&Y, mariposa, PIV) - tamper","Una por cada válvula supervisada"],["FLJ","Flujostato (waterflow) de rociadores","Una por zona/piso"],["PRS","Presostato de sistema (alta/baja presión)","Columna o sistema presurizado"],["TQA","Tanque de agua contra incendio","Nivel y temperatura (NFPA 22 / NFPA 72 17.16)"],["CBP","Cuarto de bombas (condiciones ambientales)","Temperatura baja del cuarto (NFPA 20 4.12)"],["PRE","Sistema de preacción / seco / diluvio","Presión de aire, solenoide y panel de liberación"],["ASC","Ascensor (recall de bomberos y shunt trip)","NFPA 72 cap. 21 / ASME A17.1; coordinar con proveedor de ascensores"],["AHU","Manejadora de aire / ventilador de HVAC","Paro por alarma (NFPA 72 cap. 21 / NFPA 90A)"],["ESC","Presurización de escaleras / extracción de humo","Control de ventiladores del sistema de control de humo"],["DMP","Compuerta cortafuego / humo (damper)","Solo si son controladas por el FACP"],["PTA","Puerta con control de acceso / retenedor magnético","Liberación por alarma (NFPA 72 21.9 / NFPA 101)"],["KIT","Sistema de supresión de cocina (UL 300) / agente limpio","Descarga, supervisión y cortes asociados"],["GAS","Válvula de corte de gas (GLP / natural)","Cierre por alarma o por descarga de cocina"]];
+// Señales por equipo: [ID, señal, tipo de señal, tipo de módulo, módulos por equipo, origen del contacto, referencia, notas, P/N Simplex]
+const MATRIZ_SENALES = [["BPE","Bomba/motor en marcha","Supervisión","Monitoreo",1,"Contacto del controlador","NFPA 20 10.4.7.2.1","","4090-9001"],["BPE","Pérdida de fase","Supervisión","Monitoreo",1,"Contacto del controlador","NFPA 20 10.4.7.2.2","","4090-9001"],["BPE","Inversión de fase","Supervisión","Monitoreo",1,"Contacto del controlador","NFPA 20 10.4.7.2.3","","4090-9001"],["BPE","Controlador en fuente alterna","Supervisión","Monitoreo",1,"Contacto del controlador","NFPA 20 10.4.7.2.4","Solo con dos fuentes (NFPA 20 9.3.2)","4090-9001"],["BPE","Falla de energía (power failure)","Supervisión","Monitoreo",1,"Contacto del controlador","NFPA 20 cap. 10; NFPA 72 17.16","","4090-9001"],["BPE","Selector fuera de automático (off/manual)","Supervisión","Monitoreo",1,"Contacto del controlador","NFPA 20 cap. 10","","4090-9001"],["BPE","Seccionador (disconnect) abierto","Supervisión","Monitoreo",1,"Contacto del controlador","NFPA 20 cap. 10","","4090-9001"],["BPE","Falla del controlador / alarma común","Problema","Monitoreo",1,"Contacto del controlador","NFPA 20 cap. 10","Agrupar si el fabricante ofrece contacto común","4090-9001"],["BPD","Bomba/motor en marcha","Supervisión","Monitoreo",1,"Contacto del controlador","NFPA 20 cap. 12","","4090-9001"],["BPD","Falla de arranque (overcrank / failure to start)","Supervisión","Monitoreo",1,"Contacto del controlador","NFPA 20 cap. 12","","4090-9001"],["BPD","Baja presión de aceite / alta temperatura de motor","Supervisión","Monitoreo",1,"Contacto del controlador","NFPA 20 cap. 12","Combinar en una sola señal de falla de motor si se desea","4090-9001"],["BPD","Sobrevelocidad","Supervisión","Monitoreo",1,"Contacto del controlador","NFPA 20 cap. 12","","4090-9001"],["BPD","Selector fuera de automático","Supervisión","Monitoreo",1,"Contacto del controlador","NFPA 20 cap. 12","","4090-9001"],["BPD","Falla de batería / cargador","Supervisión","Monitoreo",1,"Contacto del controlador","NFPA 20 cap. 12","Un contacto por banco o común","4090-9001"],["BPD","Bajo nivel de combustible","Supervisión","Monitoreo",1,"Sensor del tanque","NFPA 20 cap. 11","","4090-9001"],["BPD","Controlador en alarma común / falla","Problema","Monitoreo",1,"Contacto del controlador","NFPA 20 cap. 12","","4090-9001"],["BJK","Falla de energía / fuera de automático","Supervisión","Monitoreo",1,"Contacto del controlador jockey","NFPA 20 cap. 10","Opcional según AHJ","4090-9001"],["TFP","Transferencia en posición de fuente alterna","Supervisión","Monitoreo",1,"Contacto del ATS","NFPA 20 10.8.3.12","","4090-9001"],["TFP","Interruptor de aislamiento abierto / ATS fuera de automático","Supervisión","Monitoreo",1,"Contacto del ATS","NFPA 20 10.8.3.12","","4090-9001"],["TFP","Falla de fuente normal","Supervisión","Monitoreo",1,"Contacto del ATS","NFPA 20 10.8.3.12","","4090-9001"],["GEN","Generador en marcha / alimentando carga","Supervisión","Monitoreo",1,"Anunciador/tablero del generador","NFPA 110 5.6.5","","4090-9001"],["GEN","Control fuera de automático (not in auto)","Supervisión","Monitoreo",1,"Anunciador/tablero del generador","NFPA 110 5.6.5","","4090-9001"],["GEN","Falla de arranque (overcrank)","Supervisión","Monitoreo",1,"Anunciador/tablero del generador","NFPA 110 5.6.5","","4090-9001"],["GEN","Alta temperatura de motor / baja presión de aceite (prealarma y paro)","Supervisión","Monitoreo",1,"Anunciador/tablero del generador","NFPA 110 5.6.5","Puede ir como alarma común si el AHJ lo acepta","4090-9001"],["GEN","Bajo nivel de combustible","Supervisión","Monitoreo",1,"Anunciador/tablero del generador","NFPA 110 5.6.5","","4090-9001"],["GEN","Falla de cargador / batería baja","Supervisión","Monitoreo",1,"Anunciador/tablero del generador","NFPA 110 5.6.5","","4090-9001"],["GEN","Alarma común del generador","Problema","Monitoreo",1,"Contacto de alarma común","NFPA 110 5.6.5","","4090-9001"],["ATS","ATS en fuente de emergencia","Supervisión","Monitoreo",1,"Contacto auxiliar del ATS","NFPA 110 / NFPA 70 700","","4090-9001"],["ATS","ATS fuera de automático / bypass","Supervisión","Monitoreo",1,"Contacto auxiliar del ATS","NFPA 110","","4090-9001"],["UPS","UPS en batería / falla / bypass","Problema","Monitoreo",1,"Contacto común del UPS","NFPA 72 cap. 10","","4090-9001"],["PWR","Falla de CA de fuente auxiliar","Problema","Monitoreo",1,"Contacto de la fuente","NFPA 72 cap. 10","Si no es supervisada por el propio protocolo","4090-9001"],["PWR","Falla de batería / tierra de fuente auxiliar","Problema","Monitoreo",1,"Contacto de la fuente","NFPA 72 cap. 10","","4090-9001"],["VCT","Válvula cerrada / manipulada (tamper)","Supervisión","Monitoreo",1,"Interruptor de supervisión de válvula","NFPA 72 17.16; NFPA 25","","4090-9001"],["FLJ","Flujo de agua (waterflow)","Alarma","Monitoreo",1,"Flujostato","NFPA 72 17.12; NFPA 13","Es señal de alarma, no de supervisión","4090-9001"],["PRS","Presión alta/baja del sistema","Supervisión","Monitoreo",1,"Presostato de supervisión","NFPA 72 17.16","","4090-9001"],["TQA","Nivel bajo / alto del tanque","Supervisión","Monitoreo",1,"Interruptor/transmisor de nivel","NFPA 72 17.16; NFPA 22","","4090-9001"],["TQA","Temperatura baja del agua","Supervisión","Monitoreo",1,"Termostato del tanque","NFPA 72 17.16; NFPA 22","","4090-9001"],["CBP","Temperatura baja del cuarto de bombas","Supervisión","Monitoreo",1,"Termostato","NFPA 20 4.12; NFPA 72 17.16","","4090-9001"],["PRE","Presión de aire baja / alta (sistema seco o preacción)","Supervisión","Monitoreo",1,"Presostato de aire","NFPA 13; NFPA 72 17.16","","4090-9001"],["PRE","Panel de liberación en problema","Problema","Monitoreo",1,"Contacto del panel","NFPA 13; NFPA 72 cap. 23","Solo si hay panel de liberación independiente","4090-9001"],["PRE","Activación de solenoide de preacción","Control","Control",1,"Salida del FACP","NFPA 72 cap. 23","Circuito de liberación supervisado","4090-9006"],["ASC","Recall primario (Fase I)","Control","Control",1,"Relé de recall","NFPA 72 cap. 21; ASME A17.1","Un módulo por grupo de ascensor","4090-9008"],["ASC","Recall alterno (Fase I)","Control","Control",0,"Relé de recall","NFPA 72 cap. 21; ASME A17.1","Incluido en el módulo del equipo (misma dirección)","4090-9008"],["ASC","Shunt trip / corte de energía previo a rociadores","Control","Control",1,"Relé de shunt trip","NFPA 72 cap. 21; NFPA 13","Con supervisión del circuito de shunt trip","4090-9002"],["ASC","Supervisión de energía del shunt trip","Supervisión","Monitoreo",1,"Relé de supervisión","NFPA 72 21.4","","4090-9001"],["AHU","Paro de ventilador por alarma","Control","Control",1,"Relé de paro","NFPA 72 cap. 21; NFPA 90A","Un módulo por unidad controlada","4090-9118"],["AHU","Estado del ventilador (en marcha)","Supervisión","Monitoreo",0,"Contacto del equipo","NFPA 72 cap. 21","Solo si se requiere retroalimentación; Incluido en el módulo del equipo (misma dirección)","4090-9118"],["ESC","Arranque de ventilador de presurización/extracción","Control","Control",1,"Relé de arranque","NFPA 72 cap. 21; NFPA 92","Un módulo por ventilador","4090-9118"],["ESC","Ventilador en marcha / falla","Supervisión","Monitoreo",0,"Contacto del equipo","NFPA 92","Una señal de estado por ventilador; Incluido en el módulo del equipo (misma dirección)","4090-9118"],["DMP","Cierre de compuerta por alarma","Control","Control",1,"Relé de cierre","NFPA 72 cap. 21; NFPA 80/105","Omitir si el damper cierra por fusible local","4090-9118"],["DMP","Estado de compuerta (abierta/cerrada)","Supervisión","Monitoreo",0,"Interruptor final de carrera","NFPA 105","Solo si es requerido; Incluido en el módulo del equipo (misma dirección)","4090-9118"],["PTA","Liberación de puerta por alarma","Control","Control",1,"Relé de liberación","NFPA 72 21.9; NFPA 101","Puede ser un módulo por puerta o por grupo","4090-9002"],["KIT","Descarga de sistema de supresión de cocina","Alarma","Monitoreo",1,"Interruptor de presión/descarga","NFPA 96; NFPA 17A; UL 300","Alarma","4090-9001"],["KIT","Sistema de supresión en problema / fuera de servicio","Problema","Monitoreo",1,"Contacto del panel","NFPA 72 cap. 23","","4090-9001"],["GAS","Cierre de válvula de gas por alarma","Control","Control",1,"Relé de cierre","NFPA 54 / NFPA 58; NFPA 72 cap. 21","","4090-9118"],["GAS","Posición de válvula de gas (cerrada)","Supervisión","Monitoreo",0,"Interruptor de posición","NFPA 72 cap. 21","Incluido en el módulo del equipo (misma dirección)","4090-9118"]];
+// Dispositivos Simplex (IDNet) de referencia: P/N → [descripción, función, uso típico]
+const DISPOSITIVOS_PN = {"4090-9001":["Módulo direccionable IAM supervisado (1 entrada, T-Sense)","Monitoreo","Contacto seco supervisado: tamper, flujo, estados de bomba/generador"],"4090-9002":["Módulo direccionable de relé (IAM Relay)","Control","Salida de relé: paro/arranque de equipos, liberación de puertas"],"4090-9008":["Módulo de relé de doble contacto","Control","Dos relés con una dirección: recall primario y alterno de ascensor"],"4090-9118":["Módulo de relé con entrada T-Sense (relé + 1 entrada supervisada)","Control","Control con retroalimentación: dampers, ventiladores, válvula de gas"],"4090-9120":["Módulo de 6 puntos (4 entradas T-Sense + 2 relés)","Monitoreo","Alternativa para agrupar señales de bomba/generador; ver tabla inferior"],"4090-9006":["Periférico de liberación de supresión (SRP) con gabinete","Control","Liberación de solenoide de preacción/agente limpio"],"4090-9101":["Adaptador de zona convencional Clase B (ZAM)","Monitoreo","Para reutilizar lazos de dispositivos convencionales"],"4090-9007":["Módulo de señal IAM (NAC convencional 0.5 A)","Control","Referencia para circuitos de notificación convencionales; no usado en esta matriz"],"4090-9116":["Aislador de comunicaciones IDNet","Aislador","Por tramos/pisos según diseño del lazo; no depende de señales"]};
+// Equipos con sus módulos por unidad (monitoreo y control) calculados de la matriz: [ID, nombre, monitoreo, control, notas]
+const EQUIPOS = EQUIPOS_BASE.map(([id,n,nota])=>{let mon=0,ctl=0;MATRIZ_SENALES.forEach(r=>{if(r[0]===id){if(r[3]==='Control')ctl+=r[4];else mon+=r[4];}});return [id,n,mon,ctl,nota];});
+// Equipo de la matriz al que corresponde un bloque del plano (null si es salida o FACP).
+function equipoDe(m){return m.t==='eq'?m.eq:(m.t==='ahu'?'AHU':(m.t==='asc'?'ASC':null));}
+function nombreEquipo(id){const q=EQUIPOS.find(x=>x[0]===id);return q?q[1]:id;}
+// Dispositivos que pide UNA unidad del equipo en planta: [{pn,n,desc,func}]
+function dispositivosEquipo(id){
+  const mapa={};MATRIZ_SENALES.forEach(r=>{if(r[0]===id&&r[4]>0){const x=mapa[r[8]]=mapa[r[8]]||{pn:r[8],n:0};x.n+=r[4];}});
+  return Object.values(mapa).map(x=>{const d=DISPOSITIVOS_PN[x.pn]||['','',''];return {pn:x.pn,n:x.n,desc:d[0],func:d[1]};});
+}
 
 /* ==========================================================================
    ESTADO
@@ -910,11 +913,11 @@ function planificarGlobales(o,resRec,prev){
     extra.forEach(p=>disp.push({tipo:'pulsador',x:p.x,y:p.y,sala:'Adicional',nota:'recorrido ≤ '+limPulsadorM()+' m'}));
   }
   // Ascensores: detector de humo en el vestíbulo si no hay otro a ≤ 3.05 m
-  E.marcas.filter(m=>m.t==='asc').forEach(m=>{
+  E.marcas.filter(m=>equipoDe(m)==='ASC').forEach(m=>{
     const humo=resRec.flatMap(x=>x.disp).concat(disp,prev).filter(d=>d.tipo==='det_humo');
     if(dmin(m,humo)>DIST_HUMO_ASCENSOR_M)disp.push({tipo:'det_humo',x:m.x,y:m.y,sala:'Vestíbulo ascensor',radio:o.espH*FACTOR_RADIO_COBERTURA});
   });
-  E.marcas.filter(m=>m.t==='ahu').forEach(m=>{if(!prev.some(d=>d.tipo==='det_ducto'&&Math.hypot(d.x-m.x,d.y-m.y)<=DIST_AHU_EXISTENTE_M))disp.push({tipo:'det_ducto',x:m.x,y:m.y,sala:'AHU'});});
+  E.marcas.filter(m=>equipoDe(m)==='AHU').forEach(m=>{if(!prev.some(d=>d.tipo==='det_ducto'&&Math.hypot(d.x-m.x,d.y-m.y)<=DIST_AHU_EXISTENTE_M))disp.push({tipo:'det_ducto',x:m.x,y:m.y,sala:'AHU'});});
   return {disp,notas,lim};
 }
 
@@ -1100,8 +1103,7 @@ function bloque(sup,lim){return '<details class="nota" open><summary><b>Supuesto
 function conteo(){const c={};E.disp.forEach(d=>{c[d.tipo]=(c[d.tipo]||0)+1;});return c;}
 function modulos(o){
   const c=conteo(),cant=Object.assign({},E.eqCant);
-  cant.AHU=(cant.AHU||0)+E.marcas.filter(m=>m.t==='ahu').length;
-  cant.ASC=(cant.ASC||0)+E.marcas.filter(m=>m.t==='asc').length;
+  E.marcas.forEach(m=>{const e=equipoDe(m);if(e)cant[e]=(cant[e]||0)+1;});   // cada bloque de equipo del plano suma una unidad
   let mon=0,ctl=0;const filas=[];
   EQUIPOS.forEach(q=>{const n=+cant[q[0]]||0;if(!n)return;mon+=n*q[2];ctl+=n*q[3];filas.push([q[1],n,n*q[2],n*q[3],q[4]]);});
   const slc=(c.det_humo||0)+(c.det_calor||0)+(c.det_co||0)+(c.det_ducto||0)+(c.pulsador||0)+mon+ctl;
@@ -1160,13 +1162,13 @@ function areaRecintosTotal(){
   return E.recintos.filter(r=>!E.recintos.some(o=>o!==r&&area(o.poly)>area(r.poly)&&r.poly.every(q=>dentro(q,o.poly)))).reduce((t,r)=>t+area(r.poly),0);
 }
 const CAT_ORDEN = {obl:0,conf:1,bp:2,no:3};
-const CAT_ROTULO = {obl:'Obligatorio',conf:'Por confirmar',bp:'Buena práctica',no:'No exigido'};
+const CAT_ROTULO = {obl:'Obligatorio',conf:'Por confirmar',bp:'Recomendado',no:'No obligatorio'};
 // Requisitos del proyecto contra el Reglamento Nacional de Protección contra Incendios 2023 (cada fila cita su sección, leída en la copia
 // provista) y las NFPA seleccionadas. Cada fila lleva su categoría: obl (obligatorio), conf (por confirmar), bp (buena práctica), no (no exigido).
 function requisitos(){
   const ed72=$('ed72').value,ed101=$('ed101').value,oc=OCUPACIONES.find(x=>x.id===$('ocup').value);
   const alt=+$('pAlt').value||0,niv=+$('pNiveles').value||1,reun=+$('pReunion').value||0,hab=+$('pHab').value||0;
-  const ocT=+$('pOcupTot').value||0,ocP=+$('pOcupPiso').value||0,sup=$('pSup').value,tv=$('pTV').value,riesgo=$('pRiesgo').value;
+  const sup=$('pSup').value;
   const auto=areaRecintosTotal(),areaPl=(+$('pAreaPlanta').value)||auto;
   let areaAg=+$('pAreaEdif').value||0,estimada=false;if(!areaAg&&areaPl){areaAg=areaPl*niv;estimada=true;}
   $('areaAuto').textContent=(auto?'Recintos dibujados: '+auto.toFixed(0)+' m² (se usa si deja en blanco el área de la planta). ':'')+(estimada?'Área agregada estimada = planta × niveles = '+areaAg.toFixed(0)+' m²: indique la real.':'');
@@ -1174,39 +1176,22 @@ function requisitos(){
   const R=(cat,sis,res,ref,txt,cls)=>F.push({cat,sis,res,ref,txt,cls:cls||({obl:'ok',conf:'rev',bp:'',no:''}[cat])});
   if($('pais').value!=='cr')NOTAS.push('Jurisdicción distinta de Costa Rica: este análisis aplica el Reglamento Nacional de Protección contra Incendios de Costa Rica solo como referencia; confirme la normativa local.');
   if(!areaAg)NOTAS.push('No hay área: indique el área agregada de incendio (o dibuje los recintos) para evaluar rociadores, tubería vertical y zonificación.');
-  // --- Rociadores automáticos §13.2.2
-  const m=[];
-  if(gran)m.push('edificio de gran altura (§13.2.2 a)');
-  if(oc.id==='reunion'&&areaAg>=RNPCI_ROC_REUNION_M2)m.push('reunión pública con área agregada ≥ '+RNPCI_ROC_REUNION_M2+' m² (§13.2.2 b)');
-  if(oc.id==='mercantil'&&areaAg>=RNPCI_ROC_MERCANTIL_M2)m.push('mercantil con área agregada ≥ '+RNPCI_ROC_MERCANTIL_M2+' m² (§13.2.2 c)');
-  if(oc.id==='industrial'&&riesgo==='elevado'&&areaAg>=RNPCI_ROC_RIESGO_ELEVADO_M2)m.push('industria de riesgo elevado ≥ '+RNPCI_ROC_RIESGO_ELEVADO_M2+' m² (§13.2.2 d)');
-  if(oc.id==='almacen'&&riesgo==='elevado'&&areaAg>=RNPCI_ROC_RIESGO_ELEVADO_M2)m.push('almacenamiento de riesgo elevado ≥ '+RNPCI_ROC_RIESGO_ELEVADO_M2+' m² (§13.2.2 e)');
-  if(oc.id==='salud')m.push('cuidado de la salud (§13.2.2 g)');
-  if(oc.id==='hotel'&&hab>=RNPCI_ROC_HOTEL_HAB)m.push('hotel/dormitorio con '+RNPCI_ROC_HOTEL_HAB+' o más habitaciones (§13.2.2 h)');
-  if(m.length)R('obl','Rociadores automáticos',sup==='total'?'Requeridos — declarados en todo el edificio':(sup==='parcial'?'Requeridos — declarados solo en parte: REVISAR':'Requeridos — NO declarados'),'RNPCI 2023 §13.2.2',m.join('; ')+'. Deben cumplir NFPA 13 (§13.2.1).',sup==='total'?'ok':(sup==='parcial'?'rev':'mal'));
-  else R(sup==='no'?'no':'bp','Rociadores automáticos',sup==='no'?'No exigidos con los datos declarados':'No exigidos; instalados voluntariamente','RNPCI 2023 §13.2.2','Se evaluaron ocupación, área agregada, altura y habitaciones. Pueden exigirse por otra norma específica (§13.2.2 j) u omitirse por §13.2.3 y §13.2.4.'+(sup!=='no'?' Instalados, su flujo de agua debe iniciar la alarma y supervisarse.':''));
-  // --- Tubería vertical §13.3
-  const tvExc=sup==='total'&&areaAg<=RNPCI_TV_EXC_AREA_M2&&alt<=RNPCI_TV_EXC_ALTURA_M&&niv<=RNPCI_TV_EXC_PISOS;
-  const tvReq=gran||(areaAg>=RNPCI_TV_AREA_M2&&!tvExc);
-  R(tvReq?'obl':'no','Tubería vertical (NFPA 14)',tvReq?(tv==='no'?'Requerida — NO declarada':'Requerida — declarada'):'No exigida con los datos declarados','RNPCI 2023 §13.3.5 y §13.3.6',
-    gran?'Gran altura: húmeda automática Clase 1.':(areaAg>=RNPCI_TV_AREA_M2?(tvExc?'Excepción §13.3.6: rociadores completos, ≤ '+RNPCI_TV_EXC_AREA_M2+' m², ≤ '+RNPCI_TV_EXC_ALTURA_M+' m de altura y ≤ '+RNPCI_TV_EXC_PISOS+' pisos.':'Área agregada ≥ '+RNPCI_TV_AREA_M2+' m²: húmeda automática Clase 1 (Clase 3 en industrial/almacenamiento, §13.3.7).'):'Área agregada menor de '+RNPCI_TV_AREA_M2+' m² y sin gran altura.'),tvReq?(tv==='no'?'mal':'ok'):'');
   // --- Alarma de incendio requerida por ocupación §11.7
   let al='rev',alRef='',alTxt='';
   switch(oc.id){
-    case 'negocios':{const c=[];if(niv>=RNPCI_NEG_PISOS)c.push(niv+' pisos');if(ocP>=RNPCI_NEG_OCUP_PISO)c.push(ocP+' ocupantes en un piso');if(ocT>=RNPCI_NEG_OCUP_TOTAL)c.push(ocT+' ocupantes en total');
-      al=c.length?'si':(ocT||ocP?'no':'rev');alRef='§11.7.11';alTxt=c.length?'Se cumple: '+c.join(', ')+'.':'Exige alarma con ≥ '+RNPCI_NEG_PISOS+' pisos sobre el nivel de descarga, ≥ '+RNPCI_NEG_OCUP_PISO+' ocupantes en un piso o ≥ '+RNPCI_NEG_OCUP_TOTAL+' en total.'+((ocT||ocP)?'':' No declaró ocupantes: complételos.');break;}
+    case 'negocios':al=niv>=RNPCI_NEG_PISOS?'si':'conf';alRef='§11.7.11';alTxt=niv>=RNPCI_NEG_PISOS?'Se cumple: '+niv+' pisos (≥ '+RNPCI_NEG_PISOS+' sobre el nivel de descarga).':'Con menos de '+RNPCI_NEG_PISOS+' pisos se exige si hay ≥ '+RNPCI_NEG_OCUP_PISO+' ocupantes en un piso o ≥ '+RNPCI_NEG_OCUP_TOTAL+' en total: lo confirma el diseñador de egreso.';break;
     case 'reunion':al=reun>RNPCI_REUNION_OCUPANTES?'si':'no';alRef='§11.7.1';alTxt='Reunión pública con más de '+RNPCI_REUNION_OCUPANTES+' ocupantes (declarado: '+reun+'). Por debajo, confirme NFPA 101 cap. 12/13 (no verificado).';break;
-    case 'educativa':al=areaAg&&areaAg<=RNPCI_EDU_AREA_M2?'rev':'si';alRef='§11.7.2';alTxt='Siempre, salvo edificio con área agregada ≤ '+RNPCI_EDU_AREA_M2+' m², máximo 4 aulas y a 15 m de otro edificio (§11.7.2.1).';break;
+    case 'educativa':al=areaAg&&areaAg<=RNPCI_EDU_AREA_M2?'conf':'si';alRef='§11.7.2';alTxt='Siempre, salvo edificio con área agregada ≤ '+RNPCI_EDU_AREA_M2+' m², máximo 4 aulas y a 15 m de otro edificio (§11.7.2.1).';break;
     case 'hotel':al='si';alRef='§11.7.5';alTxt='Hoteles y dormitorios: alarma NFPA 101/72 y alarmas de humo en cada habitación (§11.7.5.2).';break;
     case 'apart':al=(niv>RNPCI_APART_PISOS||hab>RNPCI_APART_UNIDADES)?'si':'no';alRef='§11.7.6';alTxt='Apartamentos con más de '+RNPCI_APART_PISOS+' pisos o más de '+RNPCI_APART_UNIDADES+' unidades (declarado: '+niv+' pisos, '+hab+' unidades). Siempre alarmas de humo de estación única interconectadas (§11.7.6.1).';break;
     case 'salud':al='si';alRef='§11.7.3';alTxt='Detección de humo y alarma de incendio (NFPA 101 y 72).';break;
-    case 'mercantil':al='rev';alRef='§11.7.9';alTxt='Clase A requiere alarma; la clase no se pregunta: confirme la clasificación. Centros comerciales: según su ocupación (§11.7.10).';break;
-    case 'industrial':al=(ocT&&ocT<RNPCI_IND_OCUP_TOTAL&&ocP<RNPCI_IND_OCUP_PISO)?'no':'si';alRef='§11.7.12';alTxt='Requerida salvo carga total < '+RNPCI_IND_OCUP_TOTAL+' personas y < '+RNPCI_IND_OCUP_PISO+' sobre o bajo el nivel de descarga.'+(ocT?'':' No declaró ocupantes: se asume requerida.');break;
-    case 'almacen':{const ex=riesgo==='leve'?'riesgo leve (§11.7.13 a)':(areaAg&&areaAg<=RNPCI_ALM_AREA_M2?'área agregada ≤ '+RNPCI_ALM_AREA_M2+' m² (§11.7.13 b)':(sup==='total'?'protegido en su totalidad con rociadores (§11.7.13 c)':''));
-      al=ex?'no':'si';alRef='§11.7.13';alTxt=ex?'No requerida: '+ex+'.':'Requerida: riesgo '+riesgo+', área agregada '+(areaAg||'sin declarar')+' m², sin rociadores completos.';break;}
+    case 'mercantil':al='conf';alRef='§11.7.9';alTxt='Clase A requiere alarma; la clase la define el diseñador de egreso y ocupación: confirme. Centros comerciales: según su ocupación (§11.7.10).';break;
+    case 'industrial':al='si';alRef='§11.7.12';alTxt='Requerida, salvo carga total < '+RNPCI_IND_OCUP_TOTAL+' personas y < '+RNPCI_IND_OCUP_PISO+' sobre o bajo el nivel de descarga; aquí se asume requerida (confirme con el diseñador de egreso).';break;
+    case 'almacen':{const ex=areaAg&&areaAg<=RNPCI_ALM_AREA_M2?'área agregada ≤ '+RNPCI_ALM_AREA_M2+' m² (§11.7.13 b)':(sup==='total'?'protegido en su totalidad con rociadores (§11.7.13 c)':'');
+      al=ex?'no':'si';alRef='§11.7.13';alTxt=ex?'No requerida: '+ex+'.':'Requerida (área agregada '+(areaAg||'sin declarar')+' m², sin rociadores completos); tampoco se exige con contenidos de riesgo leve (§11.7.13 a), que define el diseñador de protección contra incendios.';break;}
   }
   const AL=al==='si';
-  R(al==='si'?'obl':(al==='no'?'no':'conf'),'Sistema de alarma de incendio',al==='si'?'Requerido':(al==='no'?'No exigido con los datos declarados':'Confirmar'),'RNPCI 2023 '+alRef,alTxt+(al==='no'?' Instalarlo sigue siendo buena práctica: con él aplican la notificación y las estaciones manuales de NFPA 72.':''));
+  R(al==='si'?'obl':(al==='no'?'no':'conf'),'Sistema de alarma de incendio',al==='si'?'Requerido':(al==='no'?'No exigido con los datos declarados':'Confirmar'),'RNPCI 2023 '+alRef,alTxt+(al==='no'?' Instalarlo sigue siendo recomendable: con él aplican la notificación y las estaciones manuales de NFPA 72.':''));
   if(al==='no')R('bp','Alarma manual y notificación aunque no se exijan','Recomendado','RNPCI 2023 §11.1 y §11.3; NFPA 72','Estaciones manuales en salidas y notificación audible y visible mejoran la evacuación sin ser obligatorias con estos datos.');
   // --- Efecto de la supresión sobre la alarma
   if(sup!=='no'){
@@ -1238,12 +1223,14 @@ function dictamen(){
   const resumen='<div class="resumen-obl"><b>Resumen — lo obligatorio para este proyecto</b> <small class="g">('+esc(oc.n)+' · área agregada '+(areaAg?areaAg.toFixed(0)+' m²':'sin declarar')+' · '+supTxt+')</small>'+
     (obl.length?'<ul>'+obl.map(r=>'<li><b>'+esc(r.sis)+'</b> — '+esc(r.res)+' <small class="g">('+esc(r.ref.split(' · ')[0])+')</small></li>').join('')+'</ul>':'<div style="margin:4px 0">Con los datos declarados no resulta obligatorio ningún sistema.</div>')+
     (conf.length?'<div><b>Por confirmar:</b> '+conf.map(r=>esc(r.sis)).join(', ')+'.</div>':'')+
-    '<small class="g">'+cuenta('obl')+' obligatorios · '+cuenta('conf')+' por confirmar · '+cuenta('bp')+' buena práctica · '+cuenta('no')+' no exigidos</small></div>';
-  const tabla='<details class="panel" open><summary>Tabla de requisitos (obligatorio → por confirmar → buena práctica → no exigido)</summary><div><table><tr><th>Tipo</th><th>Tema</th><th>Resultado</th><th>Referencia</th><th>Detalle</th></tr>'+
+    '<small class="g">'+cuenta('obl')+' obligatorios · '+cuenta('conf')+' por confirmar · '+cuenta('bp')+' recomendados · '+cuenta('no')+' no obligatorios</small></div>';
+  const tabla='<details class="panel" open><summary>Tabla de requisitos (obligatorio → por confirmar → recomendado → no obligatorio)</summary><div><table><tr><th>Tipo</th><th>Tema</th><th>Referencia</th><th>Detalle</th></tr>'+
     F.map(r=>{const t=r.txt.indexOf('<button')>=0?esc(r.txt.split('<button')[0])+'<button'+r.txt.split('<button')[1]:esc(r.txt);
-      return '<tr><td><span class="cat cat-'+r.cat+'">'+CAT_ROTULO[r.cat]+'</span></td><td>'+esc(r.sis)+'</td><td class="'+r.cls+'">'+esc(r.res)+'</td><td>'+esc(r.ref)+'</td><td>'+t+'</td></tr>';}).join('')+'</table></div></details>';
+      // La columna «Tipo» ya dice si es obligatorio; el resultado solo se repite cuando es una alerta (falta algo declarado o hay que revisar).
+      const alerta=(r.cls==='mal'||r.cls==='rev')?'<b class="'+r.cls+'">'+esc(r.res)+'.</b> ':'';
+      return '<tr><td><span class="cat cat-'+r.cat+'">'+CAT_ROTULO[r.cat]+'</span></td><td>'+esc(r.sis)+'</td><td>'+esc(r.ref)+'</td><td>'+alerta+t+'</td></tr>';}).join('')+'</table></div></details>';
   return resumen+NOTAS.map(n=>'<div class="rev">⚠ '+esc(n)+'</div>').join('')+tabla+
-    bloque(['Umbrales del Reglamento Nacional de Protección contra Incendios, Versión 2023 (Bomberos de CR), leídos en la copia provista; el área agregada de incendio suma todos los niveles y sótanos (§4.2 definición 10).','Las exigencias se evalúan con lo declarado arriba; si un dato está en blanco se usa el supuesto indicado en la fila. «Buena práctica» no es exigencia: es lo recomendable aunque el Reglamento no lo imponga con esos datos.'],
+    bloque(['Umbrales del Reglamento Nacional de Protección contra Incendios, Versión 2023 (Bomberos de CR), leídos en la copia provista; el área agregada de incendio suma todos los niveles y sótanos (§4.2 definición 10).','Las exigencias se evalúan con lo declarado arriba; si un dato está en blanco se usa el supuesto indicado en la fila. «Recomendado» no es exigencia: es lo conveniente aunque el Reglamento no lo imponga con esos datos.'],
       ['No sustituye el análisis de ocupación mixta (§6.2), la clasificación de riesgo de los contenidos ni la revisión de la autoridad competente.','Las citas del Reglamento se refieren a su numeración 2023; las de NFPA siguen las ediciones seleccionadas y solo están verificadas para NFPA 72:2022 y NFPA 101:2015.']);
 }
 function agregarEquiposSupresion(){E.eqCant.FLJ=Math.max(1,E.eqCant.FLJ||0);E.eqCant.VCT=Math.max(1,E.eqCant.VCT||0);tablaEquipos();actualizarDictamen();if(E.resultados.length)mostrarResultados();}
@@ -1329,7 +1316,7 @@ function dibujar(){
   if($('vSPL').checked)dibujarSPL();
   E.disp.forEach(d=>{const p=aPant(d);sim(cx,d.tipo,p.x,p.y,S,{cd:d.cd});if(d.manual){cx.beginPath();cx.arc(p.x,p.y,S*1.15,0,7);cx.strokeStyle='rgba(224,168,0,.9)';cx.lineWidth=2;cx.setLineDash([3,3]);cx.stroke();cx.setLineDash([]);}
     if(d.id===E.selDev){cx.beginPath();cx.arc(p.x,p.y,S*1.45,0,7);cx.strokeStyle='#0a5ad4';cx.lineWidth=2.5;cx.stroke();}});
-  E.marcas.forEach(m=>{const p=aPant(m);sim(cx,m.t==='salida'?'salida':m.t,p.x,p.y,S);});
+  E.marcas.forEach(m=>{dibujarMarca(m,aPant(m),S);});
   // borrador
   if(E.herr==='rect'&&E.borrador.length===1&&E.cursor){const a=aPant(E.borrador[0]),b=aPant(E.cursor);cx.strokeStyle='#e0a800';cx.lineWidth=2;cx.setLineDash([6,4]);cx.fillStyle='rgba(224,168,0,.15)';cx.fillRect(a.x,a.y,b.x-a.x,b.y-a.y);cx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);cx.setLineDash([]);}
   else if(E.borrador.length){cx.strokeStyle='#e0a800';cx.lineWidth=2;cx.beginPath();E.borrador.forEach((p,i)=>{const q=aPant(p);cx[i?'lineTo':'moveTo'](q.x,q.y);});if(E.cursor){const q=aPant(E.cursor);cx.lineTo(q.x,q.y);}cx.stroke();E.borrador.forEach(p=>{const q=aPant(p);cx.fillStyle='#e0a800';cx.fillRect(q.x-3,q.y-3,6,6);});}
@@ -1358,7 +1345,7 @@ function agregarDisp(p,pl){   // pl: dispositivo plantilla (para «agregar simil
   E.selDev=d.id;E._spl=null;propiedadesDisp();dibujar();reverificar();
   estado('Agregado «'+(ROT[t]||t)+'» en '+d.sala+'. Siga haciendo clic para agregar más iguales; Esc o «Seleccionar» para terminar. Se conserva al volver a generar.');
 }
-function herramienta(h){E.herr=h;E.borrador=[];E.calib=[];E.edit=null;E.pegando=null;['tSel','tRec','tRect','tRell','tSal','tFacp','tAhu','tAsc','tBor','tDev'].forEach(id=>$(id).classList.toggle('act',id==={sel:'tSel',rec:'tRec',rect:'tRect',rell:'tRell',salida:'tSal',facp:'tFacp',ahu:'tAhu',asc:'tAsc',bor:'tBor',dev:'tDev'}[h]));
+function herramienta(h){E.herr=h;E.borrador=[];E.calib=[];E.edit=null;E.pegando=null;['tSel','tRec','tRect','tRell','tSal','tFacp','tAhu','tAsc','tEq','tBor','tDev'].forEach(id=>$(id).classList.toggle('act',id==={sel:'tSel',rec:'tRec',rect:'tRect',rell:'tRell',salida:'tSal',facp:'tFacp',ahu:'tAhu',asc:'tAsc',eq:'tEq',bor:'tBor',dev:'tDev'}[h]));
   const m={sel:'Clic sobre un recinto para seleccionarlo.',rec:'Clic para cada vértice; doble clic o Enter para cerrar; Esc cancela.',rect:'Clic en dos esquinas opuestas del recinto.',rell:'Clic dentro de un recinto del plano: se rellena hasta los muros.',salida:'Clic para colocar una salida.',facp:'Clic para colocar el FACP/recepción.',ahu:'Clic para colocar una manejadora de aire.',asc:'Clic para colocar un vestíbulo de ascensor.',bor:'Clic sobre un recinto o marcador para borrarlo.',cal:'Clic en 2 puntos de distancia conocida.'}[h];estado(m||'');dibujar();}
 // Nombre de un recinto a partir de los textos del plano (PDF) que caen dentro de su contorno; '' si no hay plano o no hay texto.
 function nombrePlano(poly){
@@ -1373,7 +1360,7 @@ function nuevoRecinto(poly,nombre,tipo,h){const id=E.seq++;const nm=nombre||nomb
 function guessTipo(n){n=n.toLowerCase();if(/corredor|pasillo|hall|corridor/.test(n))return 'corredor';if(/ba[ñn]o|shower|wc|sshh/.test(n))return 'bano';if(/kitchen|cocina/.test(n))return 'cocina';if(/elect|comms|data|tele/.test(n))return 'tecnico';if(/store|bodega|storage/.test(n))return 'bodega';if(/stair|escal/.test(n))return 'escalera';if(/lobby|lounge|recep/.test(n))return 'lobby';return $('mTipo').value||'oficina';}
 function mundoDeEvento(e){const r=cv.getBoundingClientRect();return aMundo(e.clientX-r.left,e.clientY-r.top);}
 function recintoEn(p){for(let i=E.recintos.length-1;i>=0;i--)if(dentro(p,E.recintos[i].poly))return E.recintos[i];return null;}
-let arr=null,espacio=false,arrV=null,arrD=null,arrR=null,movio=false,suprimir=false;
+let arr=null,espacio=false,arrV=null,arrD=null,arrM=null,arrR=null,movio=false,suprimir=false;
 // Sin argumento descarta todo el prediseño; con ids de recinto solo descarta el de esos recintos (los demás no se mueven).
 function invalidar(ids){
   if(ids==null){E.disp=[];E.resultados=[];E._spl=null;E.selDev=null;$('resultados').innerHTML='';E.recintos.forEach(r=>{r.generado=false;});if(typeof propiedadesDisp==='function')propiedadesDisp();return;}
@@ -1422,6 +1409,25 @@ function puntoSnap(p,e){
     if(nx>=0&&ny>=0&&nx<S.W&&ny<S.H&&S.m[ny*S.W+nx])return {p:{x:E.imgX+(nx+0.5)/S.f*E.imgM,y:E.imgY+(ny+0.5)/S.f*E.imgM},t:'muro'};}
   return {p,t:null};
 }
+// Bloque de equipo del plano: recuadro con el ID de la matriz y, debajo, la nota con los dispositivos que pide en planta.
+const EQ_COLOR = {BPE:'b',BPD:'b',BJK:'b',TFP:'b',GEN:'o',ATS:'o',UPS:'o',PWR:'o',VCT:'v',FLJ:'v',PRS:'v',TQA:'v',CBP:'v',PRE:'v',KIT:'v'};
+const EQ_PALETA = {b:['#e8f0f7','#1b4a75'],o:['#fff4e0','#8a5a00'],v:['#e6f4ea','#1e7d3c'],d:['#f3ecff','#5a3d99']};
+function dibujarMarca(m,p,S){
+  const eq=equipoDe(m);
+  if(!eq){sim(cx,m.t==='salida'?'salida':m.t,p.x,p.y,S);return;}
+  if(eq==='AHU'||eq==='ASC')sim(cx,eq==='AHU'?'ahu':'asc',p.x,p.y,S);
+  else{const c=EQ_PALETA[EQ_COLOR[eq]||'d'];cx.save();cx.lineWidth=Math.max(1.2,S/10);cx.fillStyle=c[0];cx.strokeStyle=c[1];cx.beginPath();cx.rect(p.x-S*0.95,p.y-S*0.65,S*1.9,S*1.3);cx.fill();cx.stroke();
+    cx.fillStyle=c[1];cx.font='bold '+Math.round(S*0.5)+'px Arial';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(eq,p.x,p.y);cx.restore();}
+  if($('vNotas')&&$('vNotas').checked){
+    const L=dispositivosEquipo(eq).map(d=>d.n+'× '+d.pn+' ('+d.func+')');if(!L.length)L.push('sin módulos en la matriz');
+    cx.save();cx.font='9px Arial';cx.textAlign='left';cx.textBaseline='top';
+    const w=Math.max(...L.map(t=>cx.measureText(t).width))+8,h=L.length*11+6,x=p.x-w/2,y=p.y+S*0.8;
+    cx.fillStyle='rgba(255,255,255,.88)';cx.fillRect(x,y,w,h);cx.strokeStyle='rgba(90,61,153,.55)';cx.lineWidth=1;cx.strokeRect(x,y,w,h);
+    cx.fillStyle='#3a2a66';L.forEach((t,i)=>cx.fillText(t,x+4,y+3+i*11));cx.restore();}
+}
+// Bloque (salida, FACP, equipo) bajo el cursor.
+function marcaEn(p,tolPx){const k=E.vista.k,t=Math.max(tolPx||HIT_PX,+$('vSim').value*1.2);let r=null,dm=1e18;
+  E.marcas.forEach(m=>{const d=Math.hypot(m.x-p.x,m.y-p.y)*k;if(d<=t&&d<dm){dm=d;r=m;}});return r;}
 function recEdit(){return E.recintos.find(r=>r.id===E.edit);}
 function ocultarMenu(){$('menuCtx').style.display='none';}
 function distBordeIdx(pt,poly){let m=1e18,idx=-1,pr=null;for(let i=0;i<poly.length;i++){const sg=distSeg(pt,poly[i],poly[(i+1)%poly.length]);if(sg.d<m){m=sg.d;idx=i;pr=sg;}}return{d:m,i:idx,p:pr};}
@@ -1429,7 +1435,8 @@ cv.addEventListener('mousedown',e=>{
   ocultarMenu();
   if(e.button===1||espacio||e.button===2){arr={x:e.clientX,y:e.clientY,vx:E.vista.x,vy:E.vista.y,mov:false,btn:e.button};e.preventDefault();return;}
   if(e.button===0&&E.herr==='rect'){arrR={a:puntoSnap(mundoDeEvento(e),e).p,x:e.clientX,y:e.clientY,mov:false};}
-  if(e.button===0&&E.herr==='sel'&&!E.edit&&!E.pegando){const d=devEn(mundoDeEvento(e));if(d){arrD={d};movio=false;e.preventDefault();return;}}
+  if(e.button===0&&E.herr==='sel'&&!E.edit&&!E.pegando){const d=devEn(mundoDeEvento(e));if(d){arrD={d};movio=false;e.preventDefault();return;}
+    const mk=marcaEn(mundoDeEvento(e));if(mk){arrM={m:mk};movio=false;e.preventDefault();return;}}
   if(e.button===0&&E.edit){const r=recEdit();if(r){const p=mundoDeEvento(e),k=E.vista.k;
     const iv=r.poly.findIndex(q=>Math.hypot(q.x-p.x,q.y-p.y)*k<=HIT_PX);
     if(iv>=0&&!e.shiftKey)arrV={tipo:'v',i:iv};
@@ -1442,10 +1449,12 @@ window.addEventListener('mouseup',e=>{
   if(arrV){if(movio){invalidar(E.edit!=null?E.edit:undefined);suprimir=true;}arrV=null;}
   if(arrR){if(arrR.mov){crearRect(arrR.a,puntoSnap(mundoDeEvento(e),e).p);suprimir=true;}arrR=null;}
   if(arrD){if(movio){suprimir=true;E.selDev=arrD.d.id;propiedadesDisp();reverificar();}arrD=null;}
+  if(arrM){if(movio)suprimir=true;arrM=null;}
   if(suprimir)setTimeout(()=>{suprimir=false;},0);   // el clic de ese mismo gesto llega antes; si no llega, no se traga el siguiente
 });
 window.addEventListener('mousemove',e=>{
   if(arrR){if(Math.hypot(e.clientX-arrR.x,e.clientY-arrR.y)>4)arrR.mov=true;if(arrR.mov){const sn=puntoSnap(mundoDeEvento(e),e);E.cursor=sn.p;E.snapPt=sn.t?{x:sn.p.x,y:sn.p.y,t:sn.t}:null;E.borrador=[arrR.a];dibujar();return;}}
+  if(arrM){const p=mundoDeEvento(e);arrM.m.x=p.x;arrM.m.y=p.y;movio=true;dibujar();return;}
   if(arrD){const p=mundoDeEvento(e);arrD.d.x=p.x;arrD.d.y=p.y;arrD.d.manual=true;movio=true;E._spl=null;dibujar();return;}
   if(arr){if(Math.hypot(e.clientX-arr.x,e.clientY-arr.y)>4)arr.mov=true;if(arr.mov){E.vista.x=arr.vx+e.clientX-arr.x;E.vista.y=arr.vy+e.clientY-arr.y;dibujar();}}
   if(arrV){const r=recEdit();if(r){const p=mundoDeEvento(e);movio=true;
@@ -1459,7 +1468,7 @@ cv.addEventListener('contextmenu',e=>e.preventDefault());
 const MENU_TOL_FACTOR = 2;
 function menuContextual(e){
   const p=mundoDeEvento(e),k=E.vista.k,tol=HIT_PX*MENU_TOL_FACTOR,m=$('menuCtx');
-  const mostrar=(ids,tit)=>{['mCob','mRegen','mRenombrar','mDevMover','mDevClon','mDevCambiar','mDevAud','mDevBor','mAgregar','mQuitar','mUltimo','mCerrar','mCancelar','mAjustar','mCopiar','mBorrar'].forEach(id=>{$(id).style.display=ids.includes(id)?'block':'none';});
+  const mostrar=(ids,tit)=>{['mMkCambiar','mMkSenales','mMkMover','mMkBorrar','mCob','mRegen','mRenombrar','mDevMover','mDevClon','mDevCambiar','mDevAud','mDevBor','mAgregar','mQuitar','mUltimo','mCerrar','mCancelar','mAjustar','mCopiar','mBorrar'].forEach(id=>{$(id).style.display=ids.includes(id)?'block':'none';});
     $('menuTit').textContent=tit;m.style.display='block';
     m.style.left=Math.min(e.clientX,window.innerWidth-200)+'px';m.style.top=Math.min(e.clientY,window.innerHeight-60-ids.length*34)+'px';};
   // Sobre un dispositivo: alternar bocina (visual+auditivo / solo visual) o borrarlo; se selecciona para editarlo en el panel
@@ -1468,6 +1477,10 @@ function menuContextual(e){
     $('mDevAud').textContent=conBocina?'🔇 Quitar bocina (solo visual)':'🔊 Agregar bocina (visual + auditivo)';
     const rcD=E.recintos.find(x=>x.id===dv.rid);E.ctxRec=rcD||null;if(rcD)$('mCob').textContent=rcD.ocultaCob?'👁 Mostrar cobertura de «'+rcD.nombre+'»':'👁 Ocultar cobertura de «'+rcD.nombre+'»';
     mostrar(['mDevMover','mDevClon','mDevCambiar'].concat(esEstrobo?['mDevAud']:[],rcD?['mCob']:[],['mDevBor']),ROT[dv.tipo]||dv.tipo);return;}
+  // Sobre un bloque (salida, FACP o equipo de la matriz): cambiarlo por cualquier equipo, ver sus dispositivos, mover o borrar
+  const mk=marcaEn(p,tol);
+  if(mk&&!(E.herr==='rec'&&E.borrador.length)){E.ctxMarca=mk;const e=equipoDe(mk);
+    mostrar(['mMkCambiar'].concat(e?['mMkSenales']:[],['mMkMover','mMkBorrar']),e?e+' · '+nombreEquipo(e):(mk.t==='salida'?'Salida':'FACP / recepción'));return;}
   // Dibujando un polígono: quitar el último punto, cerrarlo o cancelarlo
   if(E.herr==='rec'&&E.borrador.length){E.ctxP=p;mostrar(['mUltimo'].concat(E.borrador.length>=3?['mCerrar']:[],['mCancelar']),'Dibujando polígono ('+E.borrador.length+' puntos)');return;}
   // Recinto bajo el cursor, o el más cercano cuyo lado o vértice esté dentro de la tolerancia
@@ -1484,6 +1497,29 @@ function menuContextual(e){
   ids.push('mCob','mRegen','mRenombrar','mAjustar','mCopiar','mBorrar');
   mostrar(ids,r.nombre);
 }
+// --- Bloques de equipo: selector de la matriz, señales requeridas, mover y borrar
+function abrirDlgEquipo(mk){
+  const ops=[['salida','Salida','Marcador de salida de egreso'],['facp','FACP / recepción','Panel de alarma']].concat(EQUIPOS.map(q=>[q[0],q[0]+' · '+q[1],'Monitoreo '+q[2]+' · Control '+q[3]+(q[4]?' — '+q[4]:'')]));
+  $('dlgEqLista').innerHTML=ops.map(o=>'<button type="button" data-op="'+o[0]+'">'+esc(o[1])+'<small>'+esc(o[2])+'</small></button>').join('');
+  $('dlgEqLista').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    const op=b.dataset.op;if(op==='salida'||op==='facp'){mk.t=op;delete mk.eq;}else{mk.t='eq';mk.eq=op;}
+    $('dlgEquipo').close();tablaEquipos();dibujar();if(E.resultados.length)mostrarResultados();estado('Bloque cambiado a «'+(ops.find(o=>o[0]===op)||[])[1]+'».');});
+  $('dlgEquipo').showModal();
+}
+function abrirDlgSenales(id){
+  const filas=MATRIZ_SENALES.filter(r=>r[0]===id),dis=dispositivosEquipo(id);
+  $('dlgSenTit').textContent=id+' · '+nombreEquipo(id);
+  $('dlgSenCuerpo').innerHTML='<b>Dispositivos requeridos en planta por cada unidad:</b><ul>'+(dis.length?dis.map(d=>'<li>'+d.n+' × <b>'+esc(d.pn)+'</b> — '+esc(d.desc)+' ('+esc(d.func)+')</li>').join(''):'<li>Ninguno según la matriz.</li>')+'</ul>'+
+    '<table><tr><th>Señal</th><th>Tipo</th><th>Módulo</th><th>Cant.</th><th>Origen del contacto</th><th>Referencia</th><th>P/N</th><th>Notas</th></tr>'+
+    filas.map(r=>'<tr><td>'+esc(r[1])+'</td><td>'+esc(r[2])+'</td><td>'+esc(r[3])+'</td><td>'+r[4]+'</td><td>'+esc(r[5])+'</td><td>'+esc(r[6])+'</td><td>'+esc(r[8])+'</td><td>'+esc(r[7])+'</td></tr>').join('')+'</table>'+
+    '<small class="g">Fuente: Matriz_Supervision_NFPA72_2.xlsx (Sinergia). Se asume 1 módulo por señal; el AHJ puede pedir otra clasificación y las referencias NFPA distintas de NFPA 20 10.4.7.2 son de apoyo (verificar el numeral en la edición adoptada). Confirme los P/N con el representante del panel.</small>';
+  $('dlgSenales').showModal();
+}
+$('mMkCambiar').onclick=()=>{ocultarMenu();if(E.ctxMarca)abrirDlgEquipo(E.ctxMarca);};
+$('mMkSenales').onclick=()=>{ocultarMenu();const e=E.ctxMarca&&equipoDe(E.ctxMarca);if(e)abrirDlgSenales(e);};
+$('mMkMover').onclick=()=>{ocultarMenu();if(!E.ctxMarca)return;E.moverMarca=E.ctxMarca;estado('Mover bloque: haga clic en el nuevo lugar (Esc cancela). También puede arrastrarlo.');};
+$('mMkBorrar').onclick=()=>{ocultarMenu();if(!E.ctxMarca)return;E.marcas=E.marcas.filter(m=>m!==E.ctxMarca);tablaEquipos();dibujar();if(E.resultados.length)mostrarResultados();};
+$('dlgEqCerrar').onclick=()=>$('dlgEquipo').close();$('dlgSenCerrar').onclick=()=>$('dlgSenales').close();
 $('mDevAud').onclick=()=>{ocultarMenu();const d=E.ctxDev;if(!d)return;const A=(E.audPorRec||{})[d.rid];
   if(/estrobo/.test(d.tipo)&&!/bocina|parl/.test(d.tipo)){if(!A){estado('No hay datos audibles del recinto: genere el prediseño primero.');return;}
     d.tipo=(A.parl?'parl_':'bocina_')+d.tipo;d.dba3=A.dba3;d.req=A.req;d.radio=radioAudible(A.dba3,A.req);}
@@ -1538,7 +1574,7 @@ $('mCopiar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel)
   estado('Copiado «'+r.nombre+'»: mueva el cursor y haga clic para pegar (puede pegar varias veces). Esc termina.');dibujar();};
 $('mBorrar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel);if(!r)return;E.recintos=E.recintos.filter(x=>x!==r);E.sel=null;E.edit=null;invalidar(r.id);propiedades();dibujar();estado('Recinto «'+r.nombre+'» borrado.');};
 cv.addEventListener('wheel',e=>{e.preventDefault();const r=cv.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top,w=aMundo(px,py),f=e.deltaY<0?1.15:1/1.15;E.vista.k*=f;E.vista.x=px-w.x*E.vista.k;E.vista.y=py-w.y*E.vista.k;dibujar();},{passive:false});
-window.addEventListener('keydown',e=>{if(e.code==='Space'&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){espacio=true;e.preventDefault();}if(e.key==='Escape'){E.borrador=[];E.calib=[];ocultarMenu();terminarAjuste();if(E.herr==='dev'||E.herr==='clon')herramienta('sel');E.moverDisp=null;}if(e.key==='Enter'){if(E.edit)terminarAjuste();else if(E.herr==='rec')cerrarBorrador();}});
+window.addEventListener('keydown',e=>{if(e.code==='Space'&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){espacio=true;e.preventDefault();}if(e.key==='Escape'){E.borrador=[];E.calib=[];ocultarMenu();terminarAjuste();if(E.herr==='dev'||E.herr==='clon'||E.herr==='eq')herramienta('sel');E.moverMarca=null;E.moverDisp=null;}if(e.key==='Enter'){if(E.edit)terminarAjuste();else if(E.herr==='rec')cerrarBorrador();}});
 window.addEventListener('keyup',e=>{if(e.code==='Space')espacio=false;});
 // Si la ventana pierde el foco (Alt+Tab, clic fuera) se pierde el «soltar»: se reinician teclas y arrastres para que los clics de dibujo no queden bloqueados.
 window.addEventListener('blur',()=>{espacio=false;arr=null;arrV=null;arrD=null;suprimir=false;});
@@ -1546,7 +1582,7 @@ cv.addEventListener('mousemove',e=>{E.cursor=mundoDeEvento(e);
   if(E.herr==='rec'||E.herr==='rect'){const sn=puntoSnap(E.cursor,e);E.cursor=sn.p;E.snapPt=sn.t?{x:sn.p.x,y:sn.p.y,t:sn.t}:null;
     if(!E._raf)E._raf=requestAnimationFrame(()=>{E._raf=0;dibujar();});}else E.snapPt=null;
   if((E.borrador.length||E.pegando)&&!(E.herr==='rec'||E.herr==='rect'))dibujar();
-  if(!arrD){cv.style.cursor=(E.herr==='sel'&&!E.edit&&!E.pegando&&devEn(E.cursor))?'move':'crosshair';}
+  if(!arrD){cv.style.cursor=(E.herr==='sel'&&!E.edit&&!E.pegando&&(devEn(E.cursor)||marcaEn(E.cursor)))?'move':'crosshair';}
   if($('vSPL').checked&&E.audPorRec&&!E.borrador.length&&!arrD){const rr=recintoMin(E.cursor),A=rr&&E.audPorRec[rr.id];
     if(A){const v=splSuma(E.cursor,audibles(rr.id));estado('Nivel sonoro aquí: '+(isFinite(v)?v.toFixed(0):'—')+' dBA · requerido '+A.req.toFixed(0)+' dBA en «'+rr.nombre+'» · máx. permitido '+AUDIBLE_MAX_DBA+' dBA (NFPA 72 §18.4)');}}});
 function crearRect(a,b){
@@ -1561,6 +1597,7 @@ cv.addEventListener('click',e=>{
   if(arr||espacio)return;
   if(suprimir){suprimir=false;return;}
   let p=mundoDeEvento(e);if(E.herr==='rec'||E.herr==='rect')p=puntoSnap(p,e).p;
+  if(E.moverMarca){const m=E.moverMarca;m.x=p.x;m.y=p.y;E.moverMarca=null;dibujar();estado('Bloque movido.');return;}
   if(E.moverDisp){const d=E.moverDisp;d.x=p.x;d.y=p.y;d.manual=true;E.moverDisp=null;E._spl=null;E.selDev=d.id;propiedadesDisp();dibujar();reverificar();estado('Dispositivo movido.');return;}
   if(E.herr==='clon'&&E.plantilla){agregarDisp(p,E.plantilla);return;}
   if(E.pegando){const g=E.pegando,id=E.seq++;E.recintos.push({id,nombre:g.nombre,tipo:g.tipo,poly:g.rel.map(q=>({x:q.x+p.x,y:q.y+p.y})),h:g.h,det:g.det,not:g.not,co:g.co});E.sel=id;propiedades();dibujar();return;}
@@ -1573,6 +1610,7 @@ cv.addEventListener('click',e=>{
   else if(E.herr==='rect'){E.borrador.push(p);if(E.borrador.length===2){crearRect(E.borrador[0],E.borrador[1]);}else dibujar();}
   else if(E.herr==='rell'){rellenar_clic(p);}
   else if(E.herr==='dev'){agregarDisp(p);}
+  else if(E.herr==='eq'){E.marcas.push({id:E.seq++,t:'eq',eq:$('eqTipo').value,x:p.x,y:p.y});tablaEquipos();dibujar();estado('Colocado «'+nombreEquipo($('eqTipo').value)+'». Siga haciendo clic para colocar más; Esc o «Seleccionar» para terminar. Clic derecho sobre el bloque para cambiarlo o ver sus dispositivos.');}
   else if(['salida','facp','ahu','asc'].includes(E.herr)){E.marcas.push({id:E.seq++,t:E.herr,x:p.x,y:p.y});tablaEquipos();dibujar();}
   else if(E.herr==='bor'){
     const mi=E.marcas.findIndex(m=>Math.hypot(m.x-p.x,m.y-p.y)*E.vista.k<14);
@@ -2153,9 +2191,9 @@ function propiedades(){
   $('rNom').oninput=()=>{r.nombre=$('rNom').value;E.disp.forEach(d=>{if(d.rid===r.id)d.sala=r.nombre;});dibujar();};
 }
 function tablaEquipos(){
-  const mA=E.marcas.filter(m=>m.t==='ahu').length,mS=E.marcas.filter(m=>m.t==='asc').length;
+  const cntPlano={};E.marcas.forEach(m=>{const e=equipoDe(m);if(e)cntPlano[e]=(cntPlano[e]||0)+1;});
   $('equiposTabla').innerHTML='<div class="tabla-eq" translate="no"><table><colgroup><col style="width:52%"><col style="width:16%"><col style="width:16%"><col style="width:16%"></colgroup><tr><th>Equipo</th><th>Cant.</th><th title="Módulos de monitoreo (AIM) por unidad">Monit.</th><th title="Módulos de control (AOM) por unidad">Ctrl.</th></tr>'+EQUIPOS.map(q=>{
-    const auto=q[0]==='AHU'?mA:(q[0]==='ASC'?mS:0);
+    const auto=cntPlano[q[0]]||0;
     return '<tr><td>'+q[1]+(auto?' <small class="g">(+'+auto+' en plano)</small>':'')+'</td><td><input type="number" min="0" style="width:100%;min-width:52px" data-eq="'+q[0]+'" value="'+(E.eqCant[q[0]]||0)+'"></td><td>'+q[2]+'</td><td>'+q[3]+'</td></tr>';}).join('')+'</table></div><small class="g">Monit. = módulos de monitoreo (AIM) y Ctrl. = módulos de control (AOM) que se agregan por cada unidad del equipo.</small>';
   document.querySelectorAll('[data-eq]').forEach(i=>i.onchange=()=>{E.eqCant[i.dataset.eq]=+i.value||0;if(E.resultados.length)mostrarResultados();});
 }
@@ -2175,7 +2213,7 @@ $('btnExpEst').onclick=()=>descargar('plantilla_estandar_cadena.json',JSON.strin
 $('cadena').onchange=()=>{E.chain=$('cadena').value;infoCadena();};
 function actualizarDictamen(){$('dictamen').innerHTML=dictamen();const b=$('btnEqSup');if(b)b.onclick=agregarEquiposSupresion;}
 $('btnDict').onclick=actualizarDictamen;
-['pAreaEdif','pAreaPlanta','pOcupTot','pOcupPiso','pSup','pTV','pRiesgo','pAlt','pNiveles','pReunion','pHab','ocup','pais','ed72','ed101'].forEach(i=>{$(i).addEventListener('change',actualizarDictamen);});
+['pAreaEdif','pAreaPlanta','pSup','pAlt','pNiveles','pReunion','pHab','ocup','pais','ed72','ed101'].forEach(i=>{$(i).addEventListener('change',actualizarDictamen);});
 
 /* ==========================================================================
    ARCHIVOS: borrador, PNG, CSV, informe
@@ -2188,7 +2226,7 @@ function dataUrlDe(img,clave){
   E['_i_'+clave]=img;return (E['_u_'+clave]=c.toDataURL('image/png'));
 }
 function recopilar(completo){
-  const o={version:1,proyecto:{nombre:$('pNombre').value,pais:$('pais').value,ed72:$('ed72').value,ed101:$('ed101').value,ocup:$('ocup').value,niveles:$('pNiveles').value,alt:$('pAlt').value,reunion:$('pReunion').value,hab:$('pHab').value,cob:$('cobDet').value,areaEdif:$('pAreaEdif').value,areaPlanta:$('pAreaPlanta').value,ocupTot:$('pOcupTot').value,ocupPiso:$('pOcupPiso').value,sup:$('pSup').value,tv:$('pTV').value,riesgo:$('pRiesgo').value},
+  const o={version:1,proyecto:{nombre:$('pNombre').value,pais:$('pais').value,ed72:$('ed72').value,ed101:$('ed101').value,ocup:$('ocup').value,niveles:$('pNiveles').value,alt:$('pAlt').value,reunion:$('pReunion').value,hab:$('pHab').value,cob:$('cobDet').value,areaEdif:$('pAreaEdif').value,areaPlanta:$('pAreaPlanta').value,sup:$('pSup').value},
    cadena:E.chain,cadenaCustom:E.cadenaCustom,
    parametros:{espH:$('pEspH').value,espC:$('pEspC').value,cdMax:$('pCdMax').value,dba:$('pDba').value,aud:$('pAud').value,facRec:$('pFacRec').value,iso:$('pIso').value,co:$('pCO').value},
    recintos:E.recintos,marcas:E.marcas,disp:E.disp,eqCant:E.eqCant,seq:E.seq,
@@ -2199,7 +2237,7 @@ function recopilar(completo){
   return o;
 }
 function aplicar(o){
-  const p=o.proyecto||{};$('pNombre').value=p.nombre||'';['pais','ed72','ed101','ocup'].forEach(k=>{if(p[k])$(k).value=p[k];});$('paisNota').textContent=(JURISDICCIONES[$('pais').value]||{}).nota||'';$('pNiveles').value=p.niveles||1;$('pAlt').value=p.alt||4;$('pReunion').value=p.reunion||0;$('pHab').value=p.hab||0;if(p.cob)$('cobDet').value=p.cob;[['areaEdif','pAreaEdif'],['areaPlanta','pAreaPlanta'],['ocupTot','pOcupTot'],['ocupPiso','pOcupPiso'],['sup','pSup'],['tv','pTV'],['riesgo','pRiesgo']].forEach(([a,b])=>{if(p[a]!=null)$(b).value=p[a];});
+  const p=o.proyecto||{};$('pNombre').value=p.nombre||'';['pais','ed72','ed101','ocup'].forEach(k=>{if(p[k])$(k).value=p[k];});$('paisNota').textContent=(JURISDICCIONES[$('pais').value]||{}).nota||'';$('pNiveles').value=p.niveles||1;$('pAlt').value=p.alt||4;$('pReunion').value=p.reunion||0;$('pHab').value=p.hab||0;if(p.cob)$('cobDet').value=p.cob;[['areaEdif','pAreaEdif'],['areaPlanta','pAreaPlanta'],['sup','pSup']].forEach(([a,b])=>{if(p[a]!=null)$(b).value=p[a];});
   E.cadenaCustom=o.cadenaCustom||null;E.chain=o.cadena||'ninguna';if(E.chain==='custom'&&E.cadenaCustom){let op=$('cadena').querySelector('option[value=custom]');if(!op){op=document.createElement('option');op.value='custom';$('cadena').appendChild(op);}op.textContent='Cargado: '+(E.cadenaCustom.nombre||'');}
   $('cadena').value=E.chain;infoCadena();
   const q=o.parametros||{};[['espH','pEspH'],['espC','pEspC'],['cdMax','pCdMax'],['dba','pDba'],['aud','pAud'],['facRec','pFacRec'],['iso','pIso'],['co','pCO']].forEach(([a,b])=>{if(q[a]!=null)$(b).value=q[a];});
@@ -2306,6 +2344,7 @@ function aplicarJurisdiccion(){
 function iniciar(){
   $('pais').innerHTML=Object.keys(JURISDICCIONES).map(k=>'<option value="'+k+'"'+(k===JURISDICCION_DEFECTO?' selected':'')+'>'+JURISDICCIONES[k].nombre+'</option>').join('');
   $('pais').onchange=aplicarJurisdiccion;
+  $('eqTipo').innerHTML=EQUIPOS.map(q=>'<option value="'+q[0]+'">'+q[0]+' · '+q[1]+'</option>').join('');
   $('devTipo').innerHTML=Object.keys(ROT).map(k=>'<option value="'+k+'"'+(k==='det_humo'?' selected':'')+'>'+ROT[k]+'</option>').join('');
   $('ed72').innerHTML=EDICIONES_72.map(e=>'<option>'+e+'</option>').join('');
   $('ed101').innerHTML=EDICIONES_101.map(e=>'<option>'+e+'</option>').join('');aplicarJurisdiccion();
@@ -2320,9 +2359,9 @@ function iniciar(){
   $('btnGenerar').onclick=()=>generar(false);
   $('btnGenerarTodo').onclick=()=>{if(!E.disp.some(d=>d.manual)||confirm('«Regenerar todo» recalcula todos los recintos y descarta los dispositivos automáticos que movió o editó a mano (los agregados a mano se conservan). ¿Continuar?'))generar(true);};
   $('btnLimpiar').onclick=()=>{invalidar();dibujar();};
-  [['tSel','sel'],['tRec','rec'],['tRect','rect'],['tRell','rell'],['tSal','salida'],['tFacp','facp'],['tAhu','ahu'],['tAsc','asc'],['tBor','bor'],['tDev','dev']].forEach(([i,h])=>$(i).onclick=()=>herramienta(h));
+  [['tSel','sel'],['tRec','rec'],['tRect','rect'],['tRell','rell'],['tSal','salida'],['tFacp','facp'],['tAhu','ahu'],['tAsc','asc'],['tEq','eq'],['tBor','bor'],['tDev','dev']].forEach(([i,h])=>$(i).onclick=()=>herramienta(h));
   $('tAjustar').onclick=ajustarVista;
-  ['vCobDet','vCobVis','vCobAud','vSPL','vPlano','vOp','vSim'].forEach(i=>$(i).oninput=dibujar);
+  ['vCobDet','vCobVis','vCobAud','vSPL','vNotas','vPlano','vOp','vSim'].forEach(i=>$(i).oninput=dibujar);
   $('btnDict').click();infoCadena();tablaEquipos();
   window.addEventListener('resize',ajustarLienzo);ajustarLienzo();ajustarVista();restaurarGuardado();
 }

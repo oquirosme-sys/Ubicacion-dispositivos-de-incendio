@@ -71,7 +71,12 @@ Un recinto cuyo contorno cae por completo dentro de otro se trata como subrecint
 - Es local a ese equipo y navegador: el borrador .json sigue siendo el medio portátil (ahora también restaura los resultados de cada recinto sin mover dispositivos).
 - Nota para la norma de herramientas Sinergia: esta herramienta se aparta de «no persistir en el navegador» porque el usuario lo pidió expresamente; es opcional y desactivable.
 
-## Análisis del proyecto (supresión, área y ocupación)
-- El módulo 1 pregunta: área agregada de incendio, área de la planta, ocupantes, supresión (rociadores), tubería vertical y riesgo de contenidos.
-- Con eso evalúa contra el Reglamento Nacional de Protección contra Incendios 2023 (§11.1, §11.3, §11.4, §11.6, §11.7, §13.2, §13.3) y las NFPA elegidas. Resultado ordenado en: Obligatorio, Por confirmar, Buena práctica y No exigido, con un resumen de lo obligatorio arriba y la tabla en un panel plegable.
+## Requisitos del sistema de alarma (según área, ocupación y rociadores)
+- El módulo 1 pregunta solo lo que el ingeniero eléctrico maneja: ocupación, niveles, altura, habitaciones, área agregada de incendio, área de la planta y si lleva rociadores (únicamente por su efecto sobre la alarma). No pide datos de supresión (ocupantes, tubería vertical, riesgo de contenidos).
+- Evalúa solo requisitos del sistema de alarma contra el Reglamento Nacional de Protección contra Incendios 2023 (§11.1, §11.3, §11.4, §11.6, §11.7) y las NFPA elegidas. La columna «Tipo» dice si es Obligatorio, Por confirmar, Recomendado o No obligatorio; arriba hay un resumen de lo obligatorio y la tabla va en un panel plegable.
 - En Costa Rica el recorrido máximo a una estación manual es 60 m (§11.1.7); el prediseño lo usa.
+
+## Bloques de equipo (matriz de supervisión)
+- La tabla de equipos y señales sale de Matriz_Supervision_NFPA72_2.xlsx (Sinergia). Con «+ Equipo» se coloca en el plano cualquier equipo de la matriz (bomba, generador, ATS, damper, ascensor…); «+ Manejadora» y «+ Ascensor» siguen igual.
+- Clic derecho sobre un bloque: cambiarlo por cualquier equipo de la matriz (o por salida/FACP), ver los dispositivos y señales que pide, mover o borrar. También se arrastra.
+- Cada bloque muestra una nota con los dispositivos requeridos por unidad (cantidad × P/N Simplex y función); casilla «Notas de equipos». Cada bloque suma una unidad a «Equipos supervisados» y a los módulos totales.
