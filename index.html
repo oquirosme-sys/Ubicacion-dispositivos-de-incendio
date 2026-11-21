@@ -317,6 +317,7 @@
    <label style="margin:0">Opacidad plano <input type="range" id="vOp" min="10" max="100" value="55" style="width:90px"></label>
    <label style="margin:0">Tamaño símbolos <input type="range" id="vSim" min="8" max="40" value="16" style="width:90px"></label>
    <label style="margin:0">Cierre de huecos de puerta (px) <input type="number" id="rellCierre" value="10" min="0" max="40" style="width:56px"></label>
+    <span id="reqAud" style="display:none;font-size:.76rem;color:#12314f;background:#eaf3fb;border:1px solid #9cc3ee;border-radius:5px;padding:2px 8px"></span>
     <span style="margin-left:auto;display:flex;gap:4px"><button class="sec" id="btnRecOcultos" style="display:none;padding:3px 8px;font-size:.74rem" title="Vuelve a mostrar los recintos que dejó atrás">🙈 Mostrar recintos ocultos</button><button class="sec" id="btnCobOcultarTodas" title="Oculta la cobertura de todos los recintos (los dispositivos se quedan)" style="padding:3px 8px;font-size:.74rem">👁 Ocultar todas</button><button class="sec" id="btnCobMostrarTodas" title="Muestra la cobertura de todos los recintos" style="padding:3px 8px;font-size:.74rem">👁 Mostrar todas</button></span>
   <div id="notaModoCob" style="flex-basis:100%;display:none;font-size:.74rem;color:#5a6472;border-top:1px dashed #cfd6df;padding-top:4px"></div>
 </div>
@@ -1054,6 +1055,15 @@ function nivelSonoroEn(p,rid){
   return splSuma(p,audibles(rid));
 }
 // Supuestos y limitaciones del modo de cobertura elegido (se muestran bajo la barra de capas).
+// Nivel sonoro que se debe respetar según el tipo de recinto (ocupación): ambiente + 15 dB (≥ 75 dBA donde se duerme), máximo 110 dBA.
+function actualizarReqAud(){
+  const n=$('reqAud');if(!n)return;
+  if(!($('vCobAud').checked||$('vSPL').checked)){n.style.display='none';return;}
+  const g={};E.recintos.forEach(r=>{const A=E.audPorRec&&E.audPorRec[r.id];if(!A)return;const t=(TIPOS[r.tipo]||{}).n||r.tipo;if(!g[t]||A.req>g[t])g[t]=A.req;});
+  const l=Object.keys(g).sort((a,b)=>g[a]-g[b]).map(t=>esc(t)+' <b>'+g[t].toFixed(0)+'</b>');
+  n.style.display='';
+  n.innerHTML='<b>Nivel a respetar (dBA):</b> '+(l.length?l.join(' · '):'se calcula al generar el prediseño')+' <span style="color:#5a6472">· ambiente + '+AUDIBLE_SOBRE_AMBIENTE_DB+' dB; ≥ '+AUDIBLE_DORMIR_MIN_DBA+' dBA donde se duerme; máx. '+AUDIBLE_MAX_DBA+'</span>';
+}
 function notaModoCob(){
   const m=$('splModo').value,n=$('notaModoCob');if(!n)return;
   const T={
@@ -1238,10 +1248,10 @@ function dibujarVisComb(){
   const k=E.vista.k,ocultos=new Set(E.recintos.filter(r=>r.ocultaCob).map(r=>r.id)),C=mapaVisComb(),tot={},cub={};
   C.forEach(c=>{tot[c.rid]=(tot[c.rid]||0)+1;if(c.ok)cub[c.rid]=(cub[c.rid]||0)+1;
     if(ocultos.has(c.rid))return;const a=aPant({x:c.x-c.paso/2,y:c.y-c.paso/2}),w=c.paso*k+0.6;
-    cx.fillStyle=c.ok?'rgba(30,150,70,.30)':'rgba(220,30,30,.45)';cx.fillRect(a.x,a.y,w,w);});
+    if(!c.ok){cx.fillStyle='rgba(220,30,30,.45)';cx.fillRect(a.x,a.y,w,w);}});   // solo se pinta lo que NO tiene cobertura (rojo); lo cubierto queda limpio
   const modo=$('splModo').value,pan=$('leyendaVIS'),filasLibre=modo==='libre'&&C.length?[{t:'Área cubierta por estrobos: '+(C.length*C[0].paso*C[0].paso).toFixed(0)+' m² (aprox.)',mal:false}]:[],filas=filasLibre.concat(E.recintos.filter(r=>tot[r.id]).map(r=>{const pc=Math.round(100*(cub[r.id]||0)/tot[r.id]);return {t:r.nombre+': '+pc+' % del área cubierta por estrobos',mal:pc<100};}));
   pan.style.display=filas.length?'':'none';
-  $('leyendaVIScuerpo').innerHTML='<div style="margin-bottom:4px"><b style="color:#1e7d3c">■</b> cubierto por algún estrobo · <b style="color:#d6281c">■</b> sin cobertura visual · Modo: '+(modo==='rec'?'por recinto (solo sus estrobos)':modo==='libre'?'sin recintos asignados (todos los estrobos, sin muros; solo se pinta lo cubierto)':'recintos combinados, la luz atraviesa como máximo '+(+$('visMuros').value||0)+' muro(s) (criterio, no NFPA)')+'. Una cobertura al 100 % exige además que cada recinto cumpla su propia tabla de NFPA 72 §18.5.</div><ul style="margin:0 0 6px 18px;padding:0;font-size:.78rem">'+filas.map(f=>'<li'+(f.mal?' class="mal"':'')+'>'+esc(f.t)+'</li>').join('')+'</ul>';
+  $('leyendaVIScuerpo').innerHTML='<div style="margin-bottom:4px"><b style="color:#d6281c">■</b> sin cobertura visual (lo cubierto por algún estrobo no se pinta) · Modo: '+(modo==='rec'?'por recinto (solo sus estrobos)':modo==='libre'?'sin recintos asignados (todos los estrobos, sin muros; sin recintos no hay zona que marcar en rojo)':'recintos combinados, la luz atraviesa como máximo '+(+$('visMuros').value||0)+' muro(s) (criterio, no NFPA)')+'. Una cobertura al 100 % exige además que cada recinto cumpla su propia tabla de NFPA 72 §18.5.</div><ul style="margin:0 0 6px 18px;padding:0;font-size:.78rem">'+filas.map(f=>'<li'+(f.mal?' class="mal"':'')+'>'+esc(f.t)+'</li>').join('')+'</ul>';
 }
 function dibujarSPL(){
   const k=E.vista.k;
@@ -1732,7 +1742,7 @@ function dibujarBase(){
     if(verVis&&d.radioVis){recorta(d,()=>{cx.beginPath();cx.arc(p.x,p.y,d.radioVis*E.vista.k,0,7);cx.fillStyle=COLOR.cobE;cx.fill();cx.strokeStyle='rgba(200,30,30,.9)';cx.setLineDash([6,4]);cx.lineWidth=1.5;cx.stroke();cx.setLineDash([]);});}
     if(verAud&&/bocina|parl/.test(d.tipo)&&d.radio)dibujarAudible(d,p,recorta);
   });
-  if(!E._modoCable)notaModoCob();
+  if(!E._modoCable){notaModoCob();actualizarReqAud();}
   if(!E._modoCable&&$('vCobVis').checked&&$('splModo').value!=='rec')dibujarVisComb();else if(!E._modoCable&&$('leyendaVIS'))$('leyendaVIS').style.display='none';   // el mapa visual sale con «Notificación visual» en los modos combinado y sin recintos
   if(!E._modoCable&&$('vSPL').checked){dibujarSPL();leyendaSPL();}else if(!E._modoCable&&$('leyendaSPL'))$('leyendaSPL').style.display='none';
   if(E._modoCable&&E.cableado)dibujarCableado();   // el cableado solo se ve en la vista del módulo 3, no en Ejecución

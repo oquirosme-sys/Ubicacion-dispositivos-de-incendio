@@ -160,3 +160,8 @@ Si carga un plano y no dibuja recintos, aparece sobre el plano un aviso pidiendo
 Clic derecho sobre un recinto → **Ocultar este recinto (dejarlo atrás)**. Sirve cuando se delimitó la oficina completa y se quiere dibujar o seleccionar los recintos de adentro: el recinto oculto no se dibuja (contorno, relleno y nombre) y los clics (seleccionar, menú, renombrar, borrar) lo ignoran. En la barra de capas aparece **Mostrar recintos ocultos (n)** para volver a verlo. Se guarda en el borrador y entra en deshacer/rehacer.
 
 - **Supuestos y limitaciones:** el recinto oculto **sigue contando en el cálculo** (prediseño, verificación, coberturas, exportación a DXF y CSV): ocultar es solo visual. Los dispositivos ya colocados dentro de él se siguen viendo. No hay «enviar al fondo» por orden de apilado: un recinto oculto hay que mostrarlo para seleccionarlo. Probado con dos recintos de prueba; no probado con un plano real.
+
+## Mapa visual solo en rojo y nivel a respetar en la barra de capas
+
+- El mapa de cobertura visual (modos combinado y sin recintos) **pinta solo lo que no tiene cobertura** (rojo); lo cubierto queda limpio para no confundir con otras capas. En «sin recintos asignados» no hay zona que marcar en rojo, así que ahí no se pinta nada.
+- Con **Notificación auditiva** o **Nivel sonoro** activos, la barra de capas muestra el **nivel a respetar (dBA) según el tipo de recinto** (ocupación): ambiente + 15 dB, mínimo 75 dBA donde se duerme y máximo 110 dBA. Los valores salen del prediseño generado; antes de generar indica que se calculan al generar. Es el criterio de la herramienta, a verificar contra NFPA 72 §18.4 de la edición adoptada.
