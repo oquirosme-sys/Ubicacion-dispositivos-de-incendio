@@ -1165,7 +1165,11 @@ function dibujarAudible(d,p,recorta){
     cx.strokeStyle=colorNivelSPL(a.v,req||0,a.borde?0.85:0.45,a.borde?0.95:0.8);cx.lineWidth=a.borde?1.8:1.1;cx.stroke();});});
   cx.fillStyle='rgba(18,49,79,.6)';cx.font='10px Arial';cx.textAlign='center';cx.textBaseline='bottom';   // mismo color de rótulo que el mapa de dBA
   const rcL=recGeom(d);   // el rótulo solo se escribe si cae dentro del recinto y del área de diseño (si no, queda flotando fuera del edificio)
-  anillos.forEach(a=>{if(a.r*k<AUDIBLE_ANILLO_MIN_PX*2)return;const q={x:d.x,y:d.y-a.r};if(rcL&&!enRecinto(q,rcL.poly))return;if(E.zona&&E.zona.length>2&&!dentro(q,E.zona))return;cx.fillText(a.t,p.x,p.y-a.r*k-2);});
+  // El rótulo de cada anillo se repite en 4 puntos (arriba, abajo, derecha e izquierda), cada uno solo si cae dentro del recinto y del área de diseño.
+  const PTS=[{dx:0,dy:-1,al:'center',bl:'bottom',ox:0,oy:-2},{dx:0,dy:1,al:'center',bl:'top',ox:0,oy:2},{dx:1,dy:0,al:'left',bl:'middle',ox:3,oy:0},{dx:-1,dy:0,al:'right',bl:'middle',ox:-3,oy:0}];
+  anillos.forEach(a=>{if(a.r*k<AUDIBLE_ANILLO_MIN_PX*2)return;
+    PTS.forEach(t=>{const q={x:d.x+t.dx*a.r,y:d.y+t.dy*a.r};if(rcL&&!enRecinto(q,rcL.poly))return;if(E.zona&&E.zona.length>2&&!dentro(q,E.zona))return;
+      cx.textAlign=t.al;cx.textBaseline=t.bl;cx.fillText(a.t,p.x+t.dx*a.r*k+t.ox,p.y+t.dy*a.r*k+t.oy);});});
 }
 // Nivel audible requerido en un tipo de recinto: ambiente supuesto + 15 dB (NFPA 72 modo público), no menos que el mínimo del estándar
 // de cadena, y áreas de dormir ≥ 75 dBA. El ambiente por tipo es un criterio de prediseño, no un valor normativo.
@@ -1388,7 +1392,7 @@ function aplicarDisp(){
     if(/estrobo/.test(d.tipo)){
       d.cd=+$('pdCd').value||d.cd||CATALOGO_CD[0];d.pared=!cielo;
       fijarCoberturaVisual(d,cielo);   // la cobertura sigue a las candelas y al montaje; un estrobo de corredor conserva su círculo
-      if(!cielo&&esEstroboPared(d))pegarAPared(d);   // de pared: pegado al muro, como la figura de la norma
+      // cambiar candelas, tipo o montaje NO mueve el dispositivo: la cobertura de pared se calcula desde donde está (muro más cercano)
     }else{delete d.cd;d.lado=undefined;d.ladoInsuf=undefined;d.cdMin=undefined;d.radioVis=undefined;}
     if(/bocina|parl/.test(d.tipo)){d.dba3=+($('pdDba')&&$('pdDba').value)||d.dba3||BOCINA_DBA_3M;const A=(E.audPorRec||{})[d.rid]||{req:AUDIBLE_DORMIR_MIN_DBA};d.req=A.req;d.radio=radioAudible(d.dba3,d.req);}
     else{delete d.dba3;d.radio=undefined;}
