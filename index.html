@@ -317,7 +317,7 @@
    <label style="margin:0">Opacidad plano <input type="range" id="vOp" min="10" max="100" value="55" style="width:90px"></label>
    <label style="margin:0">Tamaño símbolos <input type="range" id="vSim" min="8" max="40" value="16" style="width:90px"></label>
    <label style="margin:0">Cierre de huecos de puerta (px) <input type="number" id="rellCierre" value="10" min="0" max="40" style="width:56px"></label>
-    <span style="margin-left:auto;display:flex;gap:4px"><button class="sec" id="btnCobOcultarTodas" title="Oculta la cobertura de todos los recintos (los dispositivos se quedan)" style="padding:3px 8px;font-size:.74rem">👁 Ocultar todas</button><button class="sec" id="btnCobMostrarTodas" title="Muestra la cobertura de todos los recintos" style="padding:3px 8px;font-size:.74rem">👁 Mostrar todas</button></span>
+    <span style="margin-left:auto;display:flex;gap:4px"><button class="sec" id="btnRecOcultos" style="display:none;padding:3px 8px;font-size:.74rem" title="Vuelve a mostrar los recintos que dejó atrás">🙈 Mostrar recintos ocultos</button><button class="sec" id="btnCobOcultarTodas" title="Oculta la cobertura de todos los recintos (los dispositivos se quedan)" style="padding:3px 8px;font-size:.74rem">👁 Ocultar todas</button><button class="sec" id="btnCobMostrarTodas" title="Muestra la cobertura de todos los recintos" style="padding:3px 8px;font-size:.74rem">👁 Mostrar todas</button></span>
   <div id="notaModoCob" style="flex-basis:100%;display:none;font-size:.74rem;color:#5a6472;border-top:1px dashed #cfd6df;padding-top:4px"></div>
 </div>
   <div id="avisoZona" style="display:none"></div>
@@ -425,7 +425,7 @@
   <div id="dlgLista"></div>
   <div style="margin-top:10px;text-align:right"><button class="sec" id="dlgCancelar">Cancelar</button><button class="peligro" id="dlgBorrarSel">Borrar seleccionados</button></div>
 </dialog>
-<div id="menuCtx"><div class="titulo" id="menuTit"></div><button id="mMkCambiar">✎ Cambiar equipo / bloque…</button><button id="mMkSenales">📋 Ver dispositivos requeridos</button><button id="mMkMover">✥ Mover (clic en el nuevo lugar)</button><button id="mMkBorrar" style="color:var(--ro)">🗑 Borrar bloque</button><button id="mDevMover">✥ Mover (clic en el nuevo lugar)</button><button id="mDevClon">⧉ Agregar similares</button><button id="mDevCambiar">✎ Cambiar tipo / propiedades</button><button id="mDevGiro">⟳ Girar símbolo 90° (sobre su eje)</button><button id="mDevRot">↻ Rotar 90° (siguiente muro)</button><button id="mDevRotInv">↺ Rotar −90°</button><button id="mDevAud">🔊 Agregar bocina</button><button id="mDevBor" style="color:var(--ro)">🗑 Borrar dispositivo</button><button id="mAgregar">＋ Agregar punto aquí</button><button id="mQuitar">− Eliminar punto</button><button id="mUltimo">↶ Quitar último punto</button><button id="mCerrar">✔ Cerrar polígono</button><button id="mCancelar">✖ Cancelar dibujo</button><button id="mCob">👁 Ocultar cobertura de este recinto</button><button id="mRegen">↻ Regenerar este recinto</button><button id="mRenombrar">✎ Cambiar nombre…</button><button id="mAjustar">✎ Ajustar polígono</button><button id="mCopiar">⧉ Copiar</button><button id="mBorrar" style="color:var(--ro)">🗑 Borrar</button></div>
+<div id="menuCtx"><div class="titulo" id="menuTit"></div><button id="mMkCambiar">✎ Cambiar equipo / bloque…</button><button id="mMkSenales">📋 Ver dispositivos requeridos</button><button id="mMkMover">✥ Mover (clic en el nuevo lugar)</button><button id="mMkBorrar" style="color:var(--ro)">🗑 Borrar bloque</button><button id="mDevMover">✥ Mover (clic en el nuevo lugar)</button><button id="mDevClon">⧉ Agregar similares</button><button id="mDevCambiar">✎ Cambiar tipo / propiedades</button><button id="mDevGiro">⟳ Girar símbolo 90° (sobre su eje)</button><button id="mDevRot">↻ Rotar 90° (siguiente muro)</button><button id="mDevRotInv">↺ Rotar −90°</button><button id="mDevAud">🔊 Agregar bocina</button><button id="mDevBor" style="color:var(--ro)">🗑 Borrar dispositivo</button><button id="mAgregar">＋ Agregar punto aquí</button><button id="mQuitar">− Eliminar punto</button><button id="mUltimo">↶ Quitar último punto</button><button id="mCerrar">✔ Cerrar polígono</button><button id="mCancelar">✖ Cancelar dibujo</button><button id="mCob">👁 Ocultar cobertura de este recinto</button><button id="mOcultarRec" title="Oculta el contorno y el relleno del recinto (por ejemplo la oficina completa) para poder dibujar y seleccionar los recintos de debajo; sigue contando en el cálculo">🙈 Ocultar este recinto (dejarlo atrás)</button><button id="mRegen">↻ Regenerar este recinto</button><button id="mRenombrar">✎ Cambiar nombre…</button><button id="mAjustar">✎ Ajustar polígono</button><button id="mCopiar">⧉ Copiar</button><button id="mBorrar" style="color:var(--ro)">🗑 Borrar</button></div>
 
 <script>
 "use strict";
@@ -1705,6 +1705,7 @@ function dibujarBase(){
   if(E.img&&ctlV('vPlano').checked){const a=aPant({x:E.imgX,y:E.imgY});cx.globalAlpha=ctlV('vOp').value/100;cx.drawImage(E.img,a.x,a.y,E.img.width*E.imgM*E.vista.k,E.img.height*E.imgM*E.vista.k);cx.globalAlpha=1;}
   // recintos
   E.recintos.forEach(rc=>{
+    if(rc.oculto)return;   // recinto dejado atrás: no se dibuja ni se puede seleccionar
     cx.beginPath();rc.poly.forEach((p,i)=>{const q=aPant(p);cx[i?'lineTo':'moveTo'](q.x,q.y);});cx.closePath();
     cx.fillStyle=(E.sel===rc.id)?'rgba(224,168,0,0.25)':'rgba(27,74,117,0.08)';cx.fill();cx.strokeStyle=(E.sel===rc.id)?COLOR.sel:COLOR.recinto;cx.lineWidth=(E.sel===rc.id)?3:1.6;cx.stroke();
     const b=bbox(rc.poly),c=aPant({x:b.x0+b.w/2,y:b.y0+b.h/2});cx.fillStyle='#12314f';cx.font='11px Arial';cx.textAlign='center';cx.fillText(rc.nombre,c.x,c.y-14);
@@ -1721,7 +1722,7 @@ function dibujarBase(){
   const V2=!!E._modoCable;   // vista del precableado: solo plano, recintos, dispositivos y cableado (sin coberturas ni notas)
   const verDet=!V2&&$('vCobDet').checked,verVis=!V2&&$('vCobVis').checked,verAud=!V2&&$('vCobAud').checked;
   dibujarZona();
-  if(!E._modoCable)avisoZona();
+  if(!E._modoCable){avisoZona();const nOc=E.recintos.filter(r=>r.oculto).length,bo=$('btnRecOcultos');if(bo){bo.style.display=nOc?'':'none';bo.textContent='🙈 Mostrar recintos ocultos ('+nOc+')';}}
   const recorta=(d,fn)=>{const rc=recGeom(d);cx.save();if(rc){cx.beginPath();[rc.poly].concat(rc.poly.huecos||[]).forEach(pl=>{pl.forEach((q,i)=>{const a=aPant(q);cx[i?'lineTo':'moveTo'](a.x,a.y);});cx.closePath();});cx.clip('evenodd');}else if(E.zona&&E.zona.length>2){cx.beginPath();E.zona.forEach((q,i)=>{const a=aPant(q);cx[i?'lineTo':'moveTo'](a.x,a.y);});cx.closePath();cx.clip();}fn();cx.restore();};
   E.disp.forEach(d=>{
     const p=aPant(d);
@@ -1784,6 +1785,8 @@ function nuevoRecinto(poly,nombre,tipo,h){programarConfirmar();const id=E.seq++;
 function guessTipo(n){n=n.toLowerCase();if(/corredor|pasillo|hall|corridor/.test(n))return 'corredor';if(/ba[ñn]o|shower|wc|sshh/.test(n))return 'bano';if(/kitchen|cocina/.test(n))return 'cocina';if(/elect|comms|data|tele/.test(n))return 'tecnico';if(/store|bodega|storage/.test(n))return 'bodega';if(/stair|escal/.test(n))return 'escalera';if(/lobby|lounge|recep/.test(n))return 'lobby';return $('mTipo').value||'oficina';}
 function mundoDeEvento(e){const r=cv.getBoundingClientRect();return aMundo(e.clientX-r.left,e.clientY-r.top);}
 function recintoEn(p){for(let i=E.recintos.length-1;i>=0;i--)if(dentro(p,E.recintos[i].poly))return E.recintos[i];return null;}
+// Para clics del usuario (seleccionar, menú, borrar, renombrar): ignora los recintos ocultos. El resto del programa usa recintoEn/recintoMin, que sí los cuentan.
+function recintoVis(p){let m=null;E.recintos.forEach(r=>{if(!r.oculto&&dentro(p,r.poly)&&(!m||area(r.poly)<area(m.poly)))m=r;});return m;}
 let arr=null,espacio=false,arrV=null,arrD=null,arrM=null,arrR=null,movio=false,suprimir=false;
 // Sin argumento descarta todo el prediseño; con ids de recinto solo descarta el de esos recintos (los demás no se mueven).
 function invalidar(ids){
@@ -2193,7 +2196,7 @@ document.addEventListener('contextmenu',e=>{if(e.target.closest&&e.target.closes
 const MENU_TOL_FACTOR = 2;
 function menuContextual(e){
   const p=mundoDeEvento(e),k=E.vista.k,tol=HIT_PX*MENU_TOL_FACTOR,m=$('menuCtx');
-  const mostrar=(ids,tit)=>{['mDevGiro','mDevRot','mDevRotInv','mMkCambiar','mMkSenales','mMkMover','mMkBorrar','mCob','mRegen','mRenombrar','mDevMover','mDevClon','mDevCambiar','mDevAud','mDevBor','mAgregar','mQuitar','mUltimo','mCerrar','mCancelar','mAjustar','mCopiar','mBorrar'].forEach(id=>{$(id).style.display=ids.includes(id)?'block':'none';});
+  const mostrar=(ids,tit)=>{['mOcultarRec','mDevGiro','mDevRot','mDevRotInv','mMkCambiar','mMkSenales','mMkMover','mMkBorrar','mCob','mRegen','mRenombrar','mDevMover','mDevClon','mDevCambiar','mDevAud','mDevBor','mAgregar','mQuitar','mUltimo','mCerrar','mCancelar','mAjustar','mCopiar','mBorrar'].forEach(id=>{$(id).style.display=ids.includes(id)?'block':'none';});
     $('menuTit').textContent=tit;m.style.display='block';
     m.style.left=(Math.min(e.clientX,window.innerWidth-200)+3)+'px';m.style.top=(Math.min(e.clientY,window.innerHeight-60-ids.length*34)+3)+'px';};   // +3 px: el puntero no queda sobre el menú
   // Sobre un dispositivo: alternar bocina (visual+auditivo / solo visual) o borrarlo; se selecciona para editarlo en el panel
@@ -2209,8 +2212,8 @@ function menuContextual(e){
   // Dibujando un polígono: quitar el último punto, cerrarlo o cancelarlo
   if(E.herr==='rec'&&E.borrador.length){E.ctxP=p;mostrar(['mUltimo'].concat(E.borrador.length>=3?['mCerrar']:[],['mCancelar']),'Dibujando polígono ('+E.borrador.length+' puntos)');return;}
   // Recinto bajo el cursor, o el más cercano cuyo lado o vértice esté dentro de la tolerancia
-  let r=recintoEn(p),iv=-1,bd=null;
-  if(!r){let mejor=1e18;E.recintos.forEach(q=>{const b=distBordeIdx(p,q.poly);if(b.d*k<=tol&&b.d<mejor){mejor=b.d;r=q;}});}
+  let r=recintoVis(p),iv=-1,bd=null;
+  if(!r){let mejor=1e18;E.recintos.forEach(q=>{if(q.oculto)return;const b=distBordeIdx(p,q.poly);if(b.d*k<=tol&&b.d<mejor){mejor=b.d;r=q;}});}
   if(!r){ocultarMenu();return;}
   iv=r.poly.findIndex(q=>Math.hypot(q.x-p.x,q.y-p.y)*k<=tol);
   bd=distBordeIdx(p,r.poly);
@@ -2219,7 +2222,7 @@ function menuContextual(e){
   if(iv>=0&&r.poly.length>3)ids.push('mQuitar');
   else if(iv<0&&bd.d*k<=tol)ids.push('mAgregar');
   E.ctxRec=r;$('mCob').textContent=r.ocultaCob?'👁 Mostrar cobertura de este recinto':'👁 Ocultar cobertura de este recinto';
-  ids.push('mCob','mRegen','mRenombrar','mAjustar','mCopiar','mBorrar');
+  ids.push('mCob','mOcultarRec','mRegen','mRenombrar','mAjustar','mCopiar','mBorrar');
   mostrar(ids,r.nombre);
 }
 // --- Bloques de equipo: selector de la matriz, señales requeridas, mover y borrar
@@ -2293,6 +2296,7 @@ function alternarCobertura(r){
   estado('Cobertura de «'+r.nombre+'» '+(r.ocultaCob?'oculta: los dispositivos siguen ahí; clic derecho → «Mostrar cobertura» para verla.':'visible.'));
 }
 $('mCob').onclick=()=>{ocultarMenu();alternarCobertura(E.ctxRec);};
+$('mOcultarRec').onclick=()=>{ocultarMenu();const r=E.ctxRec;if(!r)return;r.oculto=true;if(E.sel===r.id)E.sel=null;propiedades();dibujar();programarConfirmar();estado('Recinto «'+r.nombre+'» oculto: ya puede dibujar y seleccionar los recintos de debajo. Sigue contando en el cálculo. Use «Mostrar recintos ocultos» en la barra de capas para verlo de nuevo.');};
 $('mRegen').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel);if(!r)return;invalidar(r.id);generar(false);};
 $('mRenombrar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel);if(r)renombrarRecinto(r);};
 function terminarAjuste(){E.edit=null;E.pegando=null;dibujar();}
@@ -2330,7 +2334,7 @@ function cerrarBorrador(){
     E.borrador=[];dibujar();estado('El área necesita al menos 3 vértices.');return;}
   if(E.borrador.length>=3&&area(E.borrador)>=AREA_MIN_RECINTO_M2){nuevoRecinto(E.borrador.slice());}E.borrador=[];dibujar();}
 cv.addEventListener('dblclick',e=>{if(E.herr==='rec'){E.borrador.pop();cerrarBorrador();}
-  else if(E.herr==='sel'&&!E.edit){const p=mundoDeEvento(e);if(devEn(p))return;const r=recintoMin(p);if(r)renombrarRecinto(r);}});
+  else if(E.herr==='sel'&&!E.edit){const p=mundoDeEvento(e);if(devEn(p))return;const r=recintoVis(p);if(r)renombrarRecinto(r);}});
 cv.addEventListener('click',e=>{
   if(arr||espacio)return;
   if(suprimir){suprimir=false;return;}
@@ -2343,7 +2347,7 @@ cv.addEventListener('click',e=>{
     if(iv>=0){if(e.shiftKey&&r.poly.length>3){r.poly.splice(iv,1);invalidar(r.id);dibujar();}}
     else{const bd=distBordeIdx(p,r.poly);if(bd.d*k<=HIT_PX){r.poly.splice(bd.i+1,0,{x:bd.p.x,y:bd.p.y});invalidar(r.id);dibujar();}}}
     return;}
-  if(E.herr==='sel'){const dv=devEn(p);if(dv){E.selDev=dv.id;E.sel=null;propiedades();propiedadesDisp();dibujar();return;}E.selDev=null;propiedadesDisp();const r=recintoEn(p);E.sel=r?r.id:null;propiedades();dibujar();}
+  if(E.herr==='sel'){const dv=devEn(p);if(dv){E.selDev=dv.id;E.sel=null;propiedades();propiedadesDisp();dibujar();return;}E.selDev=null;propiedadesDisp();const r=recintoVis(p);E.sel=r?r.id:null;propiedades();dibujar();}
   else if(E.herr==='rec'){E.borrador.push(p);dibujar();}
   else if(E.herr==='rect'){E.borrador.push(p);if(E.borrador.length===2){crearRect(E.borrador[0],E.borrador[1]);}else dibujar();}
   else if(E.herr==='rell'){rellenar_clic(p);}
@@ -2353,7 +2357,7 @@ cv.addEventListener('click',e=>{
   else if(E.herr==='bor'){
     const mi=E.marcas.findIndex(m=>Math.hypot(m.x-p.x,m.y-p.y)*E.vista.k<14);
     if(mi>=0){E.marcas.splice(mi,1);tablaEquipos();}
-    else{const r=recintoEn(p);if(r){E.recintos=E.recintos.filter(x=>x!==r);if(E.sel===r.id)E.sel=null;propiedades();invalidar(r.id);}}
+    else{const r=recintoVis(p);if(r){E.recintos=E.recintos.filter(x=>x!==r);if(E.sel===r.id)E.sel=null;propiedades();invalidar(r.id);}}
     dibujar();
   }
   else if(E.herr==='cal'){E.calib.push(p);if(E.calib.length===2){const d=Math.hypot(E.calib[1].x-E.calib[0].x,E.calib[1].y-E.calib[0].y);const v=prompt('Distancia real entre los 2 puntos (m):','10');const real=parseFloat(v);if(real>0&&E.img){const f=real/d;E.imgM*=f;E.imgX=E.calib[0].x-(E.calib[0].x-E.imgX)*f;E.imgY=E.calib[0].y-(E.calib[0].y-E.imgY)*f;
@@ -3118,6 +3122,7 @@ function iniciar(){
   $('pEspH').value=ESP_HUMO_M;$('pEspC').value=ESP_CALOR_M;$('pDba').value=BOCINA_DBA_3M;$('pFacRec').value=FACTOR_RECORRIDO_REAL;$('pIso').value=AISLADOR_CADA_N;
   $('pAud').onchange=()=>{$('pDba').value=$('pAud').value==='parlante'?PARLANTE_DBA_3M:BOCINA_DBA_3M;};
   $('btnUndo').onclick=deshacer;$('btnRedo').onclick=rehacer;
+  $('btnRecOcultos').onclick=()=>{E.recintos.forEach(r=>{r.oculto=false;});dibujar();programarConfirmar();estado('Recintos ocultos visibles de nuevo.');};
   $('btnCobOcultarTodas').onclick=()=>{E.recintos.forEach(r=>{r.ocultaCob=true;});dibujar();};
   $('btnCobMostrarTodas').onclick=()=>{E.recintos.forEach(r=>{r.ocultaCob=false;});dibujar();};
   $('btnGenerar').onclick=()=>generar(false);
