@@ -148,3 +148,9 @@ Si carga un plano y no dibuja recintos, aparece sobre el plano un aviso pidiendo
 
 - Se puede **redefinir** o **quitar** desde el mismo aviso. Se guarda en el borrador y entra en deshacer/rehacer.
 - **Supuestos y limitaciones:** se puede delimitar como polígono (vértice por vértice, sigue el contorno del edificio) o como rectángulo de dos esquinas; no cambia los modos «por recinto» ni «recintos combinados»; no es un recinto, no se verifica contra NFPA 72 ni se exporta como recinto. Probado con dispositivos sueltos de prueba; no probado con un plano real.
+
+## Ajuste de coberturas: visual y auditiva
+
+- **Mapa visual:** ya no tiene casilla propia; sale con **Notificación visual** cuando el selector está en «recintos combinados» o «sin recintos asignados» (en «por recinto» se ven solo los cuadrados de la tabla de NFPA). Los selectores «muros que atraviesa la luz» y «pérdida por muro» solo aparecen en el modo combinado, que es el único que usa muros.
+- **Auditiva:** con **Notificación auditiva** solo se dibujan los anillos de los dispositivos con bocina o parlante (no los detectores ni los estrobos sin bocina). El relleno del anillo es casi transparente; con el mapa de nivel sonoro activo no se rellena.
+- **Misma convención en anillos y mapa de dBA:** verde = dentro de parámetros (≥ nivel requerido y ≤ 110 dBA), cada vez más intenso sobre el requerido; rojo = sobre el máximo; mismo color de rótulo. Diferencia que se mantiene y queda escrita en la leyenda: los anillos muestran el nivel de **cada dispositivo por separado** (−6 dB al duplicar la distancia, campo libre); los números del mapa son la **suma** de dispositivos (con pérdida por muro en el modo combinado).
