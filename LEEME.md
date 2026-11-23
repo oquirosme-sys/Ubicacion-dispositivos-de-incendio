@@ -165,3 +165,10 @@ Clic derecho sobre un recinto → **Ocultar este recinto (dejarlo atrás)**. Sir
 
 - El mapa de cobertura visual (modos combinado y sin recintos) **pinta solo lo que no tiene cobertura** (rojo); lo cubierto queda limpio para no confundir con otras capas. En «sin recintos asignados» no hay zona que marcar en rojo, así que ahí no se pinta nada.
 - Con **Notificación auditiva** o **Nivel sonoro** activos, la barra de capas muestra el **nivel a respetar (dBA) según el tipo de recinto** (ocupación): ambiente + 15 dB, mínimo 75 dBA donde se duerme y máximo 110 dBA. Los valores salen del prediseño generado; antes de generar indica que se calculan al generar. Es el criterio de la herramienta, a verificar contra NFPA 72 §18.4 de la edición adoptada.
+
+## Puntos de cálculo tipo DIALux y recintos ocultos fuera de los mapas
+
+- El mapa de nivel sonoro ya no es una rejilla de cuadros de 1 m: son **puntos de cálculo** sobre una rejilla global cuya separación se elige en la barra de capas (**puntos cada 30 / 60 / 100 cm**, por defecto 60 cm). Cada punto es verde (dentro de parámetros) o rojo (fuera), con el valor en dBA en algunos de ellos según el zoom. Los puntos de cada recinto se **recortan a su contorno**: nada se sale del recinto. En el modo «recintos combinados» los puntos siguen siendo de cada recinto; lo que se combina es el nivel (suma con pérdida por muros). Con la separación de 30 cm, si hubiera más de 20 000 puntos la separación crece sola.
+- El mapa de cobertura visual usa la misma rejilla y pinta de rojo, **recortado al recinto**, solo lo que no tiene cobertura.
+- Los **recintos ocultos** («dejados atrás») **no se calculan ni se pintan** en ninguno de los dos mapas ni aparecen en su leyenda; siguen contando en el prediseño y las verificaciones. Para ver el mapa de un recinto oculto hay que mostrarlo. Esto corrige el rojo que cubría todo el plano cuando había recintos grandes ocultos sin estrobos.
+- La separación elegida se guarda en el borrador.
