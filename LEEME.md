@@ -182,3 +182,9 @@ Además, un recinto con **bocina o parlante puestos a mano** que el prediseño n
 ## Esc suelta todo
 
 **Esc** libera cualquier herramienta o acción pendiente y vuelve a «Seleccionar»: dibujo a medias, rectángulo, relleno, mover dispositivo o bloque, copiar o ajustar un polígono, delimitar el área de diseño, calibrar la escala, el desplazamiento con Espacio y los arrastres que hayan quedado a medias. Si no había nada activo, una segunda pulsación quita la selección. Se atiende en fase de captura, así que ningún otro manejador lo bloquea.
+
+**Ajuste sobre recintos ocultos:** un recinto oculto entra al mapa de nivel sonoro si tiene bocina o parlante propios, y al mapa visual si tiene estrobos propios; un recinto oculto sin esos dispositivos (por ejemplo el contenedor grande de toda la oficina) sigue fuera de los mapas. Así las bocinas de la oficina abierta se calculan aunque se haya dejado atrás su recinto, sin que un contenedor sin dispositivos pinte todo de rojo.
+
+## Valores por defecto de la barra de capas e imán
+
+Al abrir el módulo 2 la barra de capas arranca con: Detectores, Notificación visual, Notificación auditiva y Nivel sonoro **apagados**; Módulos junto a equipos, Notas de equipos y Plano **encendidos**; modo «por recinto» y puntos cada 60 cm. El **imán a esquinas y muros** ya no está en la barra de capas: pasó a la tarjeta **Herramientas** (sigue encendido por defecto; Alt lo desactiva temporalmente al dibujar).

@@ -37,6 +37,7 @@
   th,td{border:1px solid var(--gb);padding:4px 6px;text-align:left;vertical-align:top} th{background:var(--azc)}
   .tarjeta{border:1px solid var(--gb);border-radius:7px;padding:8px 10px;margin:8px 0;background:#fbfcfd}
   .tarjeta h4{margin:0 0 4px;font-size:.88rem;color:var(--az0)}
+  .pct{display:inline-block;min-width:3.2em;text-align:right;color:#12314f;font-weight:700}
   details.tarjeta>summary{cursor:pointer;list-style-position:inside}
   details.tarjeta>summary h4{display:inline;margin:0}
   details.tarjeta[open]>summary{margin-bottom:4px}
@@ -243,6 +244,7 @@
    <button id="tDev" class="sec" title="Agregar dispositivos a mano, además de los automáticos">＋ Dispositivo</button>
    <select id="devTipo" title="Tipo de dispositivo a agregar" style="width:auto;max-width:100%"></select>
    <button id="tAjustar" class="sec">Ajustar vista</button>
+   <label style="margin:4px 0 0;display:block;font-size:.8rem" title="Al dibujar recintos, el cursor se engancha a las esquinas y muros del plano. Mantenga Alt para desactivarlo temporalmente"><input type="checkbox" id="vSnap" style="width:auto" checked> Imán a esquinas y muros al dibujar</label>
   </div>
 </section><section class="card" id="cardRec"><h2>Recinto seleccionado</h2><div id="propRec"><small class="g">Seleccione un recinto en el lienzo (o doble clic sobre él) para cambiar su nombre, tipo y altura.</small></div></section><section class="card"><h2>Planta y recintos</h2>
   <b>Modo A — cargar plano</b>
@@ -303,20 +305,19 @@
  <div id="lienzoWrap">
   <div id="capas">
    <b>Cobertura:</b>
-   <label style="margin:0"><input type="checkbox" id="vCobDet" checked style="width:auto"> Detectores</label>
+   <label style="margin:0"><input type="checkbox" id="vCobDet" style="width:auto"> Detectores</label>
    <label style="margin:0"><input type="checkbox" id="vCobVis" style="width:auto"> Notificación visual</label>
    <label style="margin:0"><input type="checkbox" id="vCobAud" style="width:auto"> Notificación auditiva</label>
    <label style="margin:0" title="Dibuja a la par de cada equipo los módulos que pide la matriz (uno por señal), para replicarlos en el modelo"><input type="checkbox" id="vModulos" style="width:auto" checked> Módulos junto a equipos</label>
    <label style="margin:0" title="Muestra, junto a cada equipo del plano, los dispositivos que pide la matriz de supervisión"><input type="checkbox" id="vNotas" style="width:auto" checked> Notas de equipos</label>
-   <label style="margin:0" title="Al dibujar recintos, el cursor se engancha a las esquinas y muros del plano. Mantenga Alt para desactivarlo temporalmente"><input type="checkbox" id="vSnap" style="width:auto" checked> Imán a esquinas y muros</label>
    <label style="margin:0" title="Rojo: por debajo del nivel requerido; verde: cumple; naranja: sobre 110 dBA"><input type="checkbox" id="vSPL" style="width:auto"> Nivel sonoro (dBA)</label>
    <select id="splModo" title="Con qué dispositivos se calcula la cobertura sonora (nivel dBA) y el mapa de cobertura visual" style="width:auto"><option value="rec">Cobertura sonora y visual: por recinto (solo sus dispositivos)</option><option value="comb">Cobertura sonora y visual: recintos combinados (con pérdida por muros)</option><option value="libre">Cobertura sonora y visual: sin recintos asignados (todos los dispositivos, sin muros)</option></select>
    <label id="lblSplPerd" style="margin:0" title="dB que se pierden por cada muro que atraviesa el sonido en el modo combinado">pérdida por muro <select id="splPerd" style="width:auto"></select></label>
    <label style="margin:0" title="Separación de los puntos de cálculo del mapa de nivel sonoro y de cobertura visual (como la rejilla de DIALux). Con más puntos se ve mejor pero tarda más; si hay demasiados la separación crece sola.">puntos cada <select id="splPaso" style="width:auto"></select></label>
    <label id="lblVisMuros" style="margin:0" title="Muros que puede atravesar la luz de un estrobo hacia el recinto vecino (puerta abierta, vidrio, vano). Con «Notificación visual» activa y el modo combinado o sin recintos, se pinta el mapa de zonas cubiertas (verde) y sin cobertura (rojo)">muros que atraviesa la luz <select id="visMuros" style="width:auto"></select></label>
    <label style="margin:0"><input type="checkbox" id="vPlano" checked style="width:auto"> Plano</label>
-   <label style="margin:0">Opacidad plano <input type="range" id="vOp" min="10" max="100" value="55" style="width:90px"></label>
-   <label style="margin:0">Tamaño símbolos <input type="range" id="vSim" min="8" max="40" value="16" style="width:90px"></label>
+   <label style="margin:0">Opacidad plano <input type="range" id="vOp" min="10" max="100" value="55" style="width:90px"> <b id="vOpPct" class="pct">55 %</b></label>
+   <label style="margin:0">Tamaño símbolos <input type="range" id="vSim" min="8" max="40" value="16" style="width:90px"> <b id="vSimPct" class="pct">100 %</b></label>
    <label style="margin:0">Cierre de huecos de puerta (px) <input type="number" id="rellCierre" value="10" min="0" max="40" style="width:56px"></label>
     <span id="reqAud" style="display:none;font-size:.76rem;color:#12314f;background:#eaf3fb;border:1px solid #9cc3ee;border-radius:5px;padding:2px 8px"></span>
     <span style="margin-left:auto;display:flex;gap:4px"><button class="sec" id="btnRecOcultos" style="display:none;padding:3px 8px;font-size:.74rem" title="Vuelve a mostrar los recintos que dejó atrás">🙈 Mostrar recintos ocultos</button><button class="sec" id="btnCobOcultarTodas" title="Oculta la cobertura de todos los recintos (los dispositivos se quedan)" style="padding:3px 8px;font-size:.74rem">👁 Ocultar todas</button><button class="sec" id="btnCobMostrarTodas" title="Muestra la cobertura de todos los recintos" style="padding:3px 8px;font-size:.74rem">👁 Mostrar todas</button></span>
@@ -369,8 +370,8 @@
  <div id="capas2" style="display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;margin:4px 0 6px;padding:4px 8px;background:#f4f7fa;border:1px solid var(--gb);border-radius:6px;font-size:.78rem">
   <b>Vista:</b>
   <label style="margin:0"><input type="checkbox" id="c2vPlano" checked style="width:auto"> Plano</label>
-  <label style="margin:0">Opacidad plano <input type="range" id="c2vOp" min="10" max="100" value="55" style="width:90px"></label>
-  <label style="margin:0">Tamaño símbolos <input type="range" id="c2vSim" min="8" max="40" value="16" style="width:90px"></label>
+  <label style="margin:0">Opacidad plano <input type="range" id="c2vOp" min="10" max="100" value="55" style="width:90px"> <b id="c2vOpPct" class="pct">55 %</b></label>
+  <label style="margin:0">Tamaño símbolos <input type="range" id="c2vSim" min="8" max="40" value="16" style="width:90px"> <b id="c2vSimPct" class="pct">100 %</b></label>
   <span style="margin-left:auto"><button class="sec" id="btnVista2">Ajustar vista</button></span>
  </div>
  <canvas id="cv2"></canvas>
@@ -1066,6 +1067,9 @@ function nivelSonoroEn(p,rid){
 // Nivel sonoro que se debe respetar según el tipo de recinto (ocupación): ambiente + 15 dB (≥ 75 dBA donde se duerme), máximo 110 dBA.
 // Nivel sonoro requerido de un recinto: el del prediseño generado; si el recinto solo tiene dispositivos puestos a mano (no generado, o borrador recién cargado),
 // el que corresponde a su tipo (ambiente + 15 dB) siempre que tenga bocina o parlante propios; si no, null.
+// Un recinto oculto («dejado atrás») entra a un mapa solo si tiene dispositivos propios de lo que el mapa calcula: así sus bocinas o estrobos sí se ven, y un contenedor grande sin dispositivos no pinta de rojo todo el plano.
+function tieneBocinaPropia(r){return E.disp.some(d=>d.rid===r.id&&d.dba3&&/bocina|parl/.test(d.tipo));}
+function tieneEstroboPropio(r){return E.disp.some(d=>d.rid===r.id&&/estrobo/.test(d.tipo)&&(d.lado||d.radioVis));}
 function reqAudDe(r){
   const A=E.audPorRec&&E.audPorRec[r.id];if(A)return A;
   if(E.disp.some(d=>d.rid===r.id&&d.dba3&&/bocina|parl/.test(d.tipo)))return {req:nivelAudibleRequerido(r.tipo).req};
@@ -1146,7 +1150,7 @@ function mapaSPL(){
     g.pts.forEach(p=>{const v=nivelSonoroComb(p,todos,0,null);if(v>=req-1e-6)celdas.push({x:p.x,y:p.y,paso:g.paso,v,req,rid:-1});});
     E._splK=llave;return (E._spl=celdas);}
   const celdas=[],comb=modo==='comb',rr=comb?rasterRecintos():null,todos=comb?todosAudibles():null;
-  const rs=E.recintos.filter(r=>!r.oculto&&reqAudDe(r)),paso=pasoCalculo(rs);   // los recintos ocultos («dejados atrás») no se calculan ni se pintan
+  const rs=E.recintos.filter(r=>(!r.oculto||tieneBocinaPropia(r))&&reqAudDe(r)),paso=pasoCalculo(rs);   // un recinto oculto solo entra si tiene bocina propia
   rs.forEach(r=>{const A=reqAudDe(r),ds=comb?null:audibles(r.id);
     puntosRecinto(r,paso).forEach(p=>{celdas.push({x:p.x,y:p.y,paso,v:comb?nivelSonoroComb(p,todos,perd,rr,r.id):splSuma(p,ds),req:A.req,rid:r.id});});});
   E._splK=llave;return (E._spl=celdas);
@@ -1269,7 +1273,7 @@ function mapaVisComb(){
     g.pts.forEach(p=>{if(estr.some(d=>cobVisContiene(d,recGeom(d),p)))celdas.push({x:p.x,y:p.y,paso:g.paso,ok:true,rid:-1});});
     E._visK=sig;return (E._visM=celdas);
   }
-  const rr=rasterRecintos(),rs=E.recintos.filter(r=>!r.oculto),paso=pasoCalculo(rs);   // los recintos ocultos no se pintan
+  const rr=rasterRecintos(),rs=E.recintos.filter(r=>!r.oculto||tieneEstroboPropio(r)),paso=pasoCalculo(rs);   // un recinto oculto solo entra si tiene estrobos propios
   rs.forEach(r=>{puntosRecinto(r,paso).forEach(p=>{
       let ok=false;for(const d of estr){const rcD=recGeom(d);
         if(modo==='rec'&&!(rcD&&rcD.id===r.id))continue;   // por recinto: solo cuentan los estrobos de ese recinto
@@ -1746,7 +1750,14 @@ function rehacer(){
   U.pila.push(U.actual);U.actual=U.rehacer.pop();restaurarEstado(U.actual);estado('Rehecho. Quedan '+U.rehacer.length+' paso(s) para rehacer.');
 }
 ['mouseup','click','change','keyup'].forEach(ev=>document.addEventListener(ev,programarConfirmar,true));
+// Porcentajes junto a los deslizadores: opacidad del plano (%) y tamaño de los símbolos respecto al tamaño inicial (16 px = 100 %).
+const SIM_BASE_PX = 16;
+function pctControles(){
+  [['vOp','vOpPct',v=>v+' %'],['vSim','vSimPct',v=>Math.round(v/SIM_BASE_PX*100)+' %'],['c2vOp','c2vOpPct',v=>v+' %'],['c2vSim','c2vSimPct',v=>Math.round(v/SIM_BASE_PX*100)+' %']]
+    .forEach(([i,t,f])=>{const a=$(i),b=$(t);if(a&&b)b.textContent=f(+a.value);});
+}
 function dibujar(){
+  pctControles();
   dibujarBase();
   if(!E._modoCable&&$('mod4')&&$('mod4').style.display!=='none')dibujar2();
 }
@@ -3200,7 +3211,7 @@ function iniciar(){
   [['tSel','sel'],['tRec','rec'],['tRect','rect'],['tRell','rell'],['tSal','salida'],['tFacp','facp'],['tAhu','ahu'],['tAsc','asc'],['tEq','eq'],['tBor','bor'],['tDev','dev']].forEach(([i,h])=>$(i).onclick=()=>herramienta(h));
   $('tAjustar').onclick=ajustarVista;
   ['vCobDet','vCobVis','vCobAud','vSPL','vNotas','vModulos','vPlano','vOp','vSim'].forEach(i=>$(i).oninput=dibujar);
-  ['c2vPlano','c2vOp','c2vSim'].forEach(i=>{$(i).oninput=dibujar2;});   // barra de la vista del precableado
+  ['c2vPlano','c2vOp','c2vSim'].forEach(i=>{$(i).oninput=()=>{pctControles();dibujar2();};});   // barra de la vista del precableado
   $('btnDict').click();infoCadena();tablaEquipos();
   window.addEventListener('resize',ajustarLienzo);window.addEventListener('resize',ajustarLienzo2);ajustarLienzo();ajustarVista();restaurarGuardado();
 }
