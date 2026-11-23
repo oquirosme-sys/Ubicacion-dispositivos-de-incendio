@@ -1035,19 +1035,23 @@ function rasterRecintos(){
     for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++)if(dentro({x:b.x0+(i+.5)*R,y:b.y0+(j+.5)*R},r.poly))id[j*W+i]=r.id;});
   return (E._rr={sig,b,W,H,id});
 }
+// ¿El punto está en el recinto «rid»? Prueba exacta con el polígono (el mapa de 0.5 m puede asignar a otro recinto los puntos pegados al muro).
+function enMismoRecinto(p,rid,rr){const rc=E.recintos.find(r=>r.id===rid);return rc?enRecinto(p,rc.poly):idEn(rr,p)===rid;}
 function idEn(rr,p){const R=AUDIBLE_RASTER_M,i=Math.floor((p.x-rr.b.x0)/R),j=Math.floor((p.y-rr.b.y0)/R);return (i<0||j<0||i>=rr.W||j>=rr.H)?-1:rr.id[j*rr.W+i];}
 function todosAudibles(){return E.disp.filter(d=>d.dba3&&/bocina|parl/.test(d.tipo));}
 // Nivel sonoro combinado (dBA) en p: suma de potencias de todos los dispositivos audibles, cada uno con −6 dB por duplicar la distancia y
 // «perd» dB por cada muro (cambio de recinto) que cruza el trayecto recto del dispositivo al punto.
-function nivelSonoroComb(p,devs,perd,rr){
+function nivelSonoroComb(p,devs,perd,rr,ridP){   // ridP (opcional): recinto del punto p
   let t=0;
   for(const d of devs){
     const dist=Math.max(Math.hypot(p.x-d.x,p.y-d.y),AUDIBLE_DIST_MIN_M),base=d.dba3-20*Math.log10(dist/AUDIBLE_DIST_REF_M);
     if(base<AUDIBLE_PISO_DBA)continue;
     let muros=0;
     const ridD=d.rid!=null?d.rid:(rr&&!rr.vacio?idEn(rr,d):-1);   // en su propio recinto no hay muro de por medio (evita restarse muros por el error de 0.5 m del mapa junto a la pared)
-    if(perd>0&&rr&&!rr.vacio&&!(ridD>=0&&idEn(rr,p)===ridD)){const n=Math.max(1,Math.ceil(dist/AUDIBLE_RASTER_M));let prev=d.rid!=null?d.rid:idEn(rr,d);
-      for(let k=1;k<=n;k++){const id=idEn(rr,{x:d.x+(p.x-d.x)*k/n,y:d.y+(p.y-d.y)*k/n});if(id>=0&&id!==prev){muros++;prev=id;}}}   // los huecos entre recintos (grosor del muro) no cuentan aparte
+    const mismo=ridP!=null?(ridD>=0&&ridP===ridD):(ridD>=0&&rr&&!rr.vacio&&enMismoRecinto(p,ridD,rr));
+    if(perd>0&&rr&&!rr.vacio&&!mismo){const n=Math.max(1,Math.ceil(dist/AUDIBLE_RASTER_M));let prev=d.rid!=null?d.rid:idEn(rr,d);
+      for(let k=1;k<=n;k++){const id=idEn(rr,{x:d.x+(p.x-d.x)*k/n,y:d.y+(p.y-d.y)*k/n});if(id>=0&&id!==prev){muros++;prev=id;}}
+      if(ridP!=null&&muros<1)muros=1;}   // los huecos entre recintos (grosor del muro) no cuentan aparte; un punto de otro recinto cruza al menos un muro
     t+=Math.pow(10,(base-muros*perd)/10);
   }
   return t>0?10*Math.log10(t):-Infinity;
@@ -1060,10 +1064,17 @@ function nivelSonoroEn(p,rid){
 }
 // Supuestos y limitaciones del modo de cobertura elegido (se muestran bajo la barra de capas).
 // Nivel sonoro que se debe respetar según el tipo de recinto (ocupación): ambiente + 15 dB (≥ 75 dBA donde se duerme), máximo 110 dBA.
+// Nivel sonoro requerido de un recinto: el del prediseño generado; si el recinto solo tiene dispositivos puestos a mano (no generado, o borrador recién cargado),
+// el que corresponde a su tipo (ambiente + 15 dB) siempre que tenga bocina o parlante propios; si no, null.
+function reqAudDe(r){
+  const A=E.audPorRec&&E.audPorRec[r.id];if(A)return A;
+  if(E.disp.some(d=>d.rid===r.id&&d.dba3&&/bocina|parl/.test(d.tipo)))return {req:nivelAudibleRequerido(r.tipo).req};
+  return null;
+}
 function actualizarReqAud(){
   const n=$('reqAud');if(!n)return;
   if(!($('vCobAud').checked||$('vSPL').checked)){n.style.display='none';return;}
-  const g={};E.recintos.forEach(r=>{const A=E.audPorRec&&E.audPorRec[r.id];if(!A)return;const t=(TIPOS[r.tipo]||{}).n||r.tipo;if(!g[t]||A.req>g[t])g[t]=A.req;});
+  const g={};E.recintos.forEach(r=>{const A=reqAudDe(r);if(!A)return;const t=(TIPOS[r.tipo]||{}).n||r.tipo;if(!g[t]||A.req>g[t])g[t]=A.req;});
   const l=Object.keys(g).sort((a,b)=>g[a]-g[b]).map(t=>esc(t)+' <b>'+g[t].toFixed(0)+'</b>');
   n.style.display='';
   n.innerHTML='<b>Nivel a respetar (dBA):</b> '+(l.length?l.join(' · '):'se calcula al generar el prediseño')+' <span style="color:#5a6472">· ambiente + '+AUDIBLE_SOBRE_AMBIENTE_DB+' dB; ≥ '+AUDIBLE_DORMIR_MIN_DBA+' dBA donde se duerme; máx. '+AUDIBLE_MAX_DBA+'</span>';
@@ -1135,9 +1146,9 @@ function mapaSPL(){
     g.pts.forEach(p=>{const v=nivelSonoroComb(p,todos,0,null);if(v>=req-1e-6)celdas.push({x:p.x,y:p.y,paso:g.paso,v,req,rid:-1});});
     E._splK=llave;return (E._spl=celdas);}
   const celdas=[],comb=modo==='comb',rr=comb?rasterRecintos():null,todos=comb?todosAudibles():null;
-  const rs=E.recintos.filter(r=>!r.oculto&&E.audPorRec&&E.audPorRec[r.id]),paso=pasoCalculo(rs);   // los recintos ocultos («dejados atrás») no se calculan ni se pintan
-  rs.forEach(r=>{const A=E.audPorRec[r.id],ds=comb?null:audibles(r.id);
-    puntosRecinto(r,paso).forEach(p=>{celdas.push({x:p.x,y:p.y,paso,v:comb?nivelSonoroComb(p,todos,perd,rr):splSuma(p,ds),req:A.req,rid:r.id});});});
+  const rs=E.recintos.filter(r=>!r.oculto&&reqAudDe(r)),paso=pasoCalculo(rs);   // los recintos ocultos («dejados atrás») no se calculan ni se pintan
+  rs.forEach(r=>{const A=reqAudDe(r),ds=comb?null:audibles(r.id);
+    puntosRecinto(r,paso).forEach(p=>{celdas.push({x:p.x,y:p.y,paso,v:comb?nivelSonoroComb(p,todos,perd,rr,r.id):splSuma(p,ds),req:A.req,rid:r.id});});});
   E._splK=llave;return (E._spl=celdas);
 }
 // Cobertura visual como en NFPA 72:2022: estrobo de PARED = cuadrados anidados que parten del muro donde está montado
@@ -1239,9 +1250,10 @@ function cobVisContiene(d,rc,p){
   return Math.abs(lat)<=h&&prof>=0&&prof<=d.lado;
 }
 // Muros (cambios de recinto) que cruza la línea recta de a hacia p
-function murosEntre(rr,a,p,ridA){
+function murosEntre(rr,a,p,ridA,ridP){   // ridP (opcional): recinto al que pertenece el punto p, ya conocido por el mapa
   if(!rr||rr.vacio)return 0;
-  if(ridA>=0&&idEn(rr,p)===ridA)return 0;   // dentro de su propio recinto no hay muro de por medio
+  if(ridP!=null&&ridA>=0)return ridP===ridA?0:Math.max(1,murosEntre(rr,a,p,ridA));   // de otro recinto: al menos un muro
+  if(ridA>=0&&enMismoRecinto(p,ridA,rr))return 0;   // dentro de su propio recinto no hay muro de por medio
   const n=Math.max(1,Math.ceil(Math.hypot(p.x-a.x,p.y-a.y)/AUDIBLE_RASTER_M));let prev=ridA>=0?ridA:idEn(rr,a),m=0;
   for(let k=1;k<=n;k++){const id=idEn(rr,{x:a.x+(p.x-a.x)*k/n,y:a.y+(p.y-a.y)*k/n});if(id>=0&&id!==prev){m++;prev=id;}}
   return m;
@@ -1262,7 +1274,7 @@ function mapaVisComb(){
       let ok=false;for(const d of estr){const rcD=recGeom(d);
         if(modo==='rec'&&!(rcD&&rcD.id===r.id))continue;   // por recinto: solo cuentan los estrobos de ese recinto
         if(!cobVisContiene(d,rcD,p))continue;
-        if(modo==='rec'||murosEntre(rr,d,p,d.rid!=null?d.rid:-1)<=muros){ok=true;break;}}
+        if(modo==='rec'||murosEntre(rr,d,p,d.rid!=null?d.rid:-1,r.id)<=muros){ok=true;break;}}
       celdas.push({x:p.x,y:p.y,paso,ok,rid:r.id});});});
   E._visK=sig;return (E._visM=celdas);
 }
@@ -2356,7 +2368,7 @@ cv.addEventListener('mousemove',e=>{E.cursor=mundoDeEvento(e);
     if(!E._raf)E._raf=requestAnimationFrame(()=>{E._raf=0;dibujar();});}else E.snapPt=null;
   if((E.borrador.length||E.pegando)&&!(E.herr==='rec'||E.herr==='rect'))dibujar();
   if(!arrD){cv.style.cursor=(E.herr==='sel'&&!E.edit&&!E.pegando&&(devEn(E.cursor)||marcaEn(E.cursor)))?'move':(E.herr==='sel'&&!E.edit&&!E.pegando?'grab':'crosshair');}
-  if($('vSPL').checked&&E.audPorRec&&!E.borrador.length&&!arrD){const rr=recintoMin(E.cursor),A=rr&&E.audPorRec[rr.id];
+  if($('vSPL').checked&&!E.borrador.length&&!arrD){const rr=recintoMin(E.cursor),A=rr&&reqAudDe(rr);
     if(!A&&$('splModo').value==='libre'){const v=nivelSonoroComb(E.cursor,todosAudibles(),0,null);if(isFinite(v))estado('Nivel sonoro aquí: '+v.toFixed(0)+' dBA (todos los dispositivos, sin contar muros) · máx. permitido '+AUDIBLE_MAX_DBA+' dBA (NFPA 72 §18.4)');}
     if(A){const v=nivelSonoroEn(E.cursor,rr.id);estado('Nivel sonoro aquí: '+(isFinite(v)?v.toFixed(0):'—')+' dBA · requerido '+A.req.toFixed(0)+' dBA en «'+rr.nombre+'» · máx. permitido '+AUDIBLE_MAX_DBA+' dBA (NFPA 72 §18.4)');}}});
 function crearRect(a,b){

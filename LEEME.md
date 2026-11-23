@@ -172,3 +172,9 @@ Clic derecho sobre un recinto → **Ocultar este recinto (dejarlo atrás)**. Sir
 - El mapa de cobertura visual usa la misma rejilla y pinta de rojo, **recortado al recinto**, solo lo que no tiene cobertura.
 - Los **recintos ocultos** («dejados atrás») **no se calculan ni se pintan** en ninguno de los dos mapas ni aparecen en su leyenda; siguen contando en el prediseño y las verificaciones. Para ver el mapa de un recinto oculto hay que mostrarlo. Esto corrige el rojo que cubría todo el plano cuando había recintos grandes ocultos sin estrobos.
 - La separación elegida se guarda en el borrador.
+
+## Corrección: puntos pegados al muro en los modos combinados
+
+En «recintos combinados», los puntos de cálculo pegados a la pared de su propio recinto podían contarse como si estuvieran detrás de un muro (el mapa de recintos de 0.5 m los asignaba al recinto vecino o al contenedor) y salían en rojo en el mapa visual o con menos nivel en el sonoro. Ahora el mapa usa el recinto ya conocido de cada punto: dentro de su propio recinto no se cuenta ningún muro y desde otro recinto se cuenta al menos uno.
+
+Además, un recinto con **bocina o parlante puestos a mano** que el prediseño no generó (por ejemplo al abrir un borrador) ya aparece en el mapa de nivel sonoro, en el cuadro «Nivel a respetar» y en la lectura bajo el cursor, con el nivel requerido que corresponde a su tipo (ambiente + 15 dB). Un recinto sin bocina propia y sin nivel del prediseño sigue sin mapa en «por recinto».
