@@ -178,3 +178,7 @@ Clic derecho sobre un recinto → **Ocultar este recinto (dejarlo atrás)**. Sir
 En «recintos combinados», los puntos de cálculo pegados a la pared de su propio recinto podían contarse como si estuvieran detrás de un muro (el mapa de recintos de 0.5 m los asignaba al recinto vecino o al contenedor) y salían en rojo en el mapa visual o con menos nivel en el sonoro. Ahora el mapa usa el recinto ya conocido de cada punto: dentro de su propio recinto no se cuenta ningún muro y desde otro recinto se cuenta al menos uno.
 
 Además, un recinto con **bocina o parlante puestos a mano** que el prediseño no generó (por ejemplo al abrir un borrador) ya aparece en el mapa de nivel sonoro, en el cuadro «Nivel a respetar» y en la lectura bajo el cursor, con el nivel requerido que corresponde a su tipo (ambiente + 15 dB). Un recinto sin bocina propia y sin nivel del prediseño sigue sin mapa en «por recinto».
+
+## Esc suelta todo
+
+**Esc** libera cualquier herramienta o acción pendiente y vuelve a «Seleccionar»: dibujo a medias, rectángulo, relleno, mover dispositivo o bloque, copiar o ajustar un polígono, delimitar el área de diseño, calibrar la escala, el desplazamiento con Espacio y los arrastres que hayan quedado a medias. Si no había nada activo, una segunda pulsación quita la selección. Se atiende en fase de captura, así que ningún otro manejador lo bloquea.

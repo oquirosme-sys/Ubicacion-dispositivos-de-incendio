@@ -2359,8 +2359,22 @@ $('mCopiar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel)
   estado('Copiado «'+r.nombre+'»: mueva el cursor y haga clic para pegar (puede pegar varias veces). Esc termina.');dibujar();};
 $('mBorrar').onclick=()=>{ocultarMenu();const r=E.recintos.find(x=>x.id===E.sel);if(!r)return;E.recintos=E.recintos.filter(x=>x!==r);E.sel=null;E.edit=null;invalidar(r.id);propiedades();dibujar();estado('Recinto «'+r.nombre+'» borrado.');};
 cv.addEventListener('wheel',e=>{e.preventDefault();const r=cv.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top,w=aMundo(px,py),f=e.deltaY<0?1.15:1/1.15;E.vista.k*=f;E.vista.x=px-w.x*E.vista.k;E.vista.y=py-w.y*E.vista.k;dibujar();},{passive:false});
-window.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&!e.altKey&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){const k=e.key.toLowerCase();if(k==='z'&&!e.shiftKey){e.preventDefault();deshacer();return;}if(k==='y'||(k==='z'&&e.shiftKey)){e.preventDefault();rehacer();return;}}if((e.key==='g'||e.key==='G')&&!e.ctrlKey&&!e.metaKey&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){const dg=devSel();if(dg){girarSimbolo(dg,e.shiftKey?-15:15);e.preventDefault();}}if((e.key==='r'||e.key==='R')&&!e.ctrlKey&&!e.metaKey&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){const dr=devSel();if(dr&&esEstroboPared(dr)){girarEstroboPared(dr,e.shiftKey?-1:1);e.preventDefault();}}if(e.code==='Space'&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){espacio=true;e.preventDefault();}if(e.key==='Escape'){E.borrador=[];E.calib=[];ocultarMenu();terminarAjuste();if(E.herr!=='sel'&&E.herr!=='cal')herramienta('sel');E.moverMarca=null;E.moverDisp=null;if(document.activeElement&&document.activeElement.blur&&/BUTTON/.test(document.activeElement.tagName))document.activeElement.blur();}if(e.key==='Enter'){if(E.edit)terminarAjuste();else if(E.herr==='rec')cerrarBorrador();}});
+window.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&!e.altKey&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){const k=e.key.toLowerCase();if(k==='z'&&!e.shiftKey){e.preventDefault();deshacer();return;}if(k==='y'||(k==='z'&&e.shiftKey)){e.preventDefault();rehacer();return;}}if((e.key==='g'||e.key==='G')&&!e.ctrlKey&&!e.metaKey&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){const dg=devSel();if(dg){girarSimbolo(dg,e.shiftKey?-15:15);e.preventDefault();}}if((e.key==='r'||e.key==='R')&&!e.ctrlKey&&!e.metaKey&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){const dr=devSel();if(dr&&esEstroboPared(dr)){girarEstroboPared(dr,e.shiftKey?-1:1);e.preventDefault();}}if(e.code==='Space'&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){espacio=true;e.preventDefault();}if(e.key==='Enter'){if(E.edit)terminarAjuste();else if(E.herr==='rec')cerrarBorrador();}});
 window.addEventListener('keyup',e=>{if(e.code==='Space')espacio=false;});
+// Esc suelta TODO lo que pueda quedar activo (herramienta, dibujo a medias, mover, copiar, ajustar polígono, calibrar, espacio de desplazar, arrastres) y vuelve a «Seleccionar».
+// Si ya no había nada activo, quita la selección. Va en fase de captura para que ningún otro manejador lo bloquee.
+function soltarTodo(){
+  const habia=E.herr!=='sel'||E.borrador.length||E.calib.length||E.edit||E.pegando||E.moverDisp||E.moverMarca||E.modoZona||espacio||arr||arrV||arrD||arrM||arrR;
+  E.borrador=[];E.calib=[];E.modoZona=false;E.moverMarca=null;E.moverDisp=null;E.edit=null;E.pegando=null;
+  arr=arrV=arrD=arrM=arrR=null;espacio=false;movio=false;suprimir=false;
+  ocultarMenu();
+  if(E.herr!=='sel')herramienta('sel');
+  if(!habia){E.sel=null;E.selDev=null;propiedades();propiedadesDisp();}
+  const ae=document.activeElement;if(ae&&ae.blur&&/BUTTON/.test(ae.tagName))ae.blur();
+  if(cv)cv.style.cursor='';
+  dibujar();estado(habia?'Herramienta liberada: Seleccionar. Rueda = zoom · arrastrar con botón central o Espacio = desplazar.':'Selección quitada.');
+}
+window.addEventListener('keydown',e=>{if(e.key==='Escape')soltarTodo();},true);
 // Si la ventana pierde el foco (Alt+Tab, clic fuera) se pierde el «soltar»: se reinician teclas y arrastres para que los clics de dibujo no queden bloqueados.
 window.addEventListener('blur',()=>{espacio=false;arr=null;arrV=null;arrD=null;suprimir=false;});
 cv.addEventListener('mousemove',e=>{E.cursor=mundoDeEvento(e);
