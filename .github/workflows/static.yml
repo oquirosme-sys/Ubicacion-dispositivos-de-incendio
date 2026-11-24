@@ -39,6 +39,8 @@ jobs:
         with:
           # Upload entire repository
           path: '.'
+      - name: Esperar a que GitHub registre el artefacto
+        run: sleep 30   # evita el error intermitente «No artifacts named github-pages were found»
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
