@@ -339,6 +339,7 @@
     <span style="margin-left:auto;display:flex;gap:4px"><button class="sec soloEjec" id="btnRecOcultos" style="display:none;padding:3px 8px;font-size:.74rem" title="Vuelve a mostrar los recintos que dejó atrás">🙈 Mostrar recintos ocultos</button><button class="sec soloEjec" id="btnCobOcultarTodas" title="Oculta la cobertura de todos los recintos (los dispositivos se quedan)" style="padding:3px 8px;font-size:.74rem">👁 Ocultar todas</button><button class="sec soloEjec" id="btnCobMostrarTodas" title="Muestra la cobertura de todos los recintos" style="padding:3px 8px;font-size:.74rem">👁 Mostrar todas</button></span>
   <div id="notaModoCob" style="flex-basis:100%;display:none;font-size:.74rem;color:#5a6472;border-top:1px dashed #cfd6df;padding-top:4px"></div>
 </div>
+  <div id="barraNiveles" style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin:0 0 6px;font-size:.8rem"></div>
   <div id="avisoZona" style="display:none"></div>
   <canvas id="cv"></canvas>
   <details class="panel" id="leyendaVIS" open style="display:none"><summary>Cobertura visual combinada</summary><div id="leyendaVIScuerpo"></div></details>
@@ -768,6 +769,7 @@ function dispositivosEquipo(id){
    ESTADO
    ========================================================================== */
 const E = {
+  niveles:[{nombre:'Nivel 1'}], nivAct:0,   // niveles del proyecto; el activo vive en E.* y los demás en E.niveles[i] (ver NIVELES)
   recintos:[], marcas:[], disp:[], seq:1, zona:null, modoZona:false,   // zona: área de diseño (polígono) que limita los mapas del modo «sin recintos asignados»
 
   img:null, imgNombre:'', imgM:0, imgX:0, imgY:0,   // plano: m por px y origen en m
@@ -3153,6 +3155,8 @@ function recopilar(completo){
   o.textosPdf=E.textosPdf||[];o.escala={n:$('escN').value,dpi:$('escDpi').value};
   o.splOpc={modo:$('splModo').value,perd:$('splPerd').value,paso:$('splPaso').value};o.visOpc={muros:$('visMuros').value};o.revOpc={req:$('rvReq').value};
   o.cableado=E.cableado||null;o.cabCampos={};PRE_CAMPOS.forEach(i=>{o.cabCampos[i]=$(i).value;});
+  E.niveles[E.nivAct]=nivelCapturar();   // los campos de arriba son los del nivel activo; los demás niveles van en «niveles»
+  o.nivActivo=E.nivAct;o.niveles=E.niveles.map((n,i)=>i===E.nivAct?{nombre:n.nombre}:nivelSerial(n,completo,$('chkImg').checked));
   return o;
 }
 function aplicar(o){
@@ -3161,7 +3165,7 @@ function aplicar(o){
   $('cadena').value=E.chain;infoCadena();
   const q=o.parametros||{};[['espH','pEspH'],['espC','pEspC'],['cdMax','pCdMax'],['dba','pDba'],['aud','pAud'],['facRec','pFacRec'],['iso','pIso'],['co','pCO']].forEach(([a,b])=>{if(q[a]!=null)$(b).value=q[a];});
   E.zona=o.zona||null;E._visK=null;E._spl=null;E.recintos=o.recintos||[];E.marcas=o.marcas||[];E.disp=o.disp||[];E.eqCant=o.eqCant||{};E.seq=o.seq||1;E.resultados=[];$('resultados').innerHTML='';
-  if(o.plano){E.imgNombre=o.plano.nombre||'';E.imgM=o.plano.m||0;E.imgX=o.plano.x||0;E.imgY=o.plano.y||0;if(o.plano.dataUrl){const im=new Image();im.onload=()=>{E.img=im;dibujar();};im.src=o.plano.dataUrl;}else if(o.plano.nombre)estado('El borrador no incluye la imagen del plano ('+o.plano.nombre+'): vuelva a cargarla y use «Aplicar escala» o calibre; las posiciones se conservan.');}
+  if(o.plano){E.img=null;E.imgMuros=null;E.imgNombre=o.plano.nombre||'';E.imgM=o.plano.m||0;E.imgX=o.plano.x||0;E.imgY=o.plano.y||0;if(o.plano.dataUrl){const im=new Image();im.onload=()=>{E.img=im;dibujar();};im.src=o.plano.dataUrl;}else if(o.plano.nombre)estado('El borrador no incluye la imagen del plano ('+o.plano.nombre+'): vuelva a cargarla y use «Aplicar escala» o calibre; las posiciones se conservan.');}
   if(o.textosPdf)E.textosPdf=o.textosPdf;
   if(o.visOpc&&o.visOpc.muros!=null)$('visMuros').value=o.visOpc.muros;
   if(o.revOpc&&o.revOpc.req)$('rvReq').value=o.revOpc.req;
@@ -3169,6 +3173,9 @@ function aplicar(o){
   E.cableado=o.cableado||null;if(o.cabCampos)PRE_CAMPOS.forEach(i=>{if(o.cabCampos[i]!=null&&$(i))$(i).value=o.cabCampos[i];});
   if(o.escala){if(o.escala.n)$('escN').value=o.escala.n;if(o.escala.dpi)$('escDpi').value=o.escala.dpi;}
   if(o.plano&&o.plano.murosUrl){const im2=new Image();im2.onload=()=>{E.imgMuros=im2;};im2.src=o.plano.murosUrl;}
+  E.niveles=[{nombre:'Nivel 1'}];E.nivAct=0;
+  if(o.niveles&&o.niveles.length){E.nivAct=Math.min(o.nivActivo||0,o.niveles.length-1);E.niveles=o.niveles.map((n,i)=>i===E.nivAct?{nombre:n.nombre||'Nivel '+(i+1)}:nivelDeserial(n));}
+  dibujarBarraNiveles();
   tablaEquipos();reconstruirResultados();propiedades();if(o.vista)E.vista=o.vista;dibujar();
 }
 // Tras abrir un borrador o recargar: se recalculan los resultados y verificaciones de cada recinto, pero los dispositivos
@@ -3187,6 +3194,77 @@ function reconstruirResultados(){
   verificar(E.resultados,o);mostrarResultados();
 }
 /* ==========================================================================
+   NIVELES: un proyecto puede tener varios niveles (pisos). Cada nivel tiene su plano, escala, recintos, bloques de equipo, dispositivos,
+   área de diseño, cableado y vista. El nivel activo vive en E.* (así todo el código existente trabaja sobre él sin cambios); los demás
+   se guardan como «instantáneas» en E.niveles[i] y se intercambian al cambiar de nivel.
+   LIMITACIÓN: informes, CSV, DXF, resultados y la pestaña Revisión trabajan sobre el nivel activo; el deshacer se reinicia al cambiar de nivel.
+   ========================================================================== */
+function nivelCapturar(){
+  return {nombre:E.niveles[E.nivAct].nombre,recintos:E.recintos,marcas:E.marcas,disp:E.disp,zona:E.zona,img:E.img,imgNombre:E.imgNombre,imgM:E.imgM,imgX:E.imgX,imgY:E.imgY,
+    imgMuros:E.imgMuros||null,textosPdf:E.textosPdf||[],vista:Object.assign({},E.vista),cableado:E.cableado||null,escN:$('escN').value,escDpi:$('escDpi').value};
+}
+function nivelCargar(n){
+  E.recintos=n.recintos||[];E.marcas=n.marcas||[];E.disp=n.disp||[];E.zona=n.zona||null;E.img=n.img||null;E.imgNombre=n.imgNombre||'';E.imgM=n.imgM||0;E.imgX=n.imgX||0;E.imgY=n.imgY||0;
+  E.imgMuros=n.imgMuros||null;E.textosPdf=n.textosPdf||[];E.cableado=n.cableado||null;
+  if(n.escN)$('escN').value=n.escN;if(n.escDpi)$('escDpi').value=n.escDpi;
+  E.sel=null;E.selDev=null;E.edit=null;E.pegando=null;E.borrador=[];E.calib=[];E.moverDisp=null;E.moverMarca=null;E.modoZona=false;
+  E._spl=null;E._splK=null;E._visK=null;E._rv=null;
+  reconstruirResultados();tablaEquipos();propiedades();propiedadesDisp();
+  if(n.vista)E.vista=Object.assign({},n.vista);else ajustarVista();
+  U.pila=[];U.rehacer=[];U.actual=estadoSerial();actualizarBotonesUndo();
+  dibujar();
+}
+function nivelIr(i){
+  if(i===E.nivAct||!E.niveles[i])return;
+  E.niveles[E.nivAct]=nivelCapturar();E.nivAct=i;nivelCargar(E.niveles[i]);dibujarBarraNiveles();
+  estado('Nivel activo: '+E.niveles[i].nombre+'.');programarAutoguardado();
+}
+// copiar=true: el nivel nuevo parte del plano y los recintos del actual (sin dispositivos), útil en pisos repetidos.
+function nivelNuevo(copiar){
+  E.niveles[E.nivAct]=nivelCapturar();const a=E.niveles[E.nivAct];
+  let nv={nombre:'Nivel '+(E.niveles.length+1)};
+  if(copiar)nv=Object.assign(nv,{recintos:JSON.parse(JSON.stringify(a.recintos)),zona:a.zona?JSON.parse(JSON.stringify(a.zona)):null,img:a.img,imgNombre:a.imgNombre,imgM:a.imgM,imgX:a.imgX,imgY:a.imgY,imgMuros:a.imgMuros,textosPdf:a.textosPdf,vista:a.vista,escN:a.escN,escDpi:a.escDpi});
+  E.niveles.push(nv);E.nivAct=E.niveles.length-1;nivelCargar(nv);
+  if(+$('pNiveles').value<E.niveles.length){$('pNiveles').value=E.niveles.length;actualizarDictamen();}   // «Niveles sobre rasante» al menos los creados
+  dibujarBarraNiveles();estado((copiar?'Nivel duplicado (plano y recintos, sin dispositivos): ':'Nivel nuevo en blanco: ')+nv.nombre+'.');programarAutoguardado();
+}
+function nivelRenombrar(){
+  const nom=prompt('Nombre del nivel:',E.niveles[E.nivAct].nombre);if(nom===null||!nom.trim())return;
+  E.niveles[E.nivAct].nombre=nom.trim();dibujarBarraNiveles();programarAutoguardado();
+}
+function nivelEliminar(){
+  if(E.niveles.length<2)return;const nom=E.niveles[E.nivAct].nombre;
+  if(!confirm('Se elimina «'+nom+'» con su plano, recintos y dispositivos. No se puede deshacer (si quiere conservarlo, cancele y use antes «Guardar borrador (.json)»).\n\n¿Eliminar el nivel?'))return;
+  E.niveles.splice(E.nivAct,1);E.nivAct=Math.min(E.nivAct,E.niveles.length-1);nivelCargar(E.niveles[E.nivAct]);
+  dibujarBarraNiveles();estado('Nivel «'+nom+'» eliminado.');programarAutoguardado();
+}
+function dibujarBarraNiveles(){
+  const b=$('barraNiveles');if(!b)return;const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  b.innerHTML='<b title="Cada nivel tiene su propio plano, recintos y dispositivos. Informes, CSV, DXF y Revisión trabajan sobre el nivel activo.">Niveles:</b>'+
+    E.niveles.map((n,i)=>'<button class="sec" data-niv="'+i+'" style="padding:3px 10px;'+(i===E.nivAct?'background:#12314f;color:#fff;border-color:#12314f':'')+'">'+esc(n.nombre)+'</button>').join('')+
+    '<button class="sec" data-nivacc="nuevo" style="padding:3px 8px" title="Agrega un nivel en blanco">＋ Nivel</button>'+
+    '<button class="sec" data-nivacc="dup" style="padding:3px 8px" title="Agrega un nivel con el mismo plano y recintos del actual, sin dispositivos (pisos repetidos)">⧉ Duplicar</button>'+
+    '<button class="sec" data-nivacc="ren" style="padding:3px 8px" title="Cambia el nombre del nivel activo">✎ Renombrar</button>'+
+    (E.niveles.length>1?'<button class="sec" data-nivacc="del" style="padding:3px 8px" title="Elimina el nivel activo">🗑 Eliminar</button>':'');
+}
+$('barraNiveles').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.niv!=null)return nivelIr(+b.dataset.niv);
+  ({nuevo:()=>nivelNuevo(false),dup:()=>nivelNuevo(true),ren:nivelRenombrar,del:nivelEliminar})[b.dataset.nivacc]();});
+// Serialización de un nivel inactivo (el activo va en los campos de siempre del borrador).
+function urlImagen(im){if(!im)return null;if(im._u)return im._u;const c=document.createElement('canvas');c.width=im.width;c.height=im.height;c.getContext('2d').drawImage(im,0,0);return (im._u=c.toDataURL('image/png'));}
+function nivelSerial(n,completo,conImg){
+  return {nombre:n.nombre,recintos:n.recintos||[],marcas:n.marcas||[],disp:n.disp||[],zona:n.zona||null,textosPdf:n.textosPdf||[],vista:n.vista||null,cableado:n.cableado||null,escN:n.escN,escDpi:n.escDpi,
+    plano:{nombre:n.imgNombre,m:n.imgM,x:n.imgX,y:n.imgY,dataUrl:(completo||conImg)&&n.img?urlImagen(n.img):undefined,murosUrl:completo&&n.imgMuros?urlImagen(n.imgMuros):undefined}};
+}
+function nivelDeserial(s){
+  const p=s.plano||{},n={nombre:s.nombre||'Nivel',recintos:s.recintos||[],marcas:s.marcas||[],disp:s.disp||[],zona:s.zona||null,textosPdf:s.textosPdf||[],vista:s.vista||null,cableado:s.cableado||null,escN:s.escN,escDpi:s.escDpi,imgNombre:p.nombre||'',imgM:p.m||0,imgX:p.x||0,imgY:p.y||0};
+  if(p.dataUrl){const im=new Image();im.onload=()=>{if(E.img===im)dibujar();};im.src=p.dataUrl;n.img=im;}
+  if(p.murosUrl){const im2=new Image();im2.src=p.murosUrl;n.imgMuros=im2;}
+  return n;
+}
+dibujarBarraNiveles();
+
+/* ==========================================================================
    GUARDADO EN EL NAVEGADOR (IndexedDB): el trabajo sobrevive a recargar la página o a publicar una mejora.
    Opcional (casilla), solo en este equipo; el borrador .json sigue siendo el medio portátil.
    ========================================================================== */
@@ -3204,7 +3282,7 @@ function programarAutoguardado(){
 async function guardarAhora(){
   if(!_auto.listo||!_auto.activo)return;clearTimeout(_auto.t);
   try{
-    if(!E.recintos.length&&!E.disp.length&&!E.img)return;   // no se pisa lo guardado con una hoja vacía
+    if(!E.recintos.length&&!E.disp.length&&!E.img&&E.niveles.length<2)return;   // no se pisa lo guardado con una hoja vacía
     await idbPoner('borrador',{guardado:Date.now(),datos:recopilar(true)});
     $('autoEstado').textContent='Guardado en este navegador: '+new Date().toLocaleTimeString('es-CR');
   }catch(e){$('autoEstado').textContent='No se pudo guardar en el navegador ('+(e&&e.message?e.message:e)+'). Use «Guardar borrador (.json)».';}
