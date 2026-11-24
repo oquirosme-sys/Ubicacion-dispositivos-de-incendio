@@ -345,12 +345,13 @@
    <label style="margin:0">Opacidad plano <input type="range" id="vOp" min="10" max="100" value="55" style="width:90px"> <b id="vOpPct" class="pct">55 %</b></label>
    <label style="margin:0">Tamaño símbolos <input type="range" id="vSim" min="8" max="40" value="16" style="width:90px"> <b id="vSimPct" class="pct">100 %</b></label>
    <label class="soloEjec" style="margin:0">Cierre de huecos de puerta (px) <input type="number" id="rellCierre" value="10" min="0" max="40" style="width:56px"></label>
-    <span id="reqAud" class="soloEjec" style="display:none;font-size:.76rem;color:#12314f;background:#eaf3fb;border:1px solid #9cc3ee;border-radius:5px;padding:2px 8px"></span>
+    <span id="reqAud" style="display:none;font-size:.76rem;color:#12314f;background:#eaf3fb;border:1px solid #9cc3ee;border-radius:5px;padding:2px 8px"></span>
     <span style="margin-left:auto;display:flex;gap:4px"><button class="sec soloEjec" id="btnRecOcultos" style="display:none;padding:3px 8px;font-size:.74rem" title="Vuelve a mostrar los recintos que dejó atrás">🙈 Mostrar recintos ocultos</button><button class="sec soloEjec" id="btnCobOcultarTodas" title="Oculta la cobertura de todos los recintos (los dispositivos se quedan)" style="padding:3px 8px;font-size:.74rem">👁 Ocultar todas</button><button class="sec soloEjec" id="btnCobMostrarTodas" title="Muestra la cobertura de todos los recintos" style="padding:3px 8px;font-size:.74rem">👁 Mostrar todas</button></span>
   <div id="notaModoCob" style="flex-basis:100%;display:none;font-size:.74rem;color:#5a6472;border-top:1px dashed #cfd6df;padding-top:4px"></div>
 </div>
   <div id="barraNiveles" style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin:0 0 6px;font-size:.8rem"></div>
   <div id="avisoZona" style="display:none"></div>
+  <div class="medBar"></div>
   <canvas id="cv"></canvas>
   <details class="panel" id="leyendaVIS" open style="display:none"><summary>Cobertura visual combinada</summary><div id="leyendaVIScuerpo"></div></details>
   <details class="panel" id="leyendaSPL" open style="display:none"><summary>Leyenda de nivel sonoro</summary><div id="leyendaSPLcuerpo"></div></details>
@@ -401,6 +402,7 @@
   <label style="margin:0">Tamaño símbolos <input type="range" id="c2vSim" min="8" max="40" value="16" style="width:90px"> <b id="c2vSimPct" class="pct">100 %</b></label>
   <span style="margin-left:auto"><button class="sec" id="btnVista2">Ajustar vista</button></span>
  </div>
+ <div class="medBar"></div>
  <canvas id="cv2"></canvas>
 </section>
 <section class="card"><h2>Circuitos de precableado</h2><div id="cabResultados"><small class="g">Coloque dispositivos y un panel (FACP) en el módulo 2 y pulse «Generar precableado».</small></div></section>
@@ -779,6 +781,7 @@ function dispositivosEquipo(id){
    ESTADO
    ========================================================================== */
 const E = {
+  medir:{on:false,tipo:'p2p',orto:false,act:[],fijas:[],cur:null},   // herramienta Medir (ver MEDIR)
   niveles:[{nombre:'Nivel 1'}], nivAct:0,   // niveles del proyecto; el activo vive en E.* y los demás en E.niveles[i] (ver NIVELES)
   recintos:[], marcas:[], disp:[], seq:1, zona:null, modoZona:false,   // zona: área de diseño (polígono) que limita los mapas del modo «sin recintos asignados»
 
@@ -1105,7 +1108,11 @@ function reqAudDe(r){
 }
 function actualizarReqAud(){
   const n=$('reqAud');if(!n)return;
-  if(E.rev||!($('vCobAud').checked||$('vSPL').checked)){n.style.display='none';return;}
+  if(E.rev){   // Revisión: no hay recintos que den la ocupación; el nivel es el que ingresa el revisor (tarjeta «Revisión de cobertura»)
+    if(!($('vCobAud').checked||$('vSPL').checked||$('rvAud').checked)){n.style.display='none';return;}
+    n.style.display='';n.innerHTML='<b>Nivel a respetar (dBA):</b> <b>'+(+$('rvReq').value||60)+'</b> <span style="color:#5a6472">· ingresado en «Revisión de cobertura»; según el espacio: ambiente + '+AUDIBLE_SOBRE_AMBIENTE_DB+' dB; ≥ '+AUDIBLE_DORMIR_MIN_DBA+' dBA donde se duerme; máx. '+AUDIBLE_MAX_DBA+'</span>';return;
+  }
+  if(!($('vCobAud').checked||$('vSPL').checked)){n.style.display='none';return;}
   const g={};E.recintos.forEach(r=>{const A=reqAudDe(r);if(!A)return;const t=(TIPOS[r.tipo]||{}).n||r.tipo;if(!g[t]||A.req>g[t])g[t]=A.req;});
   const l=Object.keys(g).sort((a,b)=>g[a]-g[b]).map(t=>esc(t)+' <b>'+g[t].toFixed(0)+'</b>');
   n.style.display='';
@@ -1508,7 +1515,7 @@ function colorNivelSPL(v,req,alfaMin,alfaMax){
   return 'rgba(30,150,70,'+(alfaMin+(alfaMax-alfaMin)*Math.min(1,Math.max(0,(v-req)/20))).toFixed(2)+')';
 }
 function dibujarAudible(d,p,recorta){
-  const k=E.vista.k,req=d.req,rMax=d.radio,anillos=[],conMapa=!E._modoCable&&$('vSPL')&&$('vSPL').checked;   // con el mapa de dBA activo, el anillo no rellena (el mapa ya colorea)
+  const k=E.vista.k,req=E.rev?(+$('rvReq').value||60):d.req,rMax=(E.rev&&d.dba3)?radioAudible(d.dba3,req):d.radio,anillos=[],conMapa=!E._modoCable&&$('vSPL')&&$('vSPL').checked;   // con el mapa de dBA activo, el anillo no rellena (el mapa ya colorea)
   if(d.dba3&&req){for(let i=0;;i++){const dist=AUDIBLE_DIST_REF_M*Math.pow(2,i),nivel=d.dba3-AUDIBLE_DB_POR_DUPLICAR*i;if(nivel<=req||dist>=rMax)break;anillos.push({r:dist,v:nivel,t:Math.round(nivel)+' dBA'});}}
   anillos.push({r:rMax,v:req||0,t:(req?Math.round(req):'')+' dBA',borde:true});
   recorta(d,()=>{anillos.forEach(a=>{if(a.r*k<AUDIBLE_ANILLO_MIN_PX)return;cx.beginPath();cx.arc(p.x,p.y,a.r*k,0,7);
@@ -2129,6 +2136,7 @@ function dibujarBase(){
   if(E.snapPt&&(E.herr==='rec'||E.herr==='rect')){const q=aPant(E.snapPt);cx.strokeStyle=E.snapPt.t==='esq'?'#1e7d3c':'#0a5ad4';cx.lineWidth=2;cx.beginPath();
     if(E.snapPt.t==='esq')cx.rect(q.x-6,q.y-6,12,12);else cx.arc(q.x,q.y,5,0,7);cx.stroke();}
   if(E.calib.length){cx.fillStyle='#d00';E.calib.forEach(p=>{const q=aPant(p);cx.fillRect(q.x-4,q.y-4,8,8);});if(E.calib.length===2){const a=aPant(E.calib[0]),b=aPant(E.calib[1]);cx.strokeStyle='#d00';cx.beginPath();cx.moveTo(a.x,a.y);cx.lineTo(b.x,b.y);cx.stroke();}}
+  dibujarMedicion();
   // barra de escala 5 m
   const k=E.vista.k;cx.fillStyle='#111';cx.fillRect(12,r.height-18,5*k,3);cx.font='11px Arial';cx.textAlign='left';cx.fillText('5 m',12,r.height-24);
 }
@@ -2536,6 +2544,99 @@ $('btnVista2').onclick=()=>{enVista2(ajustarVista);};
   window.addEventListener('mousemove',e=>{if(!pan)return;E.vista2.x=pan.vx+e.clientX-pan.x;E.vista2.y=pan.vy+e.clientY-pan.y;dibujar2();});
   window.addEventListener('mouseup',()=>{if(pan){pan=null;c2.style.cursor='grab';}});
   c2.addEventListener('contextmenu',e=>e.preventDefault());
+})();
+/* ==========================================================================
+   MEDIR: distancias punto a punto y recorridos (polilíneas) en todos los módulos con plano (Ejecución, Revisión y Precableado).
+   Las medidas son sobre el dibujo, en metros de mundo: valen lo que valga la escala del plano (verifíquela con «Calibrar con 2 puntos»).
+   Son temporales: no se guardan en el borrador. Clic = punto; Mayús (o «Ortogonal») = a 0°/90°; se pegan a dispositivos, bloques y vértices.
+   ========================================================================== */
+const MEDIR_SNAP_PX = 10;            // radio de imán a dispositivos y vértices (px de pantalla)
+const MEDIR_COLOR = '#c2185b';       // color de las medidas
+function medLong(pts){let t=0;for(let i=1;i<pts.length;i++)t+=Math.hypot(pts[i].x-pts[i-1].x,pts[i].y-pts[i-1].y);return t;}
+function medSnap(p,k){
+  const R=MEDIR_SNAP_PX/k;let m=null,dm=R;
+  const prueba=q=>{const d=Math.hypot(q.x-p.x,q.y-p.y);if(d<dm){dm=d;m=q;}};
+  E.disp.forEach(prueba);E.marcas.forEach(prueba);E.recintos.forEach(r=>{if(!r.oculto)r.poly.forEach(prueba);});if(E.zona)E.zona.forEach(prueba);
+  return m?{x:m.x,y:m.y,snap:true}:p;
+}
+function medPunto(p,e,k){
+  const M=E.medir;let q=medSnap(p,k);
+  if(!q.snap&&(M.orto||(e&&e.shiftKey))&&M.act.length){const a=M.act[M.act.length-1];if(Math.abs(q.x-a.x)>Math.abs(q.y-a.y))q={x:q.x,y:a.y};else q={x:a.x,y:q.y};}
+  return q;
+}
+function medRedibujar(){dibujar();if($('mod4')&&$('mod4').style.display!=='none')dibujar2();}
+function medTexto(){
+  const M=E.medir,fj=M.fijas[M.fijas.length-1];
+  if(!M.on)return fj?'Última medida: '+medLong(fj.pts).toFixed(2)+' m':'';
+  if(M.act.length){const pts=M.cur?M.act.concat([M.cur]):M.act;return (M.tipo==='ruta'?'Recorrido: ':'Distancia: ')+medLong(pts).toFixed(2)+' m'+(M.tipo==='ruta'?' ('+Math.max(0,pts.length-1)+' tramo(s)) · doble clic o Enter para terminar':'');}
+  return fj?(fj.pts.length>2?'Recorrido total: ':'Distancia: ')+medLong(fj.pts).toFixed(2)+' m':'Haga clic en el primer punto.';
+}
+function medUI(){
+  const M=E.medir;
+  document.querySelectorAll('.medBar').forEach(b=>{
+    if(!b._ok){b._ok=true;b.style.cssText='display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;margin:0 0 6px;font-size:.8rem';
+      b.innerHTML='<button class="sec medOn" title="Mide distancias sobre el plano: punto a punto o recorrido. Esc termina.">📏 Medir</button>'+
+        '<span class="medOpc" style="display:none;gap:4px 10px;align-items:center;flex-wrap:wrap">'+
+        '<select class="medTipo" title="Punto a punto: dos clics. Recorrido: varios clics, doble clic o Enter para terminar."><option value="p2p">Punto a punto</option><option value="ruta">Recorrido (varios puntos)</option></select>'+
+        '<label style="margin:0" title="Fuerza los tramos a 0° o 90° (también con Mayús). Útil para recorridos de tubería y cable."><input type="checkbox" class="medOrto" style="width:auto"> Ortogonal (o Mayús)</label>'+
+        '<button class="sec medFin" title="Cierra el recorrido en curso">Terminar recorrido</button>'+
+        '<button class="sec medBorrar">Borrar medidas</button></span><b class="medLect" style="color:'+MEDIR_COLOR+'"></b>';
+      b.querySelector('.medOn').onclick=()=>medActivar(!E.medir.on);
+      b.querySelector('.medTipo').onchange=ev=>{E.medir.tipo=ev.target.value;E.medir.act=[];E.medir.cur=null;medUI();medRedibujar();};
+      b.querySelector('.medOrto').onchange=ev=>{E.medir.orto=ev.target.checked;medUI();};
+      b.querySelector('.medFin').onclick=()=>medTerminar();
+      b.querySelector('.medBorrar').onclick=()=>{E.medir.act=[];E.medir.fijas=[];E.medir.cur=null;medUI();medRedibujar();};}
+    b.querySelector('.medOn').classList.toggle('act',M.on);
+    b.querySelector('.medOpc').style.display=M.on?'flex':'none';
+    b.querySelector('.medTipo').value=M.tipo;b.querySelector('.medOrto').checked=M.orto;
+    b.querySelector('.medFin').style.display=(M.on&&M.tipo==='ruta'&&M.act.length>=2)?'':'none';
+    b.querySelector('.medLect').textContent=medTexto();});
+  ['cv','cv2'].forEach(i=>{const c=$(i);if(c&&M.on)c.style.cursor='crosshair';});
+}
+function medActivar(on){
+  E.medir.on=on;E.medir.act=[];E.medir.cur=null;
+  if(on){herramienta('sel');E.medir.on=true;E.pegando=null;E.edit=null;}
+  medUI();medRedibujar();
+  if(on)estado('Medir: haga clic en el primer punto. Mayús = ortogonal; se pega a dispositivos, bloques y vértices; Esc termina.');
+}
+function medTerminar(){
+  const M=E.medir;if(M.act.length>=2)M.fijas.push({pts:M.act.slice()});
+  M.act=[];M.cur=null;medUI();medRedibujar();
+}
+function medClic(p,e,k){
+  const M=E.medir,q=medPunto(p,e,k);M.act.push({x:q.x,y:q.y});
+  if(M.tipo==='p2p'&&M.act.length===2)medTerminar();else{medUI();medRedibujar();}
+}
+function dibujarMedicion(){
+  const M=E.medir;if(!M.fijas.length&&!M.act.length)return;
+  const lista=M.fijas.map(f=>({pts:f.pts,viva:false}));
+  if(M.act.length)lista.push({pts:M.cur?M.act.concat([M.cur]):M.act,viva:true});
+  cx.save();cx.lineWidth=2;cx.lineJoin='round';cx.font='bold 11px Arial';cx.textAlign='center';cx.textBaseline='middle';
+  const rot=(t,x,y,gr)=>{const w=cx.measureText(t).width+8;cx.fillStyle='rgba(255,255,255,.92)';cx.fillRect(x-w/2,y-9,w,18);cx.strokeStyle=MEDIR_COLOR;cx.lineWidth=1;cx.strokeRect(x-w/2,y-9,w,18);cx.fillStyle=MEDIR_COLOR;if(gr)cx.font='bold 12px Arial';cx.fillText(t,x,y);cx.font='bold 11px Arial';cx.lineWidth=2;};
+  lista.forEach(f=>{const P=f.pts.map(aPant);
+    cx.strokeStyle=MEDIR_COLOR;cx.setLineDash(f.viva?[6,4]:[]);cx.beginPath();P.forEach((q,i)=>{cx[i?'lineTo':'moveTo'](q.x,q.y);});cx.stroke();cx.setLineDash([]);
+    cx.fillStyle=MEDIR_COLOR;P.forEach(q=>{cx.fillRect(q.x-3,q.y-3,6,6);});
+    for(let i=1;i<P.length;i++){const d=Math.hypot(f.pts[i].x-f.pts[i-1].x,f.pts[i].y-f.pts[i-1].y);if(d*E.vista.k<26&&P.length>2)continue;rot(d.toFixed(2)+' m',(P[i].x+P[i-1].x)/2,(P[i].y+P[i-1].y)/2-(Math.abs(P[i].y-P[i-1].y)<Math.abs(P[i].x-P[i-1].x)?12:0));}
+    if(P.length>2){const e=P[P.length-1];rot('Σ '+medLong(f.pts).toFixed(2)+' m',e.x+8,e.y+(f.viva?22:20),true);}});
+  cx.restore();
+}
+(function(){
+  [['cv',()=>E.vista],['cv2',()=>E.vista2||(E.vista2={k:1,x:0,y:0})]].forEach(([id,vista])=>{
+    const c=$(id);let dn=null;const mundo=e=>{const r=c.getBoundingClientRect(),v=vista();return {x:(e.clientX-r.left-v.x)/v.k,y:(e.clientY-r.top-v.y)/v.k};};
+    c.addEventListener('mousedown',e=>{if(!E.medir.on||e.button!==0)return;dn={x:e.clientX,y:e.clientY};if(id==='cv'&&!espacio)e.stopImmediatePropagation();},true);
+    c.addEventListener('click',e=>{if(!E.medir.on)return;if(id==='cv')e.stopImmediatePropagation();
+      if(dn&&Math.hypot(e.clientX-dn.x,e.clientY-dn.y)>5){dn=null;return;}   // fue un arrastre (desplazar), no un clic
+      if(id==='cv'&&(espacio||arr))return;
+      medClic(mundo(e),e,vista().k);},true);
+    c.addEventListener('dblclick',e=>{if(!E.medir.on)return;if(id==='cv')e.stopImmediatePropagation();
+      if(E.medir.tipo==='ruta'&&E.medir.act.length){const a=E.medir.act,u=a[a.length-1],pen=a[a.length-2];if(pen&&Math.hypot(u.x-pen.x,u.y-pen.y)<1e-9)a.pop();medTerminar();}},true);
+    c.addEventListener('mousemove',e=>{if(!E.medir.on||!E.medir.act.length)return;E.medir.cur=medPunto(mundo(e),e,vista().k);
+      if(!c._raf)c._raf=requestAnimationFrame(()=>{c._raf=0;medUI();id==='cv'?dibujar():dibujar2();});},true);
+  });
+  window.addEventListener('keydown',e=>{if(!E.medir.on)return;
+    if(e.key==='Escape'){if(E.medir.act.length){E.medir.act=[];E.medir.cur=null;}else E.medir.on=false;medUI();medRedibujar();}
+    else if(e.key==='Enter'&&E.medir.tipo==='ruta'&&E.medir.act.length>=2&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))medTerminar();},true);
+  medUI();
 })();
 function recEdit(){return E.recintos.find(r=>r.id===E.edit);}
 function ocultarMenu(){$('menuCtx').style.display='none';}
@@ -3442,7 +3543,7 @@ function nivelCargar(n){
   E.imgMuros=n.imgMuros||null;E.vectPdf=n.vectPdf||null;E.textosPdf=n.textosPdf||[];E.cableado=n.cableado||null;
   if(n.escN)$('escN').value=n.escN;if(n.escDpi)$('escDpi').value=n.escDpi;
   E.sel=null;E.selDev=null;E.edit=null;E.pegando=null;E.borrador=[];E.calib=[];E.moverDisp=null;E.moverMarca=null;E.modoZona=false;E.modoPlantilla=false;
-  E._spl=null;E._splK=null;E._visK=null;E._rv=null;
+  E._spl=null;E._splK=null;E._visK=null;E._rv=null;E.medir.act=[];E.medir.fijas=[];medUI();
   reconstruirResultados();tablaEquipos();propiedades();propiedadesDisp();
   if(n.vista)E.vista=Object.assign({},n.vista);else ajustarVista();
   U.pila=[];U.rehacer=[];U.actual=estadoSerial();actualizarBotonesUndo();
