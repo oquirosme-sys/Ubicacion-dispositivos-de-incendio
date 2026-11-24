@@ -334,7 +334,7 @@
    <label style="margin:0"><input type="checkbox" id="vCobDet" style="width:auto"> Detectores</label>
    <label style="margin:0"><input type="checkbox" id="vCobVis" style="width:auto"> Notificación visual</label>
    <label style="margin:0"><input type="checkbox" id="vCobAud" style="width:auto"> Notificación auditiva</label>
-   <label class="soloEjec" style="margin:0" title="Rojo: por debajo del nivel requerido; verde: cumple; naranja: sobre 110 dBA"><input type="checkbox" id="vSPL" style="width:auto"> Nivel sonoro (dBA)</label>
+   <label style="margin:0" title="Rojo: por debajo del nivel requerido; verde: cumple; naranja: sobre 110 dBA"><input type="checkbox" id="vSPL" style="width:auto"> Nivel sonoro (dBA)</label>
    <label class="soloEjec" style="margin:0" title="Dibuja a la par de cada equipo los módulos que pide la matriz (uno por señal), para replicarlos en el modelo"><input type="checkbox" id="vModulos" style="width:auto" checked> Módulos junto a equipos</label>
    <label class="soloEjec" style="margin:0" title="Muestra, junto a cada equipo del plano, los dispositivos que pide la matriz de supervisión"><input type="checkbox" id="vNotas" style="width:auto" checked> Notas de equipos</label>
    <select id="splModo" class="soloEjec" title="Con qué dispositivos se calcula la cobertura sonora (nivel dBA) y el mapa de cobertura visual" style="width:auto"><option value="rec">Cobertura sonora y visual: por recinto (solo sus dispositivos)</option><option value="comb">Cobertura sonora y visual: recintos combinados (con pérdida por muros)</option><option value="libre">Cobertura sonora y visual: sin recintos asignados (todos los dispositivos, sin muros)</option></select>
@@ -1454,6 +1454,12 @@ function rejillaLibre(devs,ext){
   return {pts,paso};
 }
 function mapaSPL(){
+  if(E.rev){   // pestaña Revisión: puntos sobre toda el área de diseño (sin recintos), contra el nivel indicado en «Nivel sonoro a respetar»
+    const req=+$('rvReq').value||60,llave='rev|'+req+'|'+$('splPaso').value+'|'+zonaSig();if(E._spl&&E._splK===llave)return E._spl;
+    const todos=todosAudibles(),ext=Math.max(0,...todos.map(d=>d.radio||0)),g=rejillaLibre(todos,ext),celdas=[];
+    g.pts.forEach(p=>celdas.push({x:p.x,y:p.y,paso:g.paso,v:nivelSonoroComb(p,todos,0,null),req,rid:-1}));
+    E._splK=llave;return (E._spl=celdas);
+  }
   const modo=$('splModo').value,perd=+$('splPerd').value||0,llave=modo+'|'+perd+'|'+$('splPaso').value+'|'+zonaSig()+'|'+E.recintos.filter(r=>r.oculto).map(r=>r.id).join(',');
   if(E._spl&&E._splK===llave)return E._spl;
   if(modo==='libre'){   // sin recintos: solo se pintan las zonas donde algún dispositivo llega al nivel requerido
@@ -2110,7 +2116,7 @@ function dibujarBase(){
   });
   if(!E._modoCable){notaModoCob();actualizarReqAud();}
   if(!E._modoCable&&!E.rev&&$('vCobVis').checked&&$('splModo').value!=='rec')dibujarVisComb();else if(!E._modoCable&&$('leyendaVIS'))$('leyendaVIS').style.display='none';   // el mapa visual sale con «Notificación visual» en los modos combinado y sin recintos
-  if(!E._modoCable&&!E.rev&&$('vSPL').checked){dibujarSPL();leyendaSPL();}else if(!E._modoCable&&$('leyendaSPL'))$('leyendaSPL').style.display='none';
+  if(!E._modoCable&&$('vSPL').checked){dibujarSPL();if(E.rev&&$('leyendaSPL'))$('leyendaSPL').style.display='none';else leyendaSPL();}else if(!E._modoCable&&$('leyendaSPL'))$('leyendaSPL').style.display='none';
   if(E._modoCable&&E.cableado)dibujarCableado();   // el cableado solo se ve en la vista del módulo 3, no en Ejecución
   if($('vModulos')&&$('vModulos').checked)E.disp.forEach(d=>{if(d.tipo==='det_co'){const p=aPant(d);sim(cx,'modulo_tc4',p.x+S*1.9,p.y,S);}});   // módulo TC4 de la base de CO
   E.disp.forEach(d=>{const p=aPant(d);if(d.giro){cx.save();cx.translate(p.x,p.y);cx.rotate(d.giro*Math.PI/180);sim(cx,d.tipo,0,0,S,{cd:d.cd});cx.restore();}else sim(cx,d.tipo,p.x,p.y,S,{cd:d.cd});if(d.manual){cx.beginPath();cx.arc(p.x,p.y,S*1.15,0,7);cx.strokeStyle='rgba(224,168,0,.9)';cx.lineWidth=2;cx.setLineDash([3,3]);cx.stroke();cx.setLineDash([]);}
@@ -3593,6 +3599,7 @@ function iniciar(){
   $('visMuros').innerHTML=VISUAL_MUROS_OPC.map(v=>'<option value="'+v+'"'+(v===VISUAL_MUROS_DEF?' selected':'')+'>'+v+'</option>').join('');
   $('visMuros').addEventListener('change',()=>{E._visK=null;dibujar();});
   ['rvDet','rvVis','rvAud','rvReq'].forEach(i=>{$(i).oninput=dibujar;});
+  $('vSPL').addEventListener('change',()=>{if(E.rev){E._spl=null;dibujar();}});
   $('btnRvInforme').onclick=revInforme;
   ['splModo','splPerd'].forEach(i=>$(i).addEventListener('change',()=>{E._spl=null;E._visK=null;reverificar();dibujar();}));
   ['cabCableSLC','cabCableNAC'].forEach(i=>{$(i).innerHTML=CABLES.map(q=>'<option value="'+q[0]+'">'+q[1]+' '+q[2]+' · '+q[3]+' AWG · '+q[4]+' Ω/km — '+q[5]+'</option>').join('');});
