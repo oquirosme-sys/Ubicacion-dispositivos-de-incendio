@@ -265,6 +265,10 @@
    <label style="margin:2px 0">Parecido mínimo (%) <input type="number" id="rvParecido" value="85" min="50" max="95" step="1" style="width:64px" title="Más bajo encuentra más símbolos pero con más falsos; más alto es más estricto"></label>
    <button class="sec" id="btnRvSimilares">🔍 Elegir símbolo y buscar iguales</button>
   </div>
+  <div style="margin:6px 0;border-top:1px solid var(--gb);padding-top:6px"><b style="font-size:.82rem">Leer símbolos del PDF (vectorial)</b>
+   <small class="g" style="display:block">Para planos entregados en PDF: el programa lee los dibujos, agrupa los símbolos iguales y toma el tipo de dispositivo de la leyenda del propio plano. Funciona con PDF exportados de CAD o Revit; no con planos escaneados.</small>
+   <button class="sec" id="btnSimPdf">📐 Leer símbolos del PDF</button><div id="simPanel"></div>
+  </div>
   <div id="rvResultados"><small class="g">Delimite el área a revisar para ver los resultados.</small></div>
   <button class="sec" id="btnRvInforme">Descargar informe de revisión (.html)</button>
 </section><section class="card soloEjec" id="cardRec"><h2>Recinto seleccionado</h2><div id="propRec"><small class="g">Seleccione un recinto en el lienzo (o doble clic sobre él) para cambiar su nombre, tipo y altura.</small></div></section><section class="card"><h2>Planta y recintos</h2>
@@ -1235,6 +1239,18 @@ function recortarARecinto(rc){
 // distinta a la de la muestra (integral de imagen) y las restantes se puntúan con recall (tinta de la muestra presente en la ventana, con 1 px de tolerancia)
 // y precisión (tinta de la ventana que pertenece a la muestra). Puntaje = 0.6·recall + 0.4·precisión. Luego se eliminan duplicados cercanos.
 // LIMITACIONES: no detecta símbolos girados distinto a la muestra ni a otra escala; las líneas de cableado o muros que tocan el símbolo bajan el puntaje.
+// ---- Lectura de símbolos del PDF vectorial (Revisión): cada trazo del PDF se guarda con su color; los símbolos de un sistema suelen ir en un color propio.
+// Se unen los trazos que se tocan, se funden los grupos cuyos recuadros se superponen (p. ej. el círculo y la letra de adentro), se agrupan los idénticos
+// (mismo número de trazos y mismo tamaño) y se les asigna el tipo de dispositivo según el texto que los acompaña en la leyenda del plano.
+const SIM_TRAZOS_MAX = 300000;        // tope de trazos que se guardan por color (más allá solo se cuentan; CRITERIO de memoria)
+const SIM_TOL_PT = 0.6;               // tolerancia (pt del PDF) para considerar que dos trazos se tocan
+const SIM_LADO_MIN_M = 0.08, SIM_LADO_MAX_M = 2.5;   // tamaño del símbolo en el terreno (m) para considerarlo dispositivo (con la escala del plano)
+const SIM_TOL_REL = 0.08, SIM_TOL_ABS_PT = 1.2;      // tolerancia de tamaño para decir que dos símbolos son iguales
+const SIM_ETIQ_GAP = 3, SIM_ETIQ_ALTO = 0.7;         // texto de leyenda: hasta SIM_ETIQ_GAP veces el lado a la derecha y ±SIM_ETIQ_ALTO·lado en vertical
+const SIM_INTERLINEA_M = 0.42, SIM_LEY_MIN = 3;   // separación máxima entre líneas de un mismo párrafo (m) y mínimo de entradas alineadas para reconocer una leyenda
+const SIM_IOU_EMPATE = 0.03;   // diferencia de parecido por debajo de la cual dos entradas de la leyenda se consideran empatadas
+const SIM_MASCARA = 32, SIM_IOU_MIN = 0.55;   // comparación de formas: lado de la máscara (px) y parecido mínimo (IoU) para emparejar un símbolo del plano con uno de la leyenda
+const SIM_CROMATICO_MIN = 40;         // diferencia máxima-mínima RGB para que un color cuente como «de color» (no gris/negro)
 const RV_SIM_LADO_PX = 28;           // lado mayor de la muestra tras reducir (CRITERIO de rendimiento: más grande = más preciso pero más lento)
 const RV_SIM_LUM_TINTA = 200;        // luminosidad (0–255) por debajo de la cual un píxel cuenta como tinta
 const RV_SIM_TINTA_MIN = 0.5, RV_SIM_TINTA_MAX = 3;   // ventana válida: su tinta entre estas veces la de la muestra
@@ -1298,6 +1314,137 @@ $('btnRvSimilares').onclick=()=>{
   if(!E.img){estado('Cargue primero el plano (Planta y recintos → Cargar plano).');return;}
   herramienta('rect');E.modoPlantilla=true;estado('Dibuje un rectángulo ajustado alrededor de UN símbolo (clic en dos esquinas opuestas; acérquese con la rueda del ratón para mayor precisión).');
 };
+// Colores con trazos en el PDF, del más usado al menos usado.
+function simColores(){
+  const V=E.vectPdf;if(!V)return [];
+  return Object.keys(V.cols).map(k=>{const [r,g,b]=k.split(',').map(Number);return {key:k,n:V.cols[k].n,over:V.cols[k].over,crom:Math.max(r,g,b)-Math.min(r,g,b)>=SIM_CROMATICO_MIN};}).sort((a,b)=>b.n-a.n);
+}
+// Une los trazos de los colores «keys» que se tocan, funde los grupos con recuadros superpuestos y devuelve {P,C}: P = trazos en metros de mundo, C = símbolos
+// candidatos [{ids,x0,y0,x1,y1}] (solo los de tamaño razonable).
+function simClusters(keys){
+  const V=E.vectPdf,MT=V.MT,im=E.imgM,tol=SIM_TOL_PT*V.esc*im,P=[];
+  keys.forEach(key=>{const c=V.cols[key];if(!c||c.over)return;
+    for(let i=0;i<c.ini.length;i++){const a=c.ini[i],b=i+1<c.ini.length?c.ini[i+1]:c.pts.length,xs=[],ys=[];
+      for(let q=a;q<b;q+=2){const x=c.pts[q],y=c.pts[q+1];xs.push(E.imgX+(MT[0]*x+MT[2]*y+MT[4])*im);ys.push(E.imgY+(MT[1]*x+MT[3]*y+MT[5])*im);}
+      P.push({xs,ys});}});
+  const N=P.length,par=Array.from({length:N},(_,i)=>i),fd=i=>{while(par[i]!==i){par[i]=par[par[i]];i=par[i];}return i;},cel=tol*2,G=new Map();
+  for(let i=0;i<N;i++){const p=P[i];for(let q=0;q<p.xs.length;q++){const cx_=Math.round(p.xs[q]/cel),cy_=Math.round(p.ys[q]/cel);
+    for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){const l=G.get((cx_+dx)+','+(cy_+dy));if(l)for(const j of l){if(fd(i)!==fd(j)){
+      const pj=P[j];for(let u=0;u<pj.xs.length;u++){if(Math.abs(pj.xs[u]-p.xs[q])<=tol&&Math.abs(pj.ys[u]-p.ys[q])<=tol){par[fd(i)]=fd(j);break;}}}}}
+    const k=cx_+','+cy_;(G.get(k)||G.set(k,[]).get(k)).push(i);}}
+  const C=new Map();
+  for(let i=0;i<N;i++){const r=fd(i),p=P[i];let c=C.get(r);if(!c){c={ids:[],x0:1e18,y0:1e18,x1:-1e18,y1:-1e18};C.set(r,c);}c.ids.push(i);
+    p.xs.forEach(x=>{if(x<c.x0)c.x0=x;if(x>c.x1)c.x1=x;});p.ys.forEach(y=>{if(y<c.y0)c.y0=y;if(y>c.y1)c.y1=y;});}
+  const L=[...C.values()].filter(c=>Math.max(c.x1-c.x0,c.y1-c.y0)<=SIM_LADO_MAX_M);   // los grandes (cables, muros) no participan
+  const n2=L.length,p2=Array.from({length:n2},(_,i)=>i),f2=i=>{while(p2[i]!==i){p2[i]=p2[p2[i]];i=p2[i];}return i;},G2=new Map(),c2=SIM_LADO_MAX_M;
+  L.forEach((c,i)=>{for(let gx=Math.floor(c.x0/c2);gx<=Math.floor(c.x1/c2);gx++)for(let gy=Math.floor(c.y0/c2);gy<=Math.floor(c.y1/c2);gy++){const k=gx+','+gy,l=G2.get(k)||G2.set(k,[]).get(k);
+    for(const j of l){const d=L[j];if(c.x0<=d.x1&&c.x1>=d.x0&&c.y0<=d.y1&&c.y1>=d.y0&&f2(i)!==f2(j))p2[f2(i)]=f2(j);}l.push(i);}});
+  const M2=new Map();
+  L.forEach((c,i)=>{const r=f2(i);let m=M2.get(r);if(!m){m={ids:[],x0:1e18,y0:1e18,x1:-1e18,y1:-1e18};M2.set(r,m);}m.ids.push(...c.ids);m.x0=Math.min(m.x0,c.x0);m.y0=Math.min(m.y0,c.y0);m.x1=Math.max(m.x1,c.x1);m.y1=Math.max(m.y1,c.y1);});
+  const out=[...M2.values()].filter(m=>Math.max(m.x1-m.x0,m.y1-m.y0)>=SIM_LADO_MIN_M);
+  out.forEach(m=>{m.cx=(m.x0+m.x1)/2;m.cy=(m.y0+m.y1)/2;m.w=Math.max(m.x1-m.x0,m.y1-m.y0);m.h=Math.min(m.x1-m.x0,m.y1-m.y0);});
+  return {P,C:out};
+}
+// Trazos de un símbolo relativos a su centro.
+function simTrazos(P,m){return m.ids.map(i=>{const p=P[i],o=[];for(let q=0;q<p.xs.length;q++)o.push(p.xs[q]-m.cx,p.ys[q]-m.cy);return o;});}
+// Máscara binaria SIM_MASCARA×SIM_MASCARA de un símbolo (escalada a su lado mayor y centrada), con 1 px de engrosado; rot = giros de 90°.
+function simMascara(trazos,lado,rot){
+  const N=SIM_MASCARA,c=document.createElement('canvas');c.width=c.height=N;const g=c.getContext('2d',{willReadFrequently:true}),k=(N-4)/lado;
+  g.strokeStyle='#000';g.fillStyle='#000';g.lineWidth=1.6;
+  trazos.forEach(p=>{g.beginPath();for(let q=0;q<p.length;q+=2){let x=p[q],y=p[q+1];for(let r=0;r<rot;r++){const t=x;x=-y;y=t;}const X=N/2+x*k,Y=N/2+y*k;q?g.lineTo(X,Y):g.moveTo(X,Y);}g.stroke();});
+  const d=g.getImageData(0,0,N,N).data,m=new Uint8Array(N*N);for(let i=0;i<m.length;i++)m[i]=d[4*i+3]>40?1:0;return dilatarSim(m,N,N);
+}
+function simIoU(a,b){let i=0,u=0;for(let q=0;q<a.length;q++){if(a[q]&&b[q])i++;if(a[q]||b[q])u++;}return u?i/u:0;}
+// Entradas de la leyenda del plano: un texto largo con un símbolo (de cualquier color) pegado a su izquierda. El texto continúa en las líneas de abajo hasta el siguiente ítem.
+function simLeyenda(){
+  const T=(E.textosPdf||[]).filter(t=>t.t&&t.t.trim().length>=6&&/[A-Za-zÁÉÍÓÚÑáéíóúñ]{4,}/.test(t.t)),todas=Object.keys(E.vectPdf.cols).filter(k=>!E.vectPdf.cols[k].over);
+  const {P,C}=simClusters(todas),ent=[];
+  const porSim=new Map();   // cada símbolo de la leyenda se asocia a UN solo texto (el más cercano); las líneas siguientes se anexan después
+  T.forEach(t=>{C.forEach(m=>{const gap=t.x-(m.cx+m.w/2);if(gap>SIM_ETIQ_GAP*m.w||gap<-0.3*m.w||Math.abs(m.cy-t.y)>SIM_ETIQ_ALTO*m.w)return;
+    const d=Math.hypot(gap,m.cy-t.y),a=porSim.get(m);if(!a||d<a.d)porSim.set(m,{t,m,d});});});
+  porSim.forEach(v=>{   // el texto elegido puede ser una línea de continuación: se sube hasta la primera línea del párrafo
+    let t=v.t,sube=true;while(sube){sube=false;const q=(E.textosPdf||[]).filter(z=>z.t&&z.t.trim()&&Math.abs(z.x-t.x)<0.3&&t.y-z.y>0.02&&t.y-z.y<=SIM_INTERLINEA_M).sort((a,b)=>b.y-a.y)[0];if(q){t=q;sube=true;}}
+    ent.push({t,m:v.m});});
+  // la leyenda es una columna: solo valen las entradas que comparten alineación de texto con al menos otras SIM_LEY_MIN-1 (así no se confunde con rótulos sueltos del plano)
+  const kc=e=>Math.round(e.t.x/0.3),col=new Map();ent.forEach(e=>{const k=kc(e);col.set(k,(col.get(k)||0)+1);});
+  const maxCol=Math.max(0,...col.values());   // la leyenda es la columna con más entradas; se aceptan otras columnas de al menos la mitad (leyendas en varias columnas)
+  for(let i=ent.length-1;i>=0;i--)if((col.get(kc(ent[i]))||0)<Math.max(SIM_LEY_MIN,0.5*maxCol))ent.splice(i,1);
+  ent.sort((a,b)=>a.t.y-b.t.y);
+  for(let i=ent.length-1;i>=0;i--)if(ent.findIndex(z=>z.t===ent[i].t)!==i)ent.splice(i,1);   // símbolos de dos partes (p. ej. bocina+estrobo): una sola entrada por texto
+  ent.forEach((e,i)=>{const sig=ent.slice(i+1).find(z=>Math.abs(z.t.x-e.t.x)<0.3),fin=sig?sig.t.y-0.05:e.t.y+1.2;
+    const lin=(E.textosPdf||[]).filter(q=>q.t&&q.t.trim()&&Math.abs(q.x-e.t.x)<0.3&&q.y>=e.t.y-0.05&&q.y<fin).sort((a,b)=>a.y-b.y);
+    e.texto=lin.map(q=>q.t.trim()).join(' ').replace(/\s+/g,' ');e.trazos=simTrazos(P,e.m);});
+  return ent;
+}
+// Agrupa los símbolos hechos con los colores «keys» y los empareja con la leyenda del plano por la forma (no por el color: la leyenda suele ir en otro color).
+function simAgrupar(keys){
+  const V=E.vectPdf,kpt=V.esc*E.imgM,{P,C}=simClusters(keys),grupos=[];
+  C.forEach(m=>{const inst={x:m.cx,y:m.cy,w:m.w,h:m.h,np:m.ids.length};
+    let g=grupos.find(g=>g.np===inst.np&&Math.abs(g.w-m.w)<=Math.max(SIM_TOL_REL*g.w,SIM_TOL_ABS_PT*kpt)&&Math.abs(g.h-m.h)<=Math.max(SIM_TOL_REL*g.w,SIM_TOL_ABS_PT*kpt));
+    if(!g){g={np:inst.np,w:m.w,h:m.h,inst:[],muestra:simTrazos(P,m),etiqueta:'',iou:0,cand:[],empates:0,leyenda:[]};grupos.push(g);}
+    g.inst.push(inst);});
+  const ley=simLeyenda();E._simLey=ley;
+  grupos.forEach(g=>{
+    // se compara la forma del grupo con cada símbolo de la leyenda (con giros de 90°); si la mejor coincidencia es suficiente, se toma su texto
+    const cand=[];
+    ley.forEach(e=>{if(Math.abs(e.m.w-g.w)>Math.max(0.35*g.w,2*kpt))return;   // el tamaño debe ser parecido
+      const lm=Math.max(e.m.w,g.w);let best=0;for(let r=0;r<4;r++){const sc=simIoU(simMascara(g.muestra,lm,0),simMascara(e.trazos,lm,r));if(sc>best)best=sc;}
+      if(best>=SIM_IOU_MIN)cand.push({texto:e.texto,iou:best,y:e.t.y});});
+    cand.sort((a,b)=>b.iou-a.iou);if(cand.length){const top=cand[0].iou,emp=cand.filter(c=>c.iou>=top-SIM_IOU_EMPATE).sort((a,b)=>a.y-b.y);g.empates=emp.length;cand.splice(0,cand.length,...emp,...cand.filter(c=>!emp.includes(c)));}   // símbolos casi idénticos en la leyenda: se propone el primero de la lista
+    g.cand=cand.slice(0,4);   // se muestran varias por si la leyenda tiene símbolos casi iguales (p. ej. humo normal y en ducto)
+    if(cand.length){g.etiqueta=cand[0].texto;g.iou=cand[0].iou;}
+    // instancias que son la propia leyenda (mismo lugar que un símbolo de leyenda)
+    g.inst.forEach((s,idx)=>{if(ley.some(e=>Math.hypot(e.m.cx-s.x,e.m.cy-s.y)<0.6*s.w))g.leyenda.push(idx);});});
+  return grupos.sort((a,b)=>b.inst.length-a.inst.length);
+}
+// Tipo de dispositivo sugerido por el texto de la leyenda ('' si no se reconoce).
+function tipoPorTexto(t){
+  const x=String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(),est=/estrobo|strobe|visual/.test(x),sonoro=/bocina|horn|sirena|parlante|altavoz|speaker/.test(x),parl=/parlante|altavoz|speaker/.test(x);
+  if(est&&sonoro)return parl?'parl_estrobo':'bocina_estrobo';if(est)return 'estrobo';if(parl)return 'parlante';if(sonoro)return 'bocina';
+  if(/ducto|duct/.test(x)&&/humo|smoke|detector/.test(x))return 'det_ducto';if(/calor|termic|heat/.test(x))return 'det_calor';if(/monoxido|\bco\b/.test(x))return 'det_co';
+  if(/humo|smoke|fotoelec|ionic/.test(x))return 'det_humo';if(/pulsador|estacion manual|manual|pull/.test(x))return 'pulsador';if(/aislador|isolator/.test(x))return 'aislador';
+  if(/modulo.*(control|rele)|relay/.test(x))return 'modulo_ctl';if(/modulo|monitor/.test(x))return 'modulo_mon';
+  return '';
+}
+// ---- Panel de Revisión: elegir colores → ver grupos → asignar tipos → colocar
+function simPintarColores(){
+  const cs=simColores(),n=$('simPanel');
+  if(!E.vectPdf||!cs.length){n.innerHTML='<small class="g">No hay datos vectoriales: cargue el plano como PDF (en Planta y recintos → Cargar plano). Los planos escaneados o en imagen solo permiten la búsqueda de símbolos parecidos.</small>';return;}
+  n.innerHTML='<small class="g">Marque el color (o colores) con que está dibujado el sistema de alarma; normalmente es un color propio distinto del fondo del plano. Se preseleccionan los colores no grises.</small>'+
+    cs.slice(0,12).map(c=>'<label style="margin:2px 0;display:flex;align-items:center;gap:6px"><input type="checkbox" data-simcol="'+c.key+'" style="width:auto"'+(c.crom&&!c.over?' checked':'')+(c.over?' disabled':'')+'> <span class="rvcol" style="background:rgb('+c.key+')"></span>'+c.n.toLocaleString('es-CR')+' trazos'+(c.over?' (demasiados: es el fondo)':'')+'</label>').join('')+
+    '<button class="sec" id="btnSimAgrupar">Agrupar símbolos</button><div id="simGrupos"></div>';
+}
+function simPintarGrupos(){
+  const keys=[...document.querySelectorAll('#simPanel [data-simcol]:checked')].map(i=>i.dataset.simcol),G=$('simGrupos');
+  if(!keys.length){G.innerHTML='<small class="g">Marque al menos un color.</small>';return;}
+  estado('Agrupando símbolos del PDF…');
+  setTimeout(()=>{
+    let gr;try{gr=simAgrupar(keys);}catch(e){G.innerHTML='<small class="g">No se pudo agrupar: '+esc(e.message)+'</small>';estado('');return;}
+    E._simGrupos=gr;
+    if(!gr.length){G.innerHTML='<small class="g">No se encontraron símbolos de tamaño razonable con esos colores. Verifique la escala del plano (afecta el tamaño) o pruebe otros colores.</small>';estado('');return;}
+    G.innerHTML='<table style="font-size:.78rem"><tr><th></th><th>Cant.</th><th>Texto de la leyenda</th><th>Tipo de dispositivo</th></tr>'+gr.map((g,i)=>{
+      const sug=tipoPorTexto(g.etiqueta);
+      return '<tr><td><canvas data-simmuestra="'+i+'" width="44" height="44" style="border:1px solid #cfd6df;background:#fff"></canvas></td><td>'+g.inst.length+(g.leyenda.length?' <small class="g">('+g.leyenda.length+' en leyenda)</small>':'')+'</td><td>'+(g.etiqueta?'<b>'+esc(g.etiqueta)+'</b> <small class="g">('+Math.round(g.iou*100)+' % de parecido)</small>'+(g.empates>1?'<br><small style="color:#a15c00"><b>Atención:</b> '+g.empates+' entradas de la leyenda tienen el mismo dibujo; se propuso la primera, verifique el tipo.</small>':'')+(g.cand.length>1?'<br><small class="g">También se parece a: '+g.cand.slice(1).map(c=>esc(c.texto.slice(0,50))+' ('+Math.round(c.iou*100)+' %)').join('; ')+'</small>':''):'— no coincide con la leyenda —')+'</td>'+
+        '<td><select data-simtipo="'+i+'" style="width:auto;max-width:150px"><option value="">— ignorar —</option>'+Object.keys(ROT).map(k=>'<option value="'+k+'"'+(k===sug?' selected':'')+'>'+ROT[k]+'</option>').join('')+'</select></td></tr>';}).join('')+'</table>'+
+      '<small class="g">Se preasigna el tipo según el texto de la leyenda; corríjalo donde no coincida. Los símbolos de la propia leyenda no se colocan como dispositivos.</small>'+
+      '<button class="sec" id="btnSimColocar">Colocar dispositivos de los grupos con tipo</button>';
+    gr.forEach((g,i)=>{const cv2=G.querySelector('[data-simmuestra="'+i+'"]'),c=cv2.getContext('2d'),k=40/Math.max(g.w,g.h);c.strokeStyle='#7a3b00';c.lineWidth=1;
+      g.muestra.forEach(p=>{c.beginPath();for(let q=0;q<p.length;q+=2){const X=22+p[q]*k,Y=22+p[q+1]*k;q?c.lineTo(X,Y):c.moveTo(X,Y);}c.stroke();});});
+    estado('Se encontraron '+gr.length+' tipos de símbolo ('+gr.reduce((t,g)=>t+g.inst.length,0)+' en total). Asigne el tipo de cada uno y coloque los dispositivos.');
+  },30);
+}
+function simColocar(){
+  const gr=E._simGrupos||[];let n=0,omit=0,fuera=0;const porTipo={};
+  gr.forEach((g,i)=>{const t=document.querySelector('#simGrupos [data-simtipo="'+i+'"]').value;if(!t)return;
+    g.inst.forEach((s,idx)=>{if(g.leyenda.includes(idx)){omit++;return;}
+      if(E.zona&&E.zona.length>2&&!dentro(s,E.zona)){fuera++;return;}
+      $('devTipo').value=t;agregarDisp({x:s.x,y:s.y},{tipo:t},true);n++;porTipo[t]=(porTipo[t]||0)+1;});});
+  if(!n){estado('No se colocó nada: asigne un tipo a algún grupo'+(fuera?' (o amplíe el área de diseño: '+fuera+' símbolos quedan fuera de ella)':'')+'.');return;}
+  E.selDev=null;E._spl=null;E._rv=null;propiedadesDisp();dibujar();reverificar();revActualizar();programarConfirmar();
+  estado('Se colocaron '+n+' dispositivos ('+Object.keys(porTipo).map(k=>porTipo[k]+' '+(ROT[k]||k)).join(', ')+'). Omitidos: '+omit+' de leyenda'+(fuera?', '+fuera+' fuera del área de diseño':'')+'. Revise el plano; Ctrl+Z deshace el lote.');
+}
+$('btnSimPdf').onclick=simPintarColores;
+$('simPanel').addEventListener('click',e=>{if(e.target.id==='btnSimAgrupar')simPintarGrupos();else if(e.target.id==='btnSimColocar')simColocar();});
 function zonaSig(){return E.zona?E.zona.map(q=>q.x.toFixed(2)+','+q.y.toFixed(2)).join(';'):'';}
 // Rejilla de puntos alrededor de unos dispositivos (sin depender de recintos): caja de los dispositivos ampliada «ext» metros.
 function rejillaLibre(devs,ext){
@@ -2834,7 +2981,7 @@ $('btnAuto').onclick=detectarRecintos;
 $('btnPlano').onclick=()=>$('filePlano').click();
 $('filePlano').onchange=async ev=>{const f=ev.target.files[0];if(!f)return;E.imgNombre=f.name;
   if(/\.pdf$/i.test(f.name)){await cargarPDF(f);}else{const url=URL.createObjectURL(f);const im=new Image();im.onload=()=>{ponerImagen(im);};im.src=url;}};
-function ponerImagen(im){E.img=im;E.imgMuros=null;E.imgX=0;E.imgY=0;aplicarEscala();ajustarVista();estado('Plano cargado ('+im.width+'×'+im.height+' px). Verifique la escala con «Calibrar con 2 puntos» sobre una cota conocida.');}
+function ponerImagen(im){E.vectPdf=null;E.img=im;E.imgMuros=null;E.imgX=0;E.imgY=0;aplicarEscala();ajustarVista();estado('Plano cargado ('+im.width+'×'+im.height+' px). Verifique la escala con «Calibrar con 2 puntos» sobre una cota conocida.');}
 function aplicarEscala(){if(!E.img)return;const N=+$('escN').value,dpi=+$('escDpi').value;if(N>0&&dpi>0)E.imgM=0.0254/dpi*N;ajustarVista();}
 $('escN').addEventListener('change',()=>{if(+$('escN').value>0)$('dxfEsc').value=$('escN').value;});
 $('btnEscalaAuto').onclick=aplicarEscala;
@@ -2961,10 +3108,15 @@ function pdfColor(v){const c=n=>Math.max(0,Math.min(255,Math.round(n*255)));
   return null;}
 // --- Intérprete de contenido: dibuja (si hay ctx) y recoge texto ---
 async function pdfEjecutar(D,ctx,txt,res,E2,prof){
-  let i=0,pila=[],clip=null,cx0=0,cy0=0,M=E2.M,lw=1,dashed=false,ruta={p:[],compl:false};
+  let i=0,pila=[],clip=null,cx0=0,cy0=0,M=E2.M,lw=1,dashed=false,ruta={p:[],compl:false},vpts=[],scol=E2.sc||'0,0,0',fcol=E2.fc||'0,0,0';   // vpts/scol/fcol: registro vectorial (lectura de símbolos)
   const Mst=[];let tm=[1,0,0,1,0,0],tlm=[1,0,0,1,0,0],fuente=null,tam=1,tl=0;
   const num=v=>typeof v==='number'?v:0;
   const pintar=op=>{
+    if(E2.vect&&vpts.length>=4&&op!=='n'){   // se guarda el trazo (puntos ya en el espacio de la página) bajo su color
+      const key=/^(f|F|f\*)$/.test(op)?fcol:scol,V=E2.vect,c=V.cols[key]||(V.cols[key]={n:0,ini:[],pts:[],over:false});c.n++;
+      if(!c.over){if(c.n>V.cap){c.over=true;c.pts=[];c.ini=[];}else{c.ini.push(c.pts.length);for(let q=0;q<vpts.length;q+=2){const x=vpts[q],y=vpts[q+1];c.pts.push(M[0]*x+M[2]*y+M[4],M[1]*x+M[3]*y+M[5]);}}}
+    }
+    vpts=[];
     const rellena=/^(f|F|f\*|B|B\*|b|b\*)$/.test(op),traza=/^(S|s|B|B\*|b|b\*)$/.test(op),cierra=/^(s|b|b\*)$/.test(op),eo=/\*$/.test(op);
     if(ctx){
       if(cierra)ctx.closePath();
@@ -3004,26 +3156,26 @@ async function pdfEjecutar(D,ctx,txt,res,E2,prof){
     const op=m[0];i+=op.length;const a=pila;
     if(op==='BI'){const re=/\sEI(?=\s|$)/g;re.lastIndex=i;const q=re.exec(txt);i=q?q.index+q[0].length:txt.length;pila=[];continue;}
     switch(op){
-      case 'q':if(ctx)ctx.save();Mst.push({M:M.slice(),lw,dashed});break;
-      case 'Q':if(ctx)ctx.restore();if(Mst.length){const s=Mst.pop();M=s.M;lw=s.lw;dashed=s.dashed;}break;
+      case 'q':if(ctx)ctx.save();Mst.push({M:M.slice(),lw,dashed,scol,fcol});break;
+      case 'Q':if(ctx)ctx.restore();if(Mst.length){const s=Mst.pop();M=s.M;lw=s.lw;dashed=s.dashed;scol=s.scol;fcol=s.fcol;}break;
       case 'cm':{const mm=a.map(num);if(mm.length===6){M=mulM(mm,M);if(ctx)ctx.transform(mm[0],mm[1],mm[2],mm[3],mm[4],mm[5]);}break;}
       case 'w':lw=num(a[0]);break;
       case 'J':if(ctx)ctx.lineCap=['butt','round','square'][num(a[0])]||'butt';break;
       case 'j':if(ctx)ctx.lineJoin=['miter','round','bevel'][num(a[0])]||'miter';break;
       case 'd':if(ctx){const arr=(Array.isArray(a[0])?a[0]:[]).map(num);try{ctx.setLineDash(arr.some(x=>x<0)?[]:arr);}catch(e){}}
         dashed=(Array.isArray(a[0])?a[0]:[]).some(x=>typeof x==='number'&&x>0);break;
-      case 'm':if(ctx)ctx.moveTo(num(a[0]),num(a[1]));if(ruta.p.length)ruta.compl=true;ruta.p.push([num(a[0]),num(a[1])]);cx0=num(a[0]);cy0=num(a[1]);break;
-      case 'l':if(ctx)ctx.lineTo(num(a[0]),num(a[1]));ruta.p.push([num(a[0]),num(a[1])]);cx0=num(a[0]);cy0=num(a[1]);break;
-      case 'c':ruta.compl=true;if(ctx)ctx.bezierCurveTo(num(a[0]),num(a[1]),num(a[2]),num(a[3]),num(a[4]),num(a[5]));cx0=num(a[4]);cy0=num(a[5]);break;
-      case 'v':ruta.compl=true;if(ctx)ctx.bezierCurveTo(cx0,cy0,num(a[0]),num(a[1]),num(a[2]),num(a[3]));cx0=num(a[2]);cy0=num(a[3]);break;
-      case 'y':ruta.compl=true;if(ctx)ctx.bezierCurveTo(num(a[0]),num(a[1]),num(a[2]),num(a[3]),num(a[2]),num(a[3]));cx0=num(a[2]);cy0=num(a[3]);break;
+      case 'm':vpts.push(num(a[0]),num(a[1]));if(ctx)ctx.moveTo(num(a[0]),num(a[1]));if(ruta.p.length)ruta.compl=true;ruta.p.push([num(a[0]),num(a[1])]);cx0=num(a[0]);cy0=num(a[1]);break;
+      case 'l':vpts.push(num(a[0]),num(a[1]));if(ctx)ctx.lineTo(num(a[0]),num(a[1]));ruta.p.push([num(a[0]),num(a[1])]);cx0=num(a[0]);cy0=num(a[1]);break;
+      case 'c':vpts.push(num(a[4]),num(a[5]));ruta.compl=true;if(ctx)ctx.bezierCurveTo(num(a[0]),num(a[1]),num(a[2]),num(a[3]),num(a[4]),num(a[5]));cx0=num(a[4]);cy0=num(a[5]);break;
+      case 'v':vpts.push(num(a[2]),num(a[3]));ruta.compl=true;if(ctx)ctx.bezierCurveTo(cx0,cy0,num(a[0]),num(a[1]),num(a[2]),num(a[3]));cx0=num(a[2]);cy0=num(a[3]);break;
+      case 'y':vpts.push(num(a[2]),num(a[3]));ruta.compl=true;if(ctx)ctx.bezierCurveTo(num(a[0]),num(a[1]),num(a[2]),num(a[3]),num(a[2]),num(a[3]));cx0=num(a[2]);cy0=num(a[3]);break;
       case 'h':ruta.compl=true;if(ctx)ctx.closePath();break;
-      case 're':ruta.compl=true;if(ctx)ctx.rect(num(a[0]),num(a[1]),num(a[2]),num(a[3]));break;
+      case 're':{const x=num(a[0]),y=num(a[1]),w=num(a[2]),h=num(a[3]);vpts.push(x,y,x+w,y,x+w,y+h,x,y+h,x,y);}ruta.compl=true;if(ctx)ctx.rect(num(a[0]),num(a[1]),num(a[2]),num(a[3]));break;
       case 'S':case 's':case 'f':case 'F':case 'f*':case 'B':case 'B*':case 'b':case 'b*':case 'n':pintar(op);break;
       case 'W':clip='nonzero';break;
       case 'W*':clip='evenodd';break;
-      case 'g':case 'rg':case 'k':case 'sc':case 'scn':{const col=pdfColor(a.filter(x=>typeof x==='number'));if(ctx&&col)ctx.fillStyle=col;break;}
-      case 'G':case 'RG':case 'K':case 'SC':case 'SCN':{const col=pdfColor(a.filter(x=>typeof x==='number'));if(ctx&&col)ctx.strokeStyle=col;break;}
+      case 'g':case 'rg':case 'k':case 'sc':case 'scn':{const col=pdfColor(a.filter(x=>typeof x==='number'));if(ctx&&col)ctx.fillStyle=col;if(col)fcol=col.slice(4,-1).replace(/ /g,'');break;}
+      case 'G':case 'RG':case 'K':case 'SC':case 'SCN':{const col=pdfColor(a.filter(x=>typeof x==='number'));if(ctx&&col)ctx.strokeStyle=col;if(col)scol=col.slice(4,-1).replace(/ /g,'');break;}
       case 'Do':{
         const xo=pdfGet(D,res&&res.XObject),ref=xo&&a[0]&&xo[a[0].n];
         if(ref&&ref.r!==undefined&&prof<PDF_PROF_MAX){
@@ -3034,7 +3186,7 @@ async function pdfEjecutar(D,ctx,txt,res,E2,prof){
               const mat=(pdfGet(D,d.Matrix)||[1,0,0,1,0,0]).map(x=>pdfNum(D,x));
               if(ctx){ctx.save();ctx.transform(mat[0],mat[1],mat[2],mat[3],mat[4],mat[5]);
                 const bb=pdfGet(D,d.BBox);if(bb){const b=bb.map(x=>pdfNum(D,x));ctx.beginPath();ctx.rect(b[0],b[1],b[2]-b[0],b[3]-b[1]);ctx.clip();ctx.beginPath();}}
-              await pdfEjecutar(D,ctx,b2s(u),pdfGet(D,d.Resources)||res,{M:mulM(mat,M),esc:E2.esc,textos:E2.textos,muros:E2.muros,mPt:E2.mPt},prof+1);
+              await pdfEjecutar(D,ctx,b2s(u),pdfGet(D,d.Resources)||res,{M:mulM(mat,M),esc:E2.esc,textos:E2.textos,muros:E2.muros,mPt:E2.mPt,vect:E2.vect,sc:scol,fc:fcol},prof+1);
               if(ctx)ctx.restore();
             }
           }
@@ -3069,9 +3221,9 @@ async function pdfRenderizar(D,pag,opt){
   // Matriz página→lienzo según /Rotate (0, 90, 180, 270 grados en sentido horario)
   const MT={0:[esc,0,0,-esc,-x0*esc,y1*esc],90:[0,esc,esc,0,-y0*esc,-x0*esc],180:[-esc,0,0,esc,x1*esc,-y0*esc],270:[0,-esc,-esc,0,y1*esc,x1*esc]}[rot]||[esc,0,0,-esc,-x0*esc,y1*esc];
   c.setTransform(MT[0],MT[1],MT[2],MT[3],MT[4],MT[5]);c.strokeStyle='#000';c.fillStyle='#000';c.beginPath();
-  const textos=[];
-  await pdfEjecutar(D,c,await pdfContenido(D,pag),pdfGet(D,pag.h.Resources),{M:[1,0,0,1,0,0],esc,textos,muros:!!opt.muros,mPt:opt.mPt||0},0);
-  return {canvas:cvp,esc,textos,rot,MT};
+  const textos=[],vect=opt.vect?{cols:{},cap:SIM_TRAZOS_MAX}:null;
+  await pdfEjecutar(D,c,await pdfContenido(D,pag),pdfGet(D,pag.h.Resources),{M:[1,0,0,1,0,0],esc,textos,muros:!!opt.muros,mPt:opt.mPt||0,vect},0);
+  return {canvas:cvp,esc,textos,rot,MT,vect};
 }
 function agruparLineas(textos,tolMin){
   const t=textos.filter(x=>x.t&&x.t.trim()).sort((a,b)=>(b.y-a.y)||(a.x-b.x)),L=[];
@@ -3097,10 +3249,10 @@ async function cargarPDF(f){
     const D=await pdfAbrir(new Uint8Array(await f.arrayBuffer())),pgs=pdfPaginas(D);
     if(!pgs.length)throw new Error('no se encontraron páginas');
     let n=1;if(pgs.length>1){n=parseInt(prompt('El PDF tiene '+pgs.length+' páginas. ¿Cuál cargar?','1'),10)||1;n=Math.max(1,Math.min(pgs.length,n));}
-    const r=await pdfRenderizar(D,pgs[n-1]);
+    const r=await pdfRenderizar(D,pgs[n-1],{vect:true});
     const todo=pdfLineas(r.textos,r.rot).join(' '),mE=/escala\s*:?\s*1\s*:\s*(\d{2,4})/i.exec(todo);
     await new Promise(res=>r.canvas.toBlob(b=>{const im=new Image();im.onload=()=>{
-      $('escDpi').value=(72*r.esc).toFixed(2);if(mE)$('escN').value=mE[1];ponerImagen(im);
+      $('escDpi').value=(72*r.esc).toFixed(2);if(mE)$('escN').value=mE[1];ponerImagen(im);E.vectPdf={cols:r.vect.cols,MT:r.MT,esc:r.esc};   // trazos vectoriales por color, para leer los símbolos en Revisión
       E.textosPdf=r.textos.map(p=>({t:p.t,s:p.s*r.esc*E.imgM,x:E.imgX+(r.MT[0]*p.x+r.MT[2]*p.y+r.MT[4])*E.imgM,y:E.imgY+(r.MT[1]*p.x+r.MT[3]*p.y+r.MT[5])*E.imgM}));   // en metros de mundo
       estado('PDF cargado ('+im.width+'×'+im.height+' px). '+(mE?'Escala detectada en el plano: 1:'+mE[1]+'. ':'No se detectó «ESCALA 1:N» en el texto: ingrésela y pulse «Aplicar escala». ')+'Verifique con «Calibrar con 2 puntos».');res();};im.src=URL.createObjectURL(b);}));
     // Segunda pasada: imagen solo con muros (sin texto, ejes ni cortes) para detectar recintos
@@ -3277,11 +3429,11 @@ function reconstruirResultados(){
    ========================================================================== */
 function nivelCapturar(){
   return {nombre:E.niveles[E.nivAct].nombre,recintos:E.recintos,marcas:E.marcas,disp:E.disp,zona:E.zona,img:E.img,imgNombre:E.imgNombre,imgM:E.imgM,imgX:E.imgX,imgY:E.imgY,
-    imgMuros:E.imgMuros||null,textosPdf:E.textosPdf||[],vista:Object.assign({},E.vista),cableado:E.cableado||null,escN:$('escN').value,escDpi:$('escDpi').value};
+    imgMuros:E.imgMuros||null,vectPdf:E.vectPdf||null,textosPdf:E.textosPdf||[],vista:Object.assign({},E.vista),cableado:E.cableado||null,escN:$('escN').value,escDpi:$('escDpi').value};
 }
 function nivelCargar(n){
   E.recintos=n.recintos||[];E.marcas=n.marcas||[];E.disp=n.disp||[];E.zona=n.zona||null;E.img=n.img||null;E.imgNombre=n.imgNombre||'';E.imgM=n.imgM||0;E.imgX=n.imgX||0;E.imgY=n.imgY||0;
-  E.imgMuros=n.imgMuros||null;E.textosPdf=n.textosPdf||[];E.cableado=n.cableado||null;
+  E.imgMuros=n.imgMuros||null;E.vectPdf=n.vectPdf||null;E.textosPdf=n.textosPdf||[];E.cableado=n.cableado||null;
   if(n.escN)$('escN').value=n.escN;if(n.escDpi)$('escDpi').value=n.escDpi;
   E.sel=null;E.selDev=null;E.edit=null;E.pegando=null;E.borrador=[];E.calib=[];E.moverDisp=null;E.moverMarca=null;E.modoZona=false;E.modoPlantilla=false;
   E._spl=null;E._splK=null;E._visK=null;E._rv=null;
@@ -3299,7 +3451,7 @@ function nivelIr(i){
 function nivelNuevo(copiar){
   E.niveles[E.nivAct]=nivelCapturar();const a=E.niveles[E.nivAct];
   let nv={nombre:'Nivel '+(E.niveles.length+1)};
-  if(copiar)nv=Object.assign(nv,{recintos:JSON.parse(JSON.stringify(a.recintos)),zona:a.zona?JSON.parse(JSON.stringify(a.zona)):null,img:a.img,imgNombre:a.imgNombre,imgM:a.imgM,imgX:a.imgX,imgY:a.imgY,imgMuros:a.imgMuros,textosPdf:a.textosPdf,vista:a.vista,escN:a.escN,escDpi:a.escDpi});
+  if(copiar)nv=Object.assign(nv,{recintos:JSON.parse(JSON.stringify(a.recintos)),zona:a.zona?JSON.parse(JSON.stringify(a.zona)):null,img:a.img,imgNombre:a.imgNombre,imgM:a.imgM,imgX:a.imgX,imgY:a.imgY,imgMuros:a.imgMuros,vectPdf:a.vectPdf,textosPdf:a.textosPdf,vista:a.vista,escN:a.escN,escDpi:a.escDpi});
   E.niveles.push(nv);E.nivAct=E.niveles.length-1;nivelCargar(nv);
   if(+$('pNiveles').value<E.niveles.length){$('pNiveles').value=E.niveles.length;actualizarDictamen();}   // «Niveles sobre rasante» al menos los creados
   dibujarBarraNiveles();estado((copiar?'Nivel duplicado (plano y recintos, sin dispositivos): ':'Nivel nuevo en blanco: ')+nv.nombre+'.');programarAutoguardado();
