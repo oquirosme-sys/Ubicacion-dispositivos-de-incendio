@@ -37,6 +37,9 @@
   th,td{border:1px solid var(--gb);padding:4px 6px;text-align:left;vertical-align:top} th{background:var(--azc)}
   .tarjeta{border:1px solid var(--gb);border-radius:7px;padding:8px 10px;margin:8px 0;background:#fbfcfd}
   .tarjeta h4{margin:0 0 4px;font-size:.88rem;color:var(--az0)}
+  #mod2.rev .soloEjec{display:none !important}
+  #mod2:not(.rev) .soloRev{display:none !important}
+  .rvcol{display:inline-block;width:11px;height:11px;border-radius:2px;vertical-align:-1px;margin-right:3px}
   .pct{display:inline-block;min-width:3.2em;text-align:right;color:#12314f;font-weight:700}
   details.tarjeta>summary{cursor:pointer;list-style-position:inside}
   details.tarjeta>summary h4{display:inline;margin:0}
@@ -149,7 +152,8 @@
    <button class="seccion activa" data-mod="mod1" role="tab">1 · Proyecto y criterios de diseño</button>
    <button class="seccion" data-mod="mod2" role="tab">2 · Ejecución</button>
    <button class="seccion" data-mod="mod4" role="tab">3 · Precableado</button>
-   <button class="seccion" data-mod="mod3" role="tab">4 · Glosario de simbología</button>
+   <button class="seccion" data-mod="rev" role="tab">4 · Revisión</button>
+   <button class="seccion" data-mod="mod3" role="tab">5 · Glosario de simbología</button>
   </nav>
 <div id="mod1" class="modulo">
 <div class="cols2">
@@ -228,25 +232,36 @@
   <div style="margin-bottom:6px"><button class="sec" id="btnUndo" title="Deshacer (Ctrl+Z)" disabled>↶ Deshacer</button><button class="sec" id="btnRedo" title="Rehacer (Ctrl+Y o Ctrl+Mayús+Z)" disabled>↷ Rehacer</button></div>
   <div id="barra">
    <button id="tSel" class="act">Seleccionar</button>
-   <button id="tRec" class="sec">Dibujar recinto</button>
-   <button id="tRect" class="sec">Recinto rectangular</button>
-   <button id="tRell" class="sec">Recinto por clic (plano)</button>
+   <button id="tRec" class="sec soloEjec">Dibujar recinto</button>
+   <button id="tRect" class="sec soloEjec">Recinto rectangular</button>
+   <button id="tRell" class="sec soloEjec">Recinto por clic (plano)</button>
    <span class="sep"></span>
-   <button id="tSal" class="sec">+ Salida</button>
-   <button id="tFacp" class="sec">+ FACP/recepción</button>
-   <button id="tAhu" class="sec">+ Manejadora (AHU)</button>
-   <button id="tAsc" class="sec">+ Ascensor</button>
-   <button id="tEq" class="sec" title="Colocar un equipo de la matriz de supervisión (bomba, generador, damper…)">+ Equipo</button><select id="eqTipo" title="Equipo de la matriz a colocar" style="width:auto;max-width:100%"></select>
+   <button id="tSal" class="sec soloEjec">+ Salida</button>
+   <button id="tFacp" class="sec soloEjec">+ FACP/recepción</button>
+   <button id="tAhu" class="sec soloEjec">+ Manejadora (AHU)</button>
+   <button id="tAsc" class="sec soloEjec">+ Ascensor</button>
+   <button id="tEq" class="sec soloEjec" title="Colocar un equipo de la matriz de supervisión (bomba, generador, damper…)">+ Equipo</button><select id="eqTipo" title="Equipo de la matriz a colocar" style="width:auto;max-width:100%"></select>
    <span class="sep"></span>
    <button id="tBor" class="peligro">Borrar</button>
-   <button id="tBorTodos" class="peligro" title="Elegir con casillas qué recintos borrar">Borrar recintos…</button>
+   <button id="tBorTodos" class="peligro soloEjec" title="Elegir con casillas qué recintos borrar">Borrar recintos…</button>
    <span class="sep"></span>
    <button id="tDev" class="sec" title="Agregar dispositivos a mano, además de los automáticos">＋ Dispositivo</button>
    <select id="devTipo" title="Tipo de dispositivo a agregar" style="width:auto;max-width:100%"></select>
    <button id="tAjustar" class="sec">Ajustar vista</button>
    <label style="margin:4px 0 0;display:block;font-size:.8rem" title="Al dibujar recintos, el cursor se engancha a las esquinas y muros del plano. Mantenga Alt para desactivarlo temporalmente"><input type="checkbox" id="vSnap" style="width:auto" checked> Imán a esquinas y muros al dibujar</label>
   </div>
-</section><section class="card" id="cardRec"><h2>Recinto seleccionado</h2><div id="propRec"><small class="g">Seleccione un recinto en el lienzo (o doble clic sobre él) para cambiar su nombre, tipo y altura.</small></div></section><section class="card"><h2>Planta y recintos</h2>
+</section><section class="card soloRev" id="cardRev"><h2>Revisión de cobertura (planos entregados)</h2>
+  <small class="g">Para revisar un diseño ya entregado: 1) cargue el plano; 2) delimite el área a revisar con el aviso sobre el plano; 3) coloque los dispositivos tal como están en los planos (herramienta «＋ Dispositivo»; mueva, gire y cambie candelas o tipo en «Dispositivo seleccionado»); 4) vea lo que queda sin cobertura.</small>
+  <div style="margin:6px 0"><b style="font-size:.82rem">Capas de lo que NO está cubierto</b>
+   <label style="margin:2px 0"><input type="checkbox" id="rvDet" style="width:auto" checked> <span class="rvcol" style="background:rgba(220,30,30,.7)"></span>Detección (radio de cobertura de cada detector)</label>
+   <label style="margin:2px 0"><input type="checkbox" id="rvVis" style="width:auto"> <span class="rvcol" style="background:rgba(245,130,0,.8)"></span>Notificación visual (estrobos)</label>
+   <label style="margin:2px 0"><input type="checkbox" id="rvAud" style="width:auto"> <span class="rvcol" style="background:rgba(120,60,200,.75)"></span>Notificación auditiva (nivel sonoro)</label>
+   <label style="margin:4px 0">Nivel sonoro a respetar (dBA) <input type="number" id="rvReq" value="60" min="30" max="110" step="1" style="width:70px"></label>
+   <small class="g">Sin recintos no hay ocupación de la cual sacar el nivel: ingréselo según el tipo de espacio (ambiente + 15 dB; 75 dBA donde se duerme).</small>
+  </div>
+  <div id="rvResultados"><small class="g">Delimite el área a revisar para ver los resultados.</small></div>
+  <button class="sec" id="btnRvInforme">Descargar informe de revisión (.html)</button>
+</section><section class="card soloEjec" id="cardRec"><h2>Recinto seleccionado</h2><div id="propRec"><small class="g">Seleccione un recinto en el lienzo (o doble clic sobre él) para cambiar su nombre, tipo y altura.</small></div></section><section class="card"><h2>Planta y recintos</h2>
   <b>Modo A — cargar plano</b>
   <button id="btnPlano">Cargar plano (imagen / PDF)</button>
   <input type="file" id="filePlano" accept="image/*,.pdf" class="sinoche">
@@ -274,7 +289,7 @@
   </div>
   <button id="btnCrear">Crear recinto</button>
 </section><section class="card"><h2>Dispositivo seleccionado</h2><div id="propDisp"></div></section>
-<section class="card"><h2>Prediseño</h2><small class="g">Los criterios se definen en el módulo 1. Cree o cargue los recintos y genere.</small><br>  <button class="gran" id="btnGenerar">▶ Generar prediseño</button>
+<section class="card soloEjec"><h2>Prediseño</h2><small class="g">Los criterios se definen en el módulo 1. Cree o cargue los recintos y genere.</small><br>  <button class="gran" id="btnGenerar">▶ Generar prediseño</button>
   <button class="sec" id="btnGenerarTodo" title="Recalcula todos los recintos y descarta los ajustes manuales de los dispositivos automáticos">↻ Regenerar todo</button>
   <button class="sec" id="btnLimpiar">Quitar dispositivos</button>
   <div style="margin-top:10px;border-top:1px solid var(--gb);padding-top:8px"><b style="font-size:.82rem">Dispositivos manuales</b>
@@ -308,19 +323,19 @@
    <label style="margin:0"><input type="checkbox" id="vCobDet" style="width:auto"> Detectores</label>
    <label style="margin:0"><input type="checkbox" id="vCobVis" style="width:auto"> Notificación visual</label>
    <label style="margin:0"><input type="checkbox" id="vCobAud" style="width:auto"> Notificación auditiva</label>
-   <label style="margin:0" title="Rojo: por debajo del nivel requerido; verde: cumple; naranja: sobre 110 dBA"><input type="checkbox" id="vSPL" style="width:auto"> Nivel sonoro (dBA)</label>
-   <label style="margin:0" title="Dibuja a la par de cada equipo los módulos que pide la matriz (uno por señal), para replicarlos en el modelo"><input type="checkbox" id="vModulos" style="width:auto" checked> Módulos junto a equipos</label>
-   <label style="margin:0" title="Muestra, junto a cada equipo del plano, los dispositivos que pide la matriz de supervisión"><input type="checkbox" id="vNotas" style="width:auto" checked> Notas de equipos</label>
-   <select id="splModo" title="Con qué dispositivos se calcula la cobertura sonora (nivel dBA) y el mapa de cobertura visual" style="width:auto"><option value="rec">Cobertura sonora y visual: por recinto (solo sus dispositivos)</option><option value="comb">Cobertura sonora y visual: recintos combinados (con pérdida por muros)</option><option value="libre">Cobertura sonora y visual: sin recintos asignados (todos los dispositivos, sin muros)</option></select>
-   <label id="lblSplPerd" style="margin:0" title="dB que se pierden por cada muro que atraviesa el sonido en el modo combinado">pérdida por muro <select id="splPerd" style="width:auto"></select></label>
+   <label class="soloEjec" style="margin:0" title="Rojo: por debajo del nivel requerido; verde: cumple; naranja: sobre 110 dBA"><input type="checkbox" id="vSPL" style="width:auto"> Nivel sonoro (dBA)</label>
+   <label class="soloEjec" style="margin:0" title="Dibuja a la par de cada equipo los módulos que pide la matriz (uno por señal), para replicarlos en el modelo"><input type="checkbox" id="vModulos" style="width:auto" checked> Módulos junto a equipos</label>
+   <label class="soloEjec" style="margin:0" title="Muestra, junto a cada equipo del plano, los dispositivos que pide la matriz de supervisión"><input type="checkbox" id="vNotas" style="width:auto" checked> Notas de equipos</label>
+   <select id="splModo" class="soloEjec" title="Con qué dispositivos se calcula la cobertura sonora (nivel dBA) y el mapa de cobertura visual" style="width:auto"><option value="rec">Cobertura sonora y visual: por recinto (solo sus dispositivos)</option><option value="comb">Cobertura sonora y visual: recintos combinados (con pérdida por muros)</option><option value="libre">Cobertura sonora y visual: sin recintos asignados (todos los dispositivos, sin muros)</option></select>
+   <label id="lblSplPerd" class="soloEjec" style="margin:0" title="dB que se pierden por cada muro que atraviesa el sonido en el modo combinado">pérdida por muro <select id="splPerd" style="width:auto"></select></label>
    <label style="margin:0" title="Separación de los puntos de cálculo del mapa de nivel sonoro y de cobertura visual (como la rejilla de DIALux). Con más puntos se ve mejor pero tarda más; si hay demasiados la separación crece sola.">puntos cada <select id="splPaso" style="width:auto"></select></label>
-   <label id="lblVisMuros" style="margin:0" title="Muros que puede atravesar la luz de un estrobo hacia el recinto vecino (puerta abierta, vidrio, vano). Con «Notificación visual» activa y el modo combinado o sin recintos, se pinta el mapa de zonas cubiertas (verde) y sin cobertura (rojo)">muros que atraviesa la luz <select id="visMuros" style="width:auto"></select></label>
+   <label id="lblVisMuros" class="soloEjec" style="margin:0" title="Muros que puede atravesar la luz de un estrobo hacia el recinto vecino (puerta abierta, vidrio, vano). Con «Notificación visual» activa y el modo combinado o sin recintos, se pinta el mapa de zonas cubiertas (verde) y sin cobertura (rojo)">muros que atraviesa la luz <select id="visMuros" style="width:auto"></select></label>
    <label style="margin:0"><input type="checkbox" id="vPlano" checked style="width:auto"> Plano</label>
    <label style="margin:0">Opacidad plano <input type="range" id="vOp" min="10" max="100" value="55" style="width:90px"> <b id="vOpPct" class="pct">55 %</b></label>
    <label style="margin:0">Tamaño símbolos <input type="range" id="vSim" min="8" max="40" value="16" style="width:90px"> <b id="vSimPct" class="pct">100 %</b></label>
-   <label style="margin:0">Cierre de huecos de puerta (px) <input type="number" id="rellCierre" value="10" min="0" max="40" style="width:56px"></label>
-    <span id="reqAud" style="display:none;font-size:.76rem;color:#12314f;background:#eaf3fb;border:1px solid #9cc3ee;border-radius:5px;padding:2px 8px"></span>
-    <span style="margin-left:auto;display:flex;gap:4px"><button class="sec" id="btnRecOcultos" style="display:none;padding:3px 8px;font-size:.74rem" title="Vuelve a mostrar los recintos que dejó atrás">🙈 Mostrar recintos ocultos</button><button class="sec" id="btnCobOcultarTodas" title="Oculta la cobertura de todos los recintos (los dispositivos se quedan)" style="padding:3px 8px;font-size:.74rem">👁 Ocultar todas</button><button class="sec" id="btnCobMostrarTodas" title="Muestra la cobertura de todos los recintos" style="padding:3px 8px;font-size:.74rem">👁 Mostrar todas</button></span>
+   <label class="soloEjec" style="margin:0">Cierre de huecos de puerta (px) <input type="number" id="rellCierre" value="10" min="0" max="40" style="width:56px"></label>
+    <span id="reqAud" class="soloEjec" style="display:none;font-size:.76rem;color:#12314f;background:#eaf3fb;border:1px solid #9cc3ee;border-radius:5px;padding:2px 8px"></span>
+    <span style="margin-left:auto;display:flex;gap:4px"><button class="sec soloEjec" id="btnRecOcultos" style="display:none;padding:3px 8px;font-size:.74rem" title="Vuelve a mostrar los recintos que dejó atrás">🙈 Mostrar recintos ocultos</button><button class="sec soloEjec" id="btnCobOcultarTodas" title="Oculta la cobertura de todos los recintos (los dispositivos se quedan)" style="padding:3px 8px;font-size:.74rem">👁 Ocultar todas</button><button class="sec soloEjec" id="btnCobMostrarTodas" title="Muestra la cobertura de todos los recintos" style="padding:3px 8px;font-size:.74rem">👁 Mostrar todas</button></span>
   <div id="notaModoCob" style="flex-basis:100%;display:none;font-size:.74rem;color:#5a6472;border-top:1px dashed #cfd6df;padding-top:4px"></div>
 </div>
   <div id="avisoZona" style="display:none"></div>
@@ -1077,7 +1092,7 @@ function reqAudDe(r){
 }
 function actualizarReqAud(){
   const n=$('reqAud');if(!n)return;
-  if(!($('vCobAud').checked||$('vSPL').checked)){n.style.display='none';return;}
+  if(E.rev||!($('vCobAud').checked||$('vSPL').checked)){n.style.display='none';return;}
   const g={};E.recintos.forEach(r=>{const A=reqAudDe(r);if(!A)return;const t=(TIPOS[r.tipo]||{}).n||r.tipo;if(!g[t]||A.req>g[t])g[t]=A.req;});
   const l=Object.keys(g).sort((a,b)=>g[a]-g[b]).map(t=>esc(t)+' <b>'+g[t].toFixed(0)+'</b>');
   n.style.display='';
@@ -1091,7 +1106,7 @@ function notaModoCob(){
   };
   if($('lblVisMuros'))$('lblVisMuros').style.display=m==='comb'?'':'none';   // solo el modo combinado usa muros
   if($('lblSplPerd'))$('lblSplPerd').style.display=m==='comb'?'':'none';
-  n.style.display=T[m]?'':'none';
+  n.style.display=(T[m]&&!E.rev)?'':'none';
   if(E._notaModo===m)return;   // no se reescribe en cada redibujo: así conserva si el usuario la dejó abierta o plegada
   const abierta=!!(n.querySelector('details')&&n.querySelector('details').open);E._notaModo=m;
   const t=T[m]||'',i=t.indexOf('</b>')+4;   // el título (en negrita) es el rótulo plegable; el resto, el contenido
@@ -1101,10 +1116,13 @@ function textoModoSPL(){if($('splModo').value==='libre')return 'sin recintos asi
 // Aviso cuando hay plano y no hay recintos: pedir que se delimite el área de la estructura a diseñar.
 function avisoZona(){
   const n=$('avisoZona');if(!n)return;
-  const hay=!!E.img&&!E.recintos.length;
+  const hay=(!!E.img&&!E.recintos.length)||E.rev;
   if(!hay&&!E.zona){n.style.display='none';return;}
   n.style.display='';
   n.style.cssText='display:block;margin:0 0 6px;padding:6px 10px;border-radius:6px;font-size:.8rem;'+(E.zona?'background:#eef6ff;border:1px solid #9cc3ee':'background:#fff4dd;border:1px solid #e0a800');
+  if(E.rev){n.innerHTML=E.zona
+   ?'<b>Área a revisar:</b> '+area(E.zona).toFixed(0)+' m². Las capas de revisión se calculan solo dentro de ella. <button class="sec" data-zona="poli">Redefinir (polígono)</button> <button class="sec" data-zona="def">Redefinir (rectángulo)</button> <button class="sec" data-zona="quitar">Quitar</button>'
+   :'<b>Delimite el área de planta a revisar.</b> Sin ella no se puede calcular lo que queda sin cobertura. <button class="sec" data-zona="poli">Delimitar área (polígono, sigue el contorno)</button> <button class="sec" data-zona="def">Delimitar área (rectángulo, dos esquinas)</button>';return;}
   n.innerHTML=E.zona
    ?'<b>Área de diseño:</b> '+area(E.zona).toFixed(0)+' m². Los mapas del modo «sin recintos asignados» solo se calculan dentro de ella. <button class="sec" data-zona="poli">Redefinir (polígono)</button> <button class="sec" data-zona="def">Redefinir (rectángulo)</button> <button class="sec" data-zona="quitar">Quitar</button>'
    :'<b>Delimite el área de la estructura a diseñar.</b> Aún no hay recintos ni área de diseño: sin ellos, las coberturas del modo «sin recintos asignados» se calculan alrededor de todos los dispositivos y pueden salirse del edificio. <button class="sec" data-zona="poli">Delimitar área (polígono, sigue el contorno)</button> <button class="sec" data-zona="def">Delimitar área (rectángulo, dos esquinas)</button>';
@@ -1113,6 +1131,75 @@ $('avisoZona').addEventListener('click',e=>{const b=e.target.closest('[data-zona
   if(b.dataset.zona==='quitar'){E.zona=null;E._spl=null;E._visK=null;dibujar();programarConfirmar();estado('Área de diseño quitada.');return;}
   if(b.dataset.zona==='poli'){herramienta('rec');E.modoZona=true;estado('Área de diseño: haga clic en cada vértice del contorno de la estructura; doble clic o Enter para cerrar; Esc cancela. Clic derecho: agregar o quitar un punto.');return;}
   herramienta('rect');E.modoZona=true;estado('Área de diseño: haga clic (o arrastre) en dos esquinas opuestas de la estructura a diseñar.');});
+/* ==========================================================================
+   REVISIÓN POSTERIOR A LA ENTREGA (pestaña 4): cobertura de los dispositivos colocados dentro del área delimitada, sin recintos
+   ========================================================================== */
+const REV_COLOR = {det:'rgba(220,30,30,.40)', vis:'rgba(245,130,0,.45)', aud:'rgba(120,60,200,.40)', sobre:'rgba(150,0,90,.55)'};
+// Calcula, sobre una rejilla de puntos dentro del área, qué puntos no están cubiertos por detección, estrobos ni nivel sonoro. Se guarda en caché según los datos.
+function revCalcular(){
+  const z=E.zona;if(!z||z.length<3)return null;
+  const req=+$('rvReq').value||60,base=+$('splPaso').value||MAPA_PASO_DEF_M,tot=area(z)/(base*base),paso=tot>MAPA_PUNTOS_MAX?base*Math.sqrt(tot/MAPA_PUNTOS_MAX):base;
+  const dets=E.disp.filter(d=>(d.tipo==='det_humo'||d.tipo==='det_calor')&&d.radio),estr=E.disp.filter(d=>/estrobo/.test(d.tipo)&&(d.lado||d.radioVis)),aud=todosAudibles();
+  const sig=[zonaSig(),paso,req,E.disp.map(d=>[d.id,d.x.toFixed(2),d.y.toFixed(2),d.tipo,d.radio,d.lado,d.radioVis,d.giro,d.dba3].join(',')).join(';')].join('|');
+  if(E._rv&&E._rv.sig===sig)return E._rv;
+  const b=bbox(z),R={sig,paso,req,area:area(z),N:0,det:{n:dets.length,sin:[]},vis:{n:estr.length,sin:[]},aud:{n:aud.length,sin:[],sobre:[]}};
+  for(let i=Math.floor(b.x0/paso);(i+.5)*paso<b.x1;i++)for(let j=Math.floor(b.y0/paso);(j+.5)*paso<b.y1;j++){
+    const p={x:(i+.5)*paso,y:(j+.5)*paso};if(!dentro(p,z))continue;R.N++;
+    if(dets.length&&!dets.some(d=>Math.hypot(p.x-d.x,p.y-d.y)<=d.radio))R.det.sin.push(p);
+    if(estr.length&&!estr.some(d=>cobVisContiene(d,recGeom(d),p)))R.vis.sin.push(p);
+    if(aud.length){const v=nivelSonoroComb(p,aud,0,null);if(!(v>=req-1e-6))R.aud.sin.push(p);else if(v>AUDIBLE_MAX_DBA)R.aud.sobre.push(p);}
+  }
+  return (E._rv=R);
+}
+function dibujarRevision(){
+  const R=revCalcular();if(!R)return;
+  const k=E.vista.k,w=R.paso*k+0.6,capas=[['rvDet','det',REV_COLOR.det],['rvVis','vis',REV_COLOR.vis],['rvAud','aud',REV_COLOR.aud]];
+  cx.save();cx.beginPath();E.zona.forEach((q,i)=>{const a=aPant(q);cx[i?'lineTo':'moveTo'](a.x,a.y);});cx.closePath();cx.clip();   // nada fuera del área revisada
+  capas.forEach(([id,key,col])=>{if(!$(id).checked)return;cx.fillStyle=col;R[key].sin.forEach(p=>{const a=aPant({x:p.x-R.paso/2,y:p.y-R.paso/2});cx.fillRect(a.x,a.y,w,w);});});
+  if($('rvAud').checked){cx.fillStyle=REV_COLOR.sobre;R.aud.sobre.forEach(p=>{const a=aPant({x:p.x-R.paso/2,y:p.y-R.paso/2});cx.fillRect(a.x,a.y,w,w);});}
+  cx.restore();
+}
+// Filas de resultados de la revisión: sistema, dispositivos, cobertura y estado.
+function revFilas(R){
+  const f=(nom,d,det)=>{
+    if(!d.n)return {nom,n:0,pct:null,m2:null,estado:'sin dispositivos',mal:true,det:'No hay '+det+' colocados: toda el área queda sin '+(nom==='Detección'?'detección':'cobertura de '+nom.toLowerCase())+'.'};
+    const pct=100*(R.N-d.sin.length)/R.N,m2=d.sin.length*R.paso*R.paso;
+    return {nom,n:d.n,pct,m2,estado:d.sin.length?'REVISAR':'Cubierta',mal:!!d.sin.length,det:d.sin.length?m2.toFixed(0)+' m² ('+(100-pct).toFixed(1)+' %) del área sin cobertura.':'Toda el área revisada queda cubierta.'};
+  };
+  const filas=[f('Detección',R.det,'detectores'),f('Notificación visual',R.vis,'estrobos'),f('Notificación auditiva',R.aud,'bocinas o parlantes')];
+  if(R.aud.n){const a=filas[2];if(a.mal&&a.pct!=null)a.det='Nivel menor a '+R.req+' dBA en '+a.m2.toFixed(0)+' m² ('+(100-a.pct).toFixed(1)+' %) del área.';if(R.aud.sobre.length)filas.push({nom:'Auditiva: sobre '+AUDIBLE_MAX_DBA+' dBA',n:R.aud.n,pct:null,m2:R.aud.sobre.length*R.paso*R.paso,estado:'REVISAR',mal:true,det:(R.aud.sobre.length*R.paso*R.paso).toFixed(1)+' m² con nivel sobre el máximo permitido de '+AUDIBLE_MAX_DBA+' dBA.'});}
+  return filas;
+}
+function revSupuestos(R){
+  return {sup:['Detección: un punto queda cubierto si está a ≤ el radio de cobertura de algún detector de humo o calor colocado (0.7·S, con S = '+$('pEspH').value+' m para humo y '+$('pEspC').value+' m para calor, tomados de los criterios del módulo 1; verificar contra NFPA 72 17.6.3.1 de la edición adoptada).',
+     'Notificación visual: cobertura según la Tabla 18.5.5.7.1 (a)/(b) de NFPA 72:2022 para las candelas y el montaje de cada estrobo (cuadrado de pared desde el muro o de cielo centrado; círculo en corredores).',
+     'Notificación auditiva: suma de potencias de bocinas y parlantes, −6 dB al duplicar la distancia desde la salida a 3 m, en campo libre; nivel a respetar ingresado por quien revisa: '+R.req+' dBA; máximo '+AUDIBLE_MAX_DBA+' dBA.',
+     'Los puntos de cálculo están separados '+(R.paso*100).toFixed(0)+' cm dentro del área delimitada ('+R.N+' puntos, '+R.area.toFixed(0)+' m²).'],
+   lim:['No considera muros, puertas, mobiliario ni cielos distintos de los supuestos: la luz y el sonido no se atenúan ni se bloquean.',
+     'Revisa solo los dispositivos que se colocaron en la herramienta: deben corresponder a los del plano entregado. Un dispositivo mal ubicado o con candelas mal anotadas cambia el resultado.',
+     'No hay requisitos por ocupación, porque no hay recintos: el nivel sonoro lo fija quien revisa. Esta revisión de cobertura no sustituye la verificación completa contra NFPA 72 ni el criterio del ingeniero responsable.']};
+}
+function revActualizar(){
+  const cont=$('rvResultados');if(!cont)return;
+  const R=revCalcular();
+  if(!R){if(cont.dataset.sig!=='-'){cont.dataset.sig='-';cont.innerHTML='<small class="g">Delimite el área a revisar para ver los resultados.</small>';}return;}
+  if(cont.dataset.sig===R.sig)return;cont.dataset.sig=R.sig;
+  const F=revFilas(R),S=revSupuestos(R);
+  cont.innerHTML='<table><tr><th>Sistema</th><th>Disp.</th><th>Cubierto</th><th>Sin cobertura</th><th></th></tr>'+F.map(r=>'<tr><td>'+esc(r.nom)+'</td><td>'+r.n+'</td><td>'+(r.pct==null?'—':r.pct.toFixed(1)+' %')+'</td><td>'+(r.m2==null?'—':r.m2.toFixed(0)+' m²')+'</td><td class="'+(r.mal?'mal':'ok')+'">'+esc(r.estado)+'</td></tr>').join('')+'</table>'+
+    '<ul style="margin:6px 0 6px 18px;padding:0;font-size:.78rem">'+F.map(r=>'<li'+(r.mal?' class="mal"':'')+'><b>'+esc(r.nom)+':</b> '+esc(r.det)+'</li>').join('')+'</ul>'+bloque(S.sup,S.lim);
+}
+function revInforme(){
+  const R=revCalcular();if(!R){alert('Delimite primero el área a revisar.');return;}
+  const F=revFilas(R),S=revSupuestos(R),img=cv.toDataURL('image/png'),f=new Date().toLocaleDateString('es-CR');
+  const h='<!doctype html><html lang="es"><meta charset="utf-8"><title>Revisión de cobertura</title><style>body{font:14px Arial,sans-serif;max-width:900px;margin:24px auto;color:#222}table{border-collapse:collapse;width:100%}td,th{border:1px solid #bbb;padding:5px 8px;text-align:left}th{background:#eef3f8}.mal{color:#a4231f;font-weight:700}.ok{color:#1e7d3c;font-weight:700}img{max-width:100%;border:1px solid #bbb}</style>'+
+   '<h1>Revisión de cobertura de planos entregados</h1><p><b>Proyecto:</b> '+esc($('pNombre').value||'(sin nombre)')+' · <b>Fecha:</b> '+f+' · <b>Plano:</b> '+esc(E.imgNombre||'—')+'</p>'+
+   '<p>Área revisada: '+R.area.toFixed(0)+' m² · '+R.N+' puntos de cálculo cada '+(R.paso*100).toFixed(0)+' cm · nivel sonoro a respetar: '+R.req+' dBA.</p>'+
+   '<h2>Resultados</h2><table><tr><th>Sistema</th><th>Dispositivos</th><th>Cubierto</th><th>Sin cobertura</th><th>Estado</th></tr>'+F.map(r=>'<tr><td>'+esc(r.nom)+'</td><td>'+r.n+'</td><td>'+(r.pct==null?'—':r.pct.toFixed(1)+' %')+'</td><td>'+(r.m2==null?'—':r.m2.toFixed(0)+' m²')+'</td><td class="'+(r.mal?'mal':'ok')+'">'+esc(r.estado)+'</td></tr>').join('')+'</table>'+
+   '<h2>Hallazgos</h2><ul>'+F.map(r=>'<li'+(r.mal?' class="mal"':'')+'><b>'+esc(r.nom)+':</b> '+esc(r.det)+'</li>').join('')+'</ul>'+
+   '<h2>Vista del plano con las capas activas</h2><img src="'+img+'" alt="Plano con cobertura">'+
+   '<h2>Supuestos</h2><ul>'+S.sup.map(t=>'<li>'+esc(t)+'</li>').join('')+'</ul><h2>Limitaciones</h2><ul>'+S.lim.map(t=>'<li>'+esc(t)+'</li>').join('')+'</ul></html>';
+  descargar('revision_cobertura.html',h,'text/html');
+}
 function dibujarZona(){
   if(!E.zona||E.zona.length<3)return;
   cx.save();cx.setLineDash([10,5]);cx.lineWidth=2;cx.strokeStyle='rgba(20,70,160,.85)';cx.beginPath();
@@ -1769,7 +1856,7 @@ function dibujarBase(){
   if(E.img&&ctlV('vPlano').checked){const a=aPant({x:E.imgX,y:E.imgY});cx.globalAlpha=ctlV('vOp').value/100;cx.drawImage(E.img,a.x,a.y,E.img.width*E.imgM*E.vista.k,E.img.height*E.imgM*E.vista.k);cx.globalAlpha=1;}
   // recintos
   E.recintos.forEach(rc=>{
-    if(rc.oculto)return;   // recinto dejado atrás: no se dibuja ni se puede seleccionar
+    if(rc.oculto||E.rev)return;   // recinto dejado atrás (o pestaña Revisión): no se dibuja ni se puede seleccionar
     cx.beginPath();rc.poly.forEach((p,i)=>{const q=aPant(p);cx[i?'lineTo':'moveTo'](q.x,q.y);});cx.closePath();
     cx.fillStyle=(E.sel===rc.id)?'rgba(224,168,0,0.25)':'rgba(27,74,117,0.08)';cx.fill();cx.strokeStyle=(E.sel===rc.id)?COLOR.sel:COLOR.recinto;cx.lineWidth=(E.sel===rc.id)?3:1.6;cx.stroke();
     const b=bbox(rc.poly),c=aPant({x:b.x0+b.w/2,y:b.y0+b.h/2});cx.fillStyle='#12314f';cx.font='11px Arial';cx.textAlign='center';cx.fillText(rc.nombre,c.x,c.y-14);
@@ -1786,6 +1873,7 @@ function dibujarBase(){
   const V2=!!E._modoCable;   // vista del precableado: solo plano, recintos, dispositivos y cableado (sin coberturas ni notas)
   const verDet=!V2&&$('vCobDet').checked,verVis=!V2&&$('vCobVis').checked,verAud=!V2&&$('vCobAud').checked;
   dibujarZona();
+  if(!E._modoCable&&E.rev){dibujarRevision();revActualizar();}
   if(!E._modoCable){avisoZona();const nOc=E.recintos.filter(r=>r.oculto).length,bo=$('btnRecOcultos');if(bo){bo.style.display=nOc?'':'none';bo.textContent='🙈 Mostrar recintos ocultos ('+nOc+')';}}
   const recorta=(d,fn)=>{const rc=recGeom(d);cx.save();if(rc){cx.beginPath();[rc.poly].concat(rc.poly.huecos||[]).forEach(pl=>{pl.forEach((q,i)=>{const a=aPant(q);cx[i?'lineTo':'moveTo'](a.x,a.y);});cx.closePath();});cx.clip('evenodd');}else if(E.zona&&E.zona.length>2){cx.beginPath();E.zona.forEach((q,i)=>{const a=aPant(q);cx[i?'lineTo':'moveTo'](a.x,a.y);});cx.closePath();cx.clip();}fn();cx.restore();};
   E.disp.forEach(d=>{
@@ -1797,8 +1885,8 @@ function dibujarBase(){
     if(verAud&&/bocina|parl/.test(d.tipo)&&d.radio)dibujarAudible(d,p,recorta);
   });
   if(!E._modoCable){notaModoCob();actualizarReqAud();}
-  if(!E._modoCable&&$('vCobVis').checked&&$('splModo').value!=='rec')dibujarVisComb();else if(!E._modoCable&&$('leyendaVIS'))$('leyendaVIS').style.display='none';   // el mapa visual sale con «Notificación visual» en los modos combinado y sin recintos
-  if(!E._modoCable&&$('vSPL').checked){dibujarSPL();leyendaSPL();}else if(!E._modoCable&&$('leyendaSPL'))$('leyendaSPL').style.display='none';
+  if(!E._modoCable&&!E.rev&&$('vCobVis').checked&&$('splModo').value!=='rec')dibujarVisComb();else if(!E._modoCable&&$('leyendaVIS'))$('leyendaVIS').style.display='none';   // el mapa visual sale con «Notificación visual» en los modos combinado y sin recintos
+  if(!E._modoCable&&!E.rev&&$('vSPL').checked){dibujarSPL();leyendaSPL();}else if(!E._modoCable&&$('leyendaSPL'))$('leyendaSPL').style.display='none';
   if(E._modoCable&&E.cableado)dibujarCableado();   // el cableado solo se ve en la vista del módulo 3, no en Ejecución
   if($('vModulos')&&$('vModulos').checked)E.disp.forEach(d=>{if(d.tipo==='det_co'){const p=aPant(d);sim(cx,'modulo_tc4',p.x+S*1.9,p.y,S);}});   // módulo TC4 de la base de CO
   E.disp.forEach(d=>{const p=aPant(d);if(d.giro){cx.save();cx.translate(p.x,p.y);cx.rotate(d.giro*Math.PI/180);sim(cx,d.tipo,0,0,S,{cd:d.cd});cx.restore();}else sim(cx,d.tipo,p.x,p.y,S,{cd:d.cd});if(d.manual){cx.beginPath();cx.arc(p.x,p.y,S*1.15,0,7);cx.strokeStyle='rgba(224,168,0,.9)';cx.lineWidth=2;cx.setLineDash([3,3]);cx.stroke();cx.setLineDash([]);}
@@ -3062,7 +3150,7 @@ function recopilar(completo){
   if((completo||$('chkImg').checked)&&E.img)o.plano.dataUrl=dataUrlDe(E.img,'img');
   if(completo&&E.imgMuros)o.plano.murosUrl=dataUrlDe(E.imgMuros,'muros');
   o.textosPdf=E.textosPdf||[];o.escala={n:$('escN').value,dpi:$('escDpi').value};
-  o.splOpc={modo:$('splModo').value,perd:$('splPerd').value,paso:$('splPaso').value};o.visOpc={muros:$('visMuros').value};
+  o.splOpc={modo:$('splModo').value,perd:$('splPerd').value,paso:$('splPaso').value};o.visOpc={muros:$('visMuros').value};o.revOpc={req:$('rvReq').value};
   o.cableado=E.cableado||null;o.cabCampos={};PRE_CAMPOS.forEach(i=>{o.cabCampos[i]=$(i).value;});
   return o;
 }
@@ -3075,6 +3163,7 @@ function aplicar(o){
   if(o.plano){E.imgNombre=o.plano.nombre||'';E.imgM=o.plano.m||0;E.imgX=o.plano.x||0;E.imgY=o.plano.y||0;if(o.plano.dataUrl){const im=new Image();im.onload=()=>{E.img=im;dibujar();};im.src=o.plano.dataUrl;}else if(o.plano.nombre)estado('El borrador no incluye la imagen del plano ('+o.plano.nombre+'): vuelva a cargarla y use «Aplicar escala» o calibre; las posiciones se conservan.');}
   if(o.textosPdf)E.textosPdf=o.textosPdf;
   if(o.visOpc&&o.visOpc.muros!=null)$('visMuros').value=o.visOpc.muros;
+  if(o.revOpc&&o.revOpc.req)$('rvReq').value=o.revOpc.req;
   if(o.splOpc){$('splModo').value=o.splOpc.modo||'rec';if(o.splOpc.perd)$('splPerd').value=o.splOpc.perd;if(o.splOpc.paso)$('splPaso').value=o.splOpc.paso;}
   E.cableado=o.cableado||null;if(o.cabCampos)PRE_CAMPOS.forEach(i=>{if(o.cabCampos[i]!=null&&$(i))$(i).value=o.cabCampos[i];});
   if(o.escala){if(o.escala.n)$('escN').value=o.escala.n;if(o.escala.dpi)$('escDpi').value=o.escala.dpi;}
@@ -3187,6 +3276,8 @@ function iniciar(){
   $('splPerd').innerHTML=AUDIBLE_PERDIDAS_DB.map(v=>'<option value="'+v+'"'+(v===AUDIBLE_PERDIDA_MURO_DB?' selected':'')+'>'+v+' dB</option>').join('');
   $('visMuros').innerHTML=VISUAL_MUROS_OPC.map(v=>'<option value="'+v+'"'+(v===VISUAL_MUROS_DEF?' selected':'')+'>'+v+'</option>').join('');
   $('visMuros').addEventListener('change',()=>{E._visK=null;dibujar();});
+  ['rvDet','rvVis','rvAud','rvReq'].forEach(i=>{$(i).oninput=dibujar;});
+  $('btnRvInforme').onclick=revInforme;
   ['splModo','splPerd'].forEach(i=>$(i).addEventListener('change',()=>{E._spl=null;E._visK=null;reverificar();dibujar();}));
   ['cabCableSLC','cabCableNAC'].forEach(i=>{$(i).innerHTML=CABLES.map(q=>'<option value="'+q[0]+'">'+q[1]+' '+q[2]+' · '+q[3]+' AWG · '+q[4]+' Ω/km — '+q[5]+'</option>').join('');});
   $('cabCableSLC').value='c03';$('cabCableNAC').value='c02';
@@ -3266,11 +3357,13 @@ function plegables(){
   $('plegarTodo').onclick=()=>todo(true);$('desplegarTodo').onclick=()=>todo(false);
 }
 let _lienzoInicial=true;
-function irModulo(id){
+function irModulo(id0){
+  const esRev=id0==='rev',id=esRev?'mod2':id0;   // la pestaña Revisión usa el mismo lienzo de Ejecución con otros paneles
+  E.rev=esRev;$('mod2').classList.toggle('rev',esRev);if(esRev)herramienta('sel');
   ['mod1','mod2','mod3','mod4'].forEach(m=>{$(m).style.display=(m===id)?'':'none';});
   if(id==='mod4'){actualizarPanelesCab();mostrarCableado();ajustarLienzo2();}
-  document.querySelectorAll('#tabs .seccion').forEach(b=>b.classList.toggle('activa',b.dataset.mod===id));
-  if(id==='mod2'){ajustarLienzo();if(_lienzoInicial){_lienzoInicial=false;ajustarVista();}}
+  document.querySelectorAll('#tabs .seccion').forEach(b=>b.classList.toggle('activa',b.dataset.mod===id0));
+  if(id==='mod2'){dibujar();ajustarLienzo();if(_lienzoInicial){_lienzoInicial=false;ajustarVista();}}
   window.scrollTo(0,0);
 }
 document.querySelectorAll('#tabs .seccion').forEach(b=>{b.onclick=()=>irModulo(b.dataset.mod);});

@@ -188,3 +188,15 @@ Además, un recinto con **bocina o parlante puestos a mano** que el prediseño n
 ## Valores por defecto de la barra de capas e imán
 
 Al abrir el módulo 2 la barra de capas arranca con: Detectores, Notificación visual, Notificación auditiva y Nivel sonoro **apagados**; Módulos junto a equipos, Notas de equipos y Plano **encendidos**; modo «por recinto» y puntos cada 60 cm. El **imán a esquinas y muros** ya no está en la barra de capas: pasó a la tarjeta **Herramientas** (sigue encendido por defecto; Alt lo desactiva temporalmente al dibujar).
+
+## Pestaña 4 · Revisión (planos ya entregados)
+
+Revisión de cobertura posterior a la entrega, sin recintos. Usa el mismo lienzo de Ejecución con otros paneles (se ocultan el prediseño, los recintos y los equipos de la matriz):
+
+1. Cargue el plano (en «Planta y recintos») y delimite el **área a revisar** con el aviso sobre el plano (polígono o rectángulo).
+2. Coloque los dispositivos tal como están en los planos entregados con **＋ Dispositivo**; en «Dispositivo seleccionado» se cambian tipo, candelas, montaje y giro.
+3. Active las capas de **lo que NO está cubierto**: Detección (rojo), Notificación visual (naranja) y Notificación auditiva (morado; vino si el nivel pasa de 110 dBA). Solo se pinta lo no cubierto, recortado al área.
+4. La tarjeta «Revisión de cobertura» muestra, por sistema, dispositivos, % cubierto, m² sin cobertura y estado, más los hallazgos. **Descargar informe de revisión (.html)** genera un informe con resultados, vista del plano, supuestos y limitaciones.
+
+- **Supuestos:** detección = a ≤ 0.7·S del detector (S del módulo 1); visual = tablas 18.5.5.7.1 de NFPA 72:2022 (verificar edición adoptada); auditiva = suma de potencias, −6 dB al duplicar la distancia, nivel a respetar ingresado por quien revisa (sin recintos no hay ocupación); puntos de cálculo cada 30/60/100 cm dentro del área.
+- **Limitaciones:** no considera muros, puertas, mobiliario ni cielos reales; solo revisa los dispositivos colocados en la herramienta (deben coincidir con el plano entregado); no sustituye la verificación completa contra NFPA 72. Pendiente: importar los dispositivos desde un .dxf del plano entregado (hoy se colocan a mano). Probado con dispositivos de prueba; no probado con un plano real.
