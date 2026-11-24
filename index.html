@@ -256,6 +256,7 @@
    <label style="margin:2px 0"><input type="checkbox" id="rvDet" style="width:auto" checked> <span class="rvcol" style="background:rgba(220,30,30,.7)"></span>Detección (radio de cobertura de cada detector)</label>
    <label style="margin:2px 0"><input type="checkbox" id="rvVis" style="width:auto"> <span class="rvcol" style="background:rgba(245,130,0,.8)"></span>Notificación visual (estrobos)</label>
    <label style="margin:2px 0"><input type="checkbox" id="rvAud" style="width:auto"> <span class="rvcol" style="background:rgba(120,60,200,.75)"></span>Notificación auditiva (nivel sonoro)</label>
+   <label style="margin:4px 0">Tipo de ocupación / espacio <select id="rvOcup" title="Propone el nivel sonoro a respetar según el tipo de espacio: ruido ambiente + 15 dB (NFPA 72), mínimo 75 dBA donde se duerme y máximo 110 dBA. Puede escribir otro valor abajo."></select></label>
    <label style="margin:4px 0">Nivel sonoro a respetar (dBA) <input type="number" id="rvReq" value="60" min="30" max="110" step="1" style="width:70px"></label>
    <small class="g">Sin recintos no hay ocupación de la cual sacar el nivel: ingréselo según el tipo de espacio (ambiente + 15 dB; 75 dBA donde se duerme).</small>
   </div>
@@ -3490,7 +3491,7 @@ function recopilar(completo){
   if((completo||$('chkImg').checked)&&E.img)o.plano.dataUrl=dataUrlDe(E.img,'img');
   if(completo&&E.imgMuros)o.plano.murosUrl=dataUrlDe(E.imgMuros,'muros');
   o.textosPdf=E.textosPdf||[];o.escala={n:$('escN').value,dpi:$('escDpi').value};
-  o.splOpc={modo:$('splModo').value,perd:$('splPerd').value,paso:$('splPaso').value};o.visOpc={muros:$('visMuros').value};o.revOpc={req:$('rvReq').value};
+  o.splOpc={modo:$('splModo').value,perd:$('splPerd').value,paso:$('splPaso').value};o.visOpc={muros:$('visMuros').value};o.revOpc={req:$('rvReq').value,ocup:$('rvOcup').value};
   o.cableado=E.cableado||null;o.cabCampos={};PRE_CAMPOS.forEach(i=>{o.cabCampos[i]=$(i).value;});
   E.niveles[E.nivAct]=nivelCapturar();   // los campos de arriba son los del nivel activo; los demás niveles van en «niveles»
   o.nivActivo=E.nivAct;o.niveles=E.niveles.map((n,i)=>i===E.nivAct?{nombre:n.nombre}:nivelSerial(n,completo,$('chkImg').checked));
@@ -3505,7 +3506,7 @@ function aplicar(o){
   if(o.plano){E.img=null;E.imgMuros=null;E.imgNombre=o.plano.nombre||'';E.imgM=o.plano.m||0;E.imgX=o.plano.x||0;E.imgY=o.plano.y||0;if(o.plano.dataUrl){const im=new Image();im.onload=()=>{E.img=im;dibujar();};im.src=o.plano.dataUrl;}else if(o.plano.nombre)estado('El borrador no incluye la imagen del plano ('+o.plano.nombre+'): vuelva a cargarla y use «Aplicar escala» o calibre; las posiciones se conservan.');}
   if(o.textosPdf)E.textosPdf=o.textosPdf;
   if(o.visOpc&&o.visOpc.muros!=null)$('visMuros').value=o.visOpc.muros;
-  if(o.revOpc&&o.revOpc.req)$('rvReq').value=o.revOpc.req;
+  if(o.revOpc&&o.revOpc.req)$('rvReq').value=o.revOpc.req;if(o.revOpc&&o.revOpc.ocup!=null)$('rvOcup').value=o.revOpc.ocup;
   if(o.splOpc){$('splModo').value=o.splOpc.modo||'rec';if(o.splOpc.perd)$('splPerd').value=o.splOpc.perd;if(o.splOpc.paso)$('splPaso').value=o.splOpc.paso;}
   E.cableado=o.cableado||null;if(o.cabCampos)PRE_CAMPOS.forEach(i=>{if(o.cabCampos[i]!=null&&$(i))$(i).value=o.cabCampos[i];});
   if(o.escala){if(o.escala.n)$('escN').value=o.escala.n;if(o.escala.dpi)$('escDpi').value=o.escala.dpi;}
@@ -3709,6 +3710,9 @@ function iniciar(){
   $('cabCableSLC').value='c03';$('cabCableNAC').value='c02';
   $('eqTipo').innerHTML=EQUIPOS.map(q=>'<option value="'+q[0]+'">'+q[0]+' · '+q[1]+'</option>').join('');
   $('devTipo').innerHTML=Object.keys(ROT).map(k=>'<option value="'+k+'"'+(k==='det_humo'?' selected':'')+'>'+ROT[k]+'</option>').join('');
+  $('rvOcup').innerHTML='<option value="">— personalizado —</option>'+Object.keys(TIPOS).filter(k=>TIPOS[k].amb>0).map(k=>'<option value="'+k+'">'+TIPOS[k].n+' — '+Math.round(nivelAudibleRequerido(k).req)+' dBA</option>').join('');
+  $('rvOcup').addEventListener('change',()=>{const v=$('rvOcup').value;if(!v)return;$('rvReq').value=Math.round(nivelAudibleRequerido(v).req);E._spl=null;E._rv=null;dibujar();});
+  $('rvReq').addEventListener('input',()=>{const o=$('rvOcup'),v=$('rvReq').value,k=Object.keys(TIPOS).find(t=>TIPOS[t].amb>0&&String(Math.round(nivelAudibleRequerido(t).req))===v&&o.value===t);if(!k)o.value='';});   // si se escribe un valor distinto, vuelve a «personalizado»
   $('rvTipoSim').innerHTML=Object.keys(ROT).map(k=>'<option value="'+k+'"'+(k==='det_humo'?' selected':'')+'>'+ROT[k]+'</option>').join('');
   $('devTipo2').innerHTML=Object.keys(ROT).map(k=>'<option value="'+k+'"'+(k==='det_co'?' selected':'')+'>'+ROT[k]+'</option>').join('');
   $('ed72').innerHTML=EDICIONES_72.map(e=>'<option>'+e+'</option>').join('');
