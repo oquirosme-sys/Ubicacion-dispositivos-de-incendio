@@ -259,6 +259,12 @@
    <label style="margin:4px 0">Nivel sonoro a respetar (dBA) <input type="number" id="rvReq" value="60" min="30" max="110" step="1" style="width:70px"></label>
    <small class="g">Sin recintos no hay ocupación de la cual sacar el nivel: ingréselo según el tipo de espacio (ambiente + 15 dB; 75 dBA donde se duerme).</small>
   </div>
+  <div style="margin:6px 0;border-top:1px solid var(--gb);padding-top:6px"><b style="font-size:.82rem">Detectar símbolos parecidos en el plano</b>
+   <small class="g" style="display:block">Elija el tipo, pulse el botón y dibuje un rectángulo ajustado alrededor de UN símbolo del plano: el programa busca los demás iguales y coloca un dispositivo en cada uno. Funciona sobre la imagen del plano, así que revise el resultado (Ctrl+Z deshace todo el lote).</small>
+   <select id="rvTipoSim" title="Tipo de dispositivo que representa el símbolo elegido" style="width:auto;max-width:100%"></select>
+   <label style="margin:2px 0">Parecido mínimo (%) <input type="number" id="rvParecido" value="85" min="50" max="95" step="1" style="width:64px" title="Más bajo encuentra más símbolos pero con más falsos; más alto es más estricto"></label>
+   <button class="sec" id="btnRvSimilares">🔍 Elegir símbolo y buscar iguales</button>
+  </div>
   <div id="rvResultados"><small class="g">Delimite el área a revisar para ver los resultados.</small></div>
   <button class="sec" id="btnRvInforme">Descargar informe de revisión (.html)</button>
 </section><section class="card soloEjec" id="cardRec"><h2>Recinto seleccionado</h2><div id="propRec"><small class="g">Seleccione un recinto en el lienzo (o doble clic sobre él) para cambiar su nombre, tipo y altura.</small></div></section><section class="card"><h2>Planta y recintos</h2>
@@ -1224,6 +1230,74 @@ function puntosRecinto(r,paso){
 function recortarARecinto(rc){
   cx.beginPath();[rc.poly].concat(rc.poly.huecos||[]).forEach(pl=>{pl.forEach((q,i)=>{const a=aPant(q);cx[i?'lineTo':'moveTo'](a.x,a.y);});cx.closePath();});cx.clip('evenodd');
 }
+// ---- Detección de símbolos parecidos (pestaña Revisión): el usuario encuadra UN símbolo y se buscan los demás iguales en la imagen del plano.
+// Método: se binariza la imagen (tinta/papel) a una escala en que la muestra mide ~RV_SIM_LADO_PX; se descartan ventanas cuya cantidad de tinta es muy
+// distinta a la de la muestra (integral de imagen) y las restantes se puntúan con recall (tinta de la muestra presente en la ventana, con 1 px de tolerancia)
+// y precisión (tinta de la ventana que pertenece a la muestra). Puntaje = 0.6·recall + 0.4·precisión. Luego se eliminan duplicados cercanos.
+// LIMITACIONES: no detecta símbolos girados distinto a la muestra ni a otra escala; las líneas de cableado o muros que tocan el símbolo bajan el puntaje.
+const RV_SIM_LADO_PX = 28;           // lado mayor de la muestra tras reducir (CRITERIO de rendimiento: más grande = más preciso pero más lento)
+const RV_SIM_LUM_TINTA = 200;        // luminosidad (0–255) por debajo de la cual un píxel cuenta como tinta
+const RV_SIM_TINTA_MIN = 0.5, RV_SIM_TINTA_MAX = 3;   // ventana válida: su tinta entre estas veces la de la muestra
+const RV_SIM_PESO_RECALL = 0.6;      // peso del recall en el puntaje (el resto es precisión)
+const RV_SIM_SEPARACION = 0.6;       // separación mínima entre detecciones, en veces el lado mayor de la muestra
+const RV_SIM_MAX_PX = 25e6;          // tope de píxeles de la región de búsqueda tras reducir
+const RV_SIM_MAX_DISP = 1500;        // tope de dispositivos por lote
+function tintaDe(img,x0,y0,w,h,s){
+  const W=Math.max(1,Math.round(w*s)),H=Math.max(1,Math.round(h*s)),c=document.createElement('canvas');c.width=W;c.height=H;
+  const g=c.getContext('2d',{willReadFrequently:true});g.fillStyle='#fff';g.fillRect(0,0,W,H);g.drawImage(img,x0,y0,w,h,0,0,W,H);
+  const d=g.getImageData(0,0,W,H).data,t=new Uint8Array(W*H);for(let i=0;i<t.length;i++)t[i]=(0.299*d[4*i]+0.587*d[4*i+1]+0.114*d[4*i+2])<RV_SIM_LUM_TINTA?1:0;
+  return {W,H,t};
+}
+function dilatarSim(m,W,H){const o=new Uint8Array(W*H);for(let y=0;y<H;y++)for(let x=0;x<W;x++){if(!m[y*W+x])continue;for(let j=Math.max(0,y-1);j<=Math.min(H-1,y+1);j++)for(let i=Math.max(0,x-1);i<=Math.min(W-1,x+1);i++)o[j*W+i]=1;}return o;}
+// Devuelve las posiciones (px de la imagen original) de los símbolos parecidos a la muestra [mx0,my0,mw,mh] dentro de la región [rx0,ry0,rw,rh].
+function buscarPlantilla(img,muestra,region,umbral){
+  const [mx0,my0,mw,mh]=muestra,s=Math.min(1,RV_SIM_LADO_PX/Math.max(mw,mh)),T=tintaDe(img,mx0,my0,mw,mh,s);
+  let tc=0;for(let i=0;i<T.t.length;i++)tc+=T.t[i];if(tc<4)return {err:'La muestra casi no tiene líneas (¿está sobre un fondo en blanco?). Encuadre el símbolo.'};
+  const [rx0,ry0,rw,rh]=region;if(Math.round(rw*s)*Math.round(rh*s)>RV_SIM_MAX_PX)return {err:'La región de búsqueda es demasiado grande: delimite el área de diseño más pequeña.'};
+  const R=tintaDe(img,rx0,ry0,rw,rh,s),W=R.W,H=R.H,tw=T.W,th=T.H,Rd=dilatarSim(R.t,W,H),Td=dilatarSim(T.t,tw,th);
+  const I=new Int32Array((W+1)*(H+1));for(let y=0;y<H;y++){let f=0;for(let x=0;x<W;x++){f+=R.t[y*W+x];I[(y+1)*(W+1)+x+1]=I[y*(W+1)+x+1]+f;}}
+  const ti=[];for(let y=0;y<th;y++)for(let x=0;x<tw;x++)if(T.t[y*tw+x])ti.push(y*W+x);   // tinta de la muestra como desplazamientos en la región
+  const pi=[];for(let y=0;y<th;y++)for(let x=0;x<tw;x++)pi.push([x,y,Td[y*tw+x]]);
+  const maxFalla=Math.floor((1-umbral)*ti.length/RV_SIM_PESO_RECALL*0.999),res=[];
+  for(let y=0;y<=H-th;y++)for(let x=0;x<=W-tw;x++){
+    const w=I[(y+th)*(W+1)+x+tw]-I[y*(W+1)+x+tw]-I[(y+th)*(W+1)+x]+I[y*(W+1)+x];
+    if(w<RV_SIM_TINTA_MIN*tc||w>RV_SIM_TINTA_MAX*tc)continue;
+    const o=y*W+x;let fallas=0,ok=true;
+    for(let k=0;k<ti.length;k++){if(!Rd[o+ti[k]]){if(++fallas>maxFalla){ok=false;break;}}}
+    if(!ok)continue;
+    const recall=1-fallas/ti.length;let cub=0;
+    for(let j=0;j<th;j++)for(let i=0;i<tw;i++)if(R.t[o+j*W+i]&&Td[j*tw+i])cub++;
+    const prec=w?cub/w:0,sc=RV_SIM_PESO_RECALL*recall+(1-RV_SIM_PESO_RECALL)*prec;
+    if(sc>=umbral)res.push({x:x+tw/2,y:y+th/2,sc});
+  }
+  res.sort((a,b)=>b.sc-a.sc);const sep=RV_SIM_SEPARACION*Math.max(tw,th),ok=[];
+  res.forEach(c=>{if(!ok.some(q=>Math.hypot(q.x-c.x,q.y-c.y)<sep))ok.push(c);});
+  return {pts:ok.map(c=>({px:rx0+c.x/s,py:ry0+c.y/s,sc:c.sc})),escala:s};
+}
+function buscarSimilares(a,b){
+  if(!E.img||!(E.imgM>0)){estado('Cargue el plano y fije su escala antes de buscar símbolos.');return;}
+  const x0=Math.min(a.x,b.x),y0=Math.min(a.y,b.y),x1=Math.max(a.x,b.x),y1=Math.max(a.y,b.y),
+    px=v=>(v-E.imgX)/E.imgM,py=v=>(v-E.imgY)/E.imgM,clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v)),IW=E.img.width,IH=E.img.height;
+  const mx0=clamp(Math.floor(px(x0)),0,IW-1),my0=clamp(Math.floor(py(y0)),0,IH-1),mw=clamp(Math.ceil(px(x1))-mx0,2,IW-mx0),mh=clamp(Math.ceil(py(y1))-my0,2,IH-my0);
+  let rx0=0,ry0=0,rw=IW,rh=IH;
+  if(E.zona&&E.zona.length>2){const z=bbox(E.zona);rx0=clamp(Math.floor(px(z.x0)),0,IW-1);ry0=clamp(Math.floor(py(z.y0)),0,IH-1);rw=clamp(Math.ceil(px(z.x1))-rx0,1,IW-rx0);rh=clamp(Math.ceil(py(z.y1))-ry0,1,IH-ry0);}
+  const umbral=(+$('rvParecido').value||85)/100,tipo=$('rvTipoSim').value;estado('Buscando símbolos parecidos…');
+  setTimeout(()=>{
+    const r=buscarPlantilla(E.img,[mx0,my0,mw,mh],[rx0,ry0,rw,rh],umbral);
+    if(r.err){estado(r.err);return;}
+    let pts=r.pts.map(q=>({x:E.imgX+q.px*E.imgM,y:E.imgY+q.py*E.imgM}));
+    if(E.zona&&E.zona.length>2)pts=pts.filter(p=>dentro(p,E.zona));
+    if(pts.length>RV_SIM_MAX_DISP){estado('Se encontraron '+pts.length+' coincidencias (más de '+RV_SIM_MAX_DISP+'): suba el «parecido mínimo» o encuadre mejor el símbolo.');return;}
+    if(!pts.length){estado('No se encontraron símbolos con ese parecido. Baje el «parecido mínimo» o encuadre el símbolo más ajustado.');return;}
+    $('devTipo').value=tipo;pts.forEach(p=>agregarDisp(p,{tipo},true));
+    E.selDev=null;E._spl=null;E._rv=null;propiedadesDisp();dibujar();reverificar();revActualizar();programarConfirmar();
+    estado('Se colocaron '+pts.length+' «'+(ROT[tipo]||tipo)+'» sobre símbolos parecidos (parecido ≥ '+Math.round(umbral*100)+' %). Revise el plano: borre los falsos con «Borrar» y repita con otro tipo para los demás símbolos. Ctrl+Z deshace el lote.');
+  },30);
+}
+$('btnRvSimilares').onclick=()=>{
+  if(!E.img){estado('Cargue primero el plano (Planta y recintos → Cargar plano).');return;}
+  herramienta('rect');E.modoPlantilla=true;estado('Dibuje un rectángulo ajustado alrededor de UN símbolo (clic en dos esquinas opuestas; acérquese con la rueda del ratón para mayor precisión).');
+};
 function zonaSig(){return E.zona?E.zona.map(q=>q.x.toFixed(2)+','+q.y.toFixed(2)).join(';'):'';}
 // Rejilla de puntos alrededor de unos dispositivos (sin depender de recintos): caja de los dispositivos ampliada «ext» metros.
 function rejillaLibre(devs,ext){
@@ -1907,7 +1981,7 @@ function dibujarBase(){
 }
 function estado(t){$('estado').textContent=t;}
 // Agrega un dispositivo a mano en el punto p, con valores por defecto del recinto que lo contiene (se suma a los automáticos).
-function agregarDisp(p,pl){   // pl: dispositivo plantilla (para «agregar similares»); sin plantilla usa el tipo elegido en la barra
+function agregarDisp(p,pl,lote){   // pl: dispositivo plantilla (para «agregar similares»); sin plantilla usa el tipo elegido en la barra
   const t=pl?pl.tipo:$('devTipo').value,o=opciones(),rc=recintoMin(p),A=rc&&(E.audPorRec||{})[rc.id];
   const d={id:E.seq++,tipo:t,x:p.x,y:p.y,sala:rc?rc.nombre:'Manual',rid:rc?rc.id:undefined,manual:true,agregado:true};
   if(/estrobo/.test(t)){
@@ -1922,10 +1996,11 @@ function agregarDisp(p,pl){   // pl: dispositivo plantilla (para «agregar simil
   }
   if(t==='det_humo'||t==='det_calor')d.radio=(t==='det_humo'?o.espH:o.espC)*FACTOR_RADIO_COBERTURA;
   E.disp.push(d);const x=E.resultados.find(z=>rc&&z.r.id===rc.id);if(x)x.disp.push(d);
+  if(lote)return d;   // en lote (detección de símbolos) se refresca una sola vez al final
   E.selDev=d.id;E._spl=null;propiedadesDisp();dibujar();reverificar();
   estado('Agregado «'+(ROT[t]||t)+'» en '+d.sala+'. Siga haciendo clic para agregar más iguales; Esc o «Seleccionar» para terminar. Se conserva al volver a generar.');
 }
-function herramienta(h){E.herr=h;E.modoZona=false;E.borrador=[];E.calib=[];E.edit=null;E.pegando=null;['tSel','tRec','tRect','tRell','tSal','tFacp','tAhu','tAsc','tEq','tBor','tDev'].forEach(id=>$(id).classList.toggle('act',id==={sel:'tSel',rec:'tRec',rect:'tRect',rell:'tRell',salida:'tSal',facp:'tFacp',ahu:'tAhu',asc:'tAsc',eq:'tEq',bor:'tBor',dev:'tDev'}[h]));
+function herramienta(h){E.herr=h;E.modoZona=false;E.modoPlantilla=false;E.borrador=[];E.calib=[];E.edit=null;E.pegando=null;['tSel','tRec','tRect','tRell','tSal','tFacp','tAhu','tAsc','tEq','tBor','tDev'].forEach(id=>$(id).classList.toggle('act',id==={sel:'tSel',rec:'tRec',rect:'tRect',rell:'tRell',salida:'tSal',facp:'tFacp',ahu:'tAhu',asc:'tAsc',eq:'tEq',bor:'tBor',dev:'tDev'}[h]));
   const m={sel:'Clic sobre un recinto para seleccionarlo.',rec:'Clic para cada vértice; doble clic o Enter para cerrar; Esc cancela.',rect:'Clic en dos esquinas opuestas del recinto.',rell:'Clic dentro de un recinto del plano: se rellena hasta los muros.',salida:'Clic para colocar una salida.',facp:'Clic para colocar el FACP/recepción.',ahu:'Clic para colocar una manejadora de aire.',asc:'Clic para colocar un vestíbulo de ascensor.',bor:'Clic sobre un recinto o marcador para borrarlo.',cal:'Clic en 2 puntos de distancia conocida.'}[h];estado(m||'');dibujar();}
 // Nombre de un recinto a partir de los textos del plano (PDF) que caen dentro de su contorno; '' si no hay plano o no hay texto.
 function nombrePlano(poly){
@@ -2467,7 +2542,7 @@ window.addEventListener('keyup',e=>{if(e.code==='Space')espacio=false;});
 // Si ya no había nada activo, quita la selección. Va en fase de captura para que ningún otro manejador lo bloquee.
 function soltarTodo(){
   const habia=E.herr!=='sel'||E.borrador.length||E.calib.length||E.edit||E.pegando||E.moverDisp||E.moverMarca||E.modoZona||espacio||arr||arrV||arrD||arrM||arrR;
-  E.borrador=[];E.calib=[];E.modoZona=false;E.moverMarca=null;E.moverDisp=null;E.edit=null;E.pegando=null;
+  E.borrador=[];E.calib=[];E.modoZona=false;E.modoPlantilla=false;E.moverMarca=null;E.moverDisp=null;E.edit=null;E.pegando=null;
   arr=arrV=arrD=arrM=arrR=null;espacio=false;movio=false;suprimir=false;
   ocultarMenu();
   if(E.herr!=='sel')herramienta('sel');
@@ -2488,6 +2563,7 @@ cv.addEventListener('mousemove',e=>{E.cursor=mundoDeEvento(e);
     if(!A&&$('splModo').value==='libre'){const v=nivelSonoroComb(E.cursor,todosAudibles(),0,null);if(isFinite(v))estado('Nivel sonoro aquí: '+v.toFixed(0)+' dBA (todos los dispositivos, sin contar muros) · máx. permitido '+AUDIBLE_MAX_DBA+' dBA (NFPA 72 §18.4)');}
     if(A){const v=nivelSonoroEn(E.cursor,rr.id);estado('Nivel sonoro aquí: '+(isFinite(v)?v.toFixed(0):'—')+' dBA · requerido '+A.req.toFixed(0)+' dBA en «'+rr.nombre+'» · máx. permitido '+AUDIBLE_MAX_DBA+' dBA (NFPA 72 §18.4)');}}});
 function crearRect(a,b){
+  if(E.modoPlantilla){E.modoPlantilla=false;E.borrador=[];herramienta('sel');buscarSimilares(a,b);return;}   // símbolo de muestra para la detección en Revisión
   if(Math.abs(b.x-a.x)*Math.abs(b.y-a.y)<AREA_MIN_RECINTO_M2){E.borrador=[];dibujar();estado('Rectángulo demasiado pequeño.');return;}
   if(E.modoZona){   // área de diseño: limita los mapas sin recintos; no es un recinto
     E.zona=[{x:a.x,y:a.y},{x:b.x,y:a.y},{x:b.x,y:b.y},{x:a.x,y:b.y}];E.modoZona=false;E.borrador=[];E._spl=null;E._visK=null;herramienta('sel');
@@ -3207,7 +3283,7 @@ function nivelCargar(n){
   E.recintos=n.recintos||[];E.marcas=n.marcas||[];E.disp=n.disp||[];E.zona=n.zona||null;E.img=n.img||null;E.imgNombre=n.imgNombre||'';E.imgM=n.imgM||0;E.imgX=n.imgX||0;E.imgY=n.imgY||0;
   E.imgMuros=n.imgMuros||null;E.textosPdf=n.textosPdf||[];E.cableado=n.cableado||null;
   if(n.escN)$('escN').value=n.escN;if(n.escDpi)$('escDpi').value=n.escDpi;
-  E.sel=null;E.selDev=null;E.edit=null;E.pegando=null;E.borrador=[];E.calib=[];E.moverDisp=null;E.moverMarca=null;E.modoZona=false;
+  E.sel=null;E.selDev=null;E.edit=null;E.pegando=null;E.borrador=[];E.calib=[];E.moverDisp=null;E.moverMarca=null;E.modoZona=false;E.modoPlantilla=false;
   E._spl=null;E._splK=null;E._visK=null;E._rv=null;
   reconstruirResultados();tablaEquipos();propiedades();propiedadesDisp();
   if(n.vista)E.vista=Object.assign({},n.vista);else ajustarVista();
@@ -3371,6 +3447,7 @@ function iniciar(){
   $('cabCableSLC').value='c03';$('cabCableNAC').value='c02';
   $('eqTipo').innerHTML=EQUIPOS.map(q=>'<option value="'+q[0]+'">'+q[0]+' · '+q[1]+'</option>').join('');
   $('devTipo').innerHTML=Object.keys(ROT).map(k=>'<option value="'+k+'"'+(k==='det_humo'?' selected':'')+'>'+ROT[k]+'</option>').join('');
+  $('rvTipoSim').innerHTML=Object.keys(ROT).map(k=>'<option value="'+k+'"'+(k==='det_humo'?' selected':'')+'>'+ROT[k]+'</option>').join('');
   $('devTipo2').innerHTML=Object.keys(ROT).map(k=>'<option value="'+k+'"'+(k==='det_co'?' selected':'')+'>'+ROT[k]+'</option>').join('');
   $('ed72').innerHTML=EDICIONES_72.map(e=>'<option>'+e+'</option>').join('');
   $('ed101').innerHTML=EDICIONES_101.map(e=>'<option>'+e+'</option>').join('');aplicarJurisdiccion();
