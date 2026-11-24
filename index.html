@@ -299,6 +299,7 @@
    <button class="sec" id="btnCOCocina" title="Pone un detector de CO en cada recinto tipo cocina, lavandería, cuarto de máquinas o parqueo que aún no lo tenga">＋ CO en cocinas y recintos con combustión</button>
   </div>
 </section><section class="card"><h2>Archivo</h2>
+  <button class="sec" id="btnNuevo" title="Empieza un proyecto en blanco (plano, recintos, dispositivos y opciones), para prediseño o para revisión de un plano entregado">＋ Nuevo proyecto (en blanco)</button>
   <button class="sec" id="btnGuardar">Guardar borrador (.json)</button>
   <button class="sec" id="btnAbrir">Abrir borrador…</button>
   <input type="file" id="fileBorr" accept=".json" class="sinoche">
@@ -3223,6 +3224,15 @@ $('chkAuto').onchange=async()=>{
 $('btnOlvidar').onclick=async()=>{
   if(!confirm('Se borra lo guardado en este navegador (no afecta los borradores .json que haya descargado). La hoja actual no cambia hasta que recargue. ¿Continuar?'))return;
   try{await idbBorrar('borrador');$('autoEstado').textContent='Se borró lo guardado en este navegador.';}catch(e){$('autoEstado').textContent='No se pudo borrar: '+e;}
+};
+// Nuevo proyecto: se descarta lo guardado en el navegador y se recarga la página, que arranca con todos los valores por defecto.
+// Se pide confirmación porque lo no guardado en un .json se pierde.
+$('btnNuevo').onclick=async()=>{
+  const hay=E.recintos.length||E.disp.length||E.img||E.zona;
+  if(hay&&!confirm('Se empieza un proyecto en blanco: se pierden el plano, los recintos, los dispositivos y las opciones actuales.\n\nSi quiere conservarlos, cancele y use antes «Guardar borrador (.json)».\n\n¿Empezar un proyecto nuevo?'))return;
+  _auto.listo=false;clearTimeout(_auto.t);   // evita que el guardado al cerrar la pestaña vuelva a escribir el proyecto viejo
+  try{await idbBorrar('borrador');}catch(e){}
+  location.reload();
 };
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')guardarAhora();});
 document.addEventListener('change',programarAutoguardado);document.addEventListener('input',programarAutoguardado);

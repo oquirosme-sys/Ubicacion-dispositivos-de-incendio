@@ -68,6 +68,7 @@ Un recinto cuyo contorno cae por completo dentro de otro se trata como subrecint
 
 ## Guardado en el navegador
 - El trabajo (proyecto, plano, recintos, dispositivos, coberturas ocultas) se guarda solo en IndexedDB de este navegador y se restaura al recargar la página o al publicar una mejora; no usa cookies ni localStorage. Casilla «Recordar mi trabajo en este navegador» (Archivo) para activarlo o desactivarlo y botón «Olvidar lo guardado».
+- **Nuevo proyecto**: botón «＋ Nuevo proyecto (en blanco)» al inicio de la tarjeta Archivo. Pide confirmación (lo no guardado en un .json se pierde), borra lo guardado en el navegador y recarga la página con todos los valores por defecto, lista para un prediseño o para la pestaña Revisión de un plano entregado.
 - Es local a ese equipo y navegador: el borrador .json sigue siendo el medio portátil (ahora también restaura los resultados de cada recinto sin mover dispositivos).
 - Nota para la norma de herramientas Sinergia: esta herramienta se aparta de «no persistir en el navegador» porque el usuario lo pidió expresamente; es opcional y desactivable.
 
