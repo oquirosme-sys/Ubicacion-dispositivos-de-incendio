@@ -541,7 +541,9 @@ const AUDIBLE_DB_POR_DUPLICAR = 6;
 // Radio mínimo en pantalla (px) para dibujar un anillo de nivel sonoro (CRITERIO de legibilidad).
 const AUDIBLE_ANILLO_MIN_PX = 6;
 // Relleno del anillo de cobertura auditiva: casi transparente para ver el plano (los anillos y sus rótulos llevan la información).
-const AUDIBLE_RELLENO_ANILLO = 'rgba(30,150,70,0.05)';
+const AUDIBLE_RELLENO_ANILLO = 'rgba(30,150,70,0.02)';   // los rellenos de varios anillos se suman: debe ser casi transparente
+// Rótulos de dBA: texto oscuro con un halo blanco para que se lean sobre el plano y los rellenos.
+const AUDIBLE_ROTULO_COLOR = 'rgba(18,49,79,.9)', AUDIBLE_ROTULO_HALO = 'rgba(255,255,255,.9)', AUDIBLE_ROTULO_HALO_PX = 3;
 // Lados de los cuadrados anidados que se dibujan en la cobertura visual (m): 20, 30, 40, 50, 60 y 70 ft de las tablas
 // 18.5.5.7.1(a)/(b) de NFPA 72:2022 (V22). Ancho mínimo en pantalla (px) para escribir su rótulo (CRITERIO de legibilidad).
 const COBERTURA_VISUAL_LADOS_M = [6.1, 9.1, 12.2, 15.2, 18.3, 21.3];
@@ -1519,15 +1521,15 @@ function dibujarAudible(d,p,recorta){
   if(d.dba3&&req){for(let i=0;;i++){const dist=AUDIBLE_DIST_REF_M*Math.pow(2,i),nivel=d.dba3-AUDIBLE_DB_POR_DUPLICAR*i;if(nivel<=req||dist>=rMax)break;anillos.push({r:dist,v:nivel,t:Math.round(nivel)+' dBA'});}}
   anillos.push({r:rMax,v:req||0,t:(req?Math.round(req):'')+' dBA',borde:true});
   recorta(d,()=>{anillos.forEach(a=>{if(a.r*k<AUDIBLE_ANILLO_MIN_PX)return;cx.beginPath();cx.arc(p.x,p.y,a.r*k,0,7);
-    if(a.borde&&!conMapa){cx.fillStyle=AUDIBLE_RELLENO_ANILLO;cx.fill();}   // relleno muy tenue: se ve el plano debajo
+    if(a.borde&&!conMapa&&!E.rev){cx.fillStyle=AUDIBLE_RELLENO_ANILLO;cx.fill();}   // relleno muy tenue: se ve el plano debajo
     cx.strokeStyle=colorNivelSPL(a.v,req||0,a.borde?0.85:0.45,a.borde?0.95:0.8);cx.lineWidth=a.borde?1.8:1.1;cx.stroke();});});
-  cx.fillStyle='rgba(18,49,79,.6)';cx.font='10px Arial';cx.textAlign='center';cx.textBaseline='bottom';   // mismo color de rótulo que el mapa de dBA
+  cx.font='bold 10px Arial';cx.lineJoin='round';cx.lineWidth=AUDIBLE_ROTULO_HALO_PX;
   const rcL=recGeom(d);   // el rótulo solo se escribe si cae dentro del recinto y del área de diseño (si no, queda flotando fuera del edificio)
   // El rótulo de cada anillo se repite en 4 puntos (arriba, abajo, derecha e izquierda), cada uno solo si cae dentro del recinto y del área de diseño.
   const PTS=[{dx:0,dy:-1,al:'center',bl:'bottom',ox:0,oy:-2},{dx:0,dy:1,al:'center',bl:'top',ox:0,oy:2},{dx:1,dy:0,al:'left',bl:'middle',ox:3,oy:0},{dx:-1,dy:0,al:'right',bl:'middle',ox:-3,oy:0}];
   anillos.forEach(a=>{if(a.r*k<AUDIBLE_ANILLO_MIN_PX*2)return;
     PTS.forEach(t=>{const q={x:d.x+t.dx*a.r,y:d.y+t.dy*a.r};if(rcL&&!enRecinto(q,rcL.poly))return;if(E.zona&&E.zona.length>2&&!dentro(q,E.zona))return;
-      cx.textAlign=t.al;cx.textBaseline=t.bl;cx.fillText(a.t,p.x+t.dx*a.r*k+t.ox,p.y+t.dy*a.r*k+t.oy);});});
+      cx.textAlign=t.al;cx.textBaseline=t.bl;const tx=p.x+t.dx*a.r*k+t.ox,ty=p.y+t.dy*a.r*k+t.oy;cx.strokeStyle=AUDIBLE_ROTULO_HALO;cx.strokeText(a.t,tx,ty);cx.fillStyle=AUDIBLE_ROTULO_COLOR;cx.fillText(a.t,tx,ty);});});
 }
 // Nivel audible requerido en un tipo de recinto: ambiente supuesto + 15 dB (NFPA 72 modo público), no menos que el mínimo del estándar
 // de cadena, y áreas de dormir ≥ 75 dBA. El ambiente por tipo es un criterio de prediseño, no un valor normativo.
@@ -1629,7 +1631,7 @@ function dibujarSPL(){
       cx.fillStyle=mal?'rgba(220,30,30,.85)':'rgba(30,150,70,'+(0.45+0.4*Math.min(1,(c.v-c.req)/20)).toFixed(2)+')';   // rojo = fuera de parámetros
       cx.beginPath();cx.arc(a.x,a.y,rad,0,7);cx.fill();
       const i=Math.round(c.x/paso-.5),j=Math.round(c.y/paso-.5);   // rótulo solo en algunos puntos si están muy juntos en pantalla
-      if(w*stride>=AUDIBLE_MAPA_ETIQUETA_PX&&i%stride===0&&j%stride===0){cx.fillStyle='rgba(18,49,79,.7)';cx.fillText(isFinite(c.v)?Math.round(c.v):'—',a.x,a.y-rad-5);}});
+      if(w*stride>=AUDIBLE_MAPA_ETIQUETA_PX&&i%stride===0&&j%stride===0){const tt=isFinite(c.v)?Math.round(c.v):'—';cx.lineJoin='round';cx.lineWidth=AUDIBLE_ROTULO_HALO_PX;cx.strokeStyle=AUDIBLE_ROTULO_HALO;cx.strokeText(tt,a.x,a.y-rad-5);cx.fillStyle=AUDIBLE_ROTULO_COLOR;cx.fillText(tt,a.x,a.y-rad-5);}});
     cx.restore();});
 }
 // Dispositivos encimados: a menos de SOLAPE_DIST_M uno de otro (o en el mismo punto) un símbolo tapa al otro en el plano y quedarían
